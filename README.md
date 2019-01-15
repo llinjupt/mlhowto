@@ -7,3 +7,5 @@
 该文档还在不断增加完善中......，如果您对本文档有任何疑问，见解或者指导，请 Email 到 lli_njupt@163.com。
 
 通过点击 `在readthedocs中显示当前文档 <https://mlhowto.readthedocs.io/en/latest/>`_ 可以浏览该文档的最新版本。
+
+关于 Python 基础学习移步这里 [数据科学和机器学习](https://pythonhowto.readthedocs.io/en/latest/)。
