@@ -9,7 +9,7 @@
 
 通过点击 `在readthedocs中显示当前文档 <https://mlhowto.readthedocs.io/en/latest/>`_ 可以浏览该文档的最新版本。
 
-关于Python 基础学习移步这里 `数据科学和机器学习 <https://mlhowto.readthedocs.io/en/latest/>`_ 。
+关于Python 基础学习移步这里 `Python 从入门到深入 <https://pythonhowto.readthedocs.io/zh_CN/latest/>`_ 。
 
 .. toctree::
   :maxdepth: 2
