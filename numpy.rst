@@ -226,6 +226,30 @@ zeros() 生成全 0 数组， empty 生成未初始化值的数组。
   [[         0          0          0 1070596096          0]
    [1071644672          0 1072168960          0 1072693248]]
 
+like 生成函数
+`````````````
+
+有些用于创建数组的函数名后缀为 _like，它与原函数功能类似，只是第一个参数是一个现成的数组，参考它的 shape 来生成特定数组。类似的函数有：
+
+  ================ ===================
+  Like 函数        描述
+  ================ ===================
+  empty_like       元素未初始化的数组
+  zeros_like       全 0 数组
+  ones_like        全 1 数组
+  full_like        填充给定的数字
+  ================ ===================
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(np.zeros_like([[1,1],[2,2]]))
+  
+  >>>
+  [[0 0]
+   [0 0]]
+
 全1数组
 ``````````
 
@@ -1520,13 +1544,13 @@ split() 可以指定用于分割的轴，其余参数与 vsplit() 和 hsplit() �
 
 .. _array_scalar:
 
-数组和标量
+算术运算
 ~~~~~~~~~~~~
 
 算术运算符
 ``````````````
 
-数组和标量之间的运算类似 Python 中的数学运算，支持运算符 + - \* / //（地板除），\*\* （幂） %（取余）等。
+数组和标量之间的运算类似 Python 中的算术运算，支持运算符 + - \* / //（地板除），\*\* （幂） %（取余）等。
 
 数组中所有元素均和标量发生对应运算。数组和标量运算符合交换律。
 
@@ -1620,7 +1644,168 @@ split() 可以指定用于分割的轴，其余参数与 vsplit() 和 hsplit() �
   ======== ================ ===============
 
 其他数学函数
-``````````````````
+~~~~~~~~~~~~~~
+
+数值修约
+```````````
+
+数值修约，又称数字修约，是指在数值进行运算前, 按照一定的规则确定一致的位数，然后舍去某些数字后面多余的尾数的过程。比如 4 舍 5 入就属于数值修约中的一种。
+
+  ================== ===============
+  函数名称           描述
+  ================== ===============
+  np.around(A,n,out) 四舍五入到指定的小数位 n，默认 0
+  np.round(A,n,out)  等价于 np.around 
+  np.rint(A)         圆整每个元素到最接近的整数，保留dtype
+  np.fix(A,out)      向原点 0 舍入到最接近的整数，out可选，拷贝返回值
+  np.floor(A)        上取整，取数轴上右侧最接近的整数
+  np.ceil(A)         下取整，取数轴上左侧最接近的整数
+  np.trunc(A,out)    截断到整数
+  ================== ===============
+
+由于 python2.7 以后的 round 策略使用的是 decimal.ROUND_HALF_EVEN，也即整数部分为偶数则舍去，奇数则舍入，这有利于更好地保证数据的精确性。numpy 的四舍五入同样使用此策略。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(round(2.55, 1))  # 2.5
+  
+  import decimal
+  from decimal import Decimal
+  context = decimal.getcontext() 
+  context.rounding = decimal.ROUND_05UP
+  print(round(Decimal(2.55), 1))         # 2.6
+  
+  >>>
+  2.5
+  2.6
+
+以上是 python 自带的 round 函数示例，可以通过调整 decimal 四舍五入策略，并数值转化为 Decimal 对象来获取通常意义的四舍五入数值。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 四舍五入，round 等价于 around 函数
+  print('np.around([1.43,-1.55]):\t', np.around([1.43,-1.55]), 1)
+  print('np.round(1.43,-1.55):\t\t', np.round([1.43,-1.55], 1))
+  
+  # 圆整每个元素到最接近的整数
+  print('np.rint([0.5,1.5)):\t\t', np.around([0.5,1.5]))
+  
+  # 向原点 0 舍入到最接近的整数
+  print('np.fix([-0.9,1.9)):\t\t', np.fix([-0.9, 1.9]))
+  
+  >>>
+  np.around([1.43,-1.55]):         [ 1. -2.] 1
+  np.round(1.43,-1.55):            [ 1.4 -1.6]
+  np.rint([0.5,1.5)):              [ 0.  2.]
+  np.fix([-0.9,1.9)):              [-0.  1.]
+
+上下取整示例：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print('np.ceil([-0.9,1.9)):\t\t', np.ceil([-0.1, 1.9]))
+  print('np.floor([-0.9,1.9)):\t\t', np.floor([-0.1, 1.9]))
+  
+  >>>
+  np.ceil([-0.9,1.9)):             [-0.  2.]
+  np.floor([-0.9,1.9)):            [-1.  1.]
+
+截断到整数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print('np.trunc([-0.9,1.9)):\t\t', np.trunc([-0.1, 1.9]))  
+  
+  >>>
+  np.trunc([-0.9,1.9)):            [-0.  1.]
+  
+三角函数
+```````````
+
+  ================ ===============
+  函数名称         描述
+  ================ ===============
+  np.sin(A)        正弦函数
+  np.cos(A)        余弦函数
+  np.tan(A)        正切函数
+  np.arcsin(A)     反正弦函数
+  np.arccos(A)     反余弦函数 
+  np.arctan(A)     反正切函数
+  np.hypot(A1,A2)  直角三角形求斜边
+  np.degrees(A)    弧度转换为度
+  np.rad2deg(A)    弧度转换为度 
+  np.radians(A)    度转换为弧度
+  np.deg2rad(A)    度转换为弧度 
+  ================ ===============
+
+示例中使用的均是数值，不要忘记，在 numpy 中这些函数自然是支持数组的。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print('np.sin(np.pi):\t', np.sin(np.pi/2))
+  print('np.cos(np.pi/2):\t', np.cos(np.pi/2))
+  print('np.tan(np.pi/4):\t', np.tan(np.pi/4))
+
+  >>>
+  np.sin(np.pi):   1.0
+  np.cos(np.pi/2):         6.12323399574e-17
+  np.tan(np.pi/4):         1.0
+  
+  print('np.arcsin(1):\t', np.sin(1))
+  print('np.arccos(-1):\t', np.cos(-1))
+  print('np.arctan(1):\t', np.tan(1))
+
+  >>>
+  np.arcsin(1):    0.841470984808
+  np.arccos(-1):   0.540302305868
+  np.arctan(1):    1.55740772465
+  
+  # 直角三角形求斜边
+  print('np.hypot(3,4):\t', np.hypot(3,4))
+  
+  >>>
+  np.hypot(3,4):   5.0
+    
+  # 弧度转换为度，两函数等价 
+  print('np.rad2deg(np.pi/2):\t', np.rad2deg(np.pi/2))
+  print('np.degrees(np.pi/2):\t', np.degrees(np.pi/2))
+  
+  # 度转换为弧度，两函数等价 
+  print('np.radians(180):\t', np.radians(180))
+  print('np.deg2rad(180):\t', np.deg2rad(180)) 
+  
+  >>>
+  np.rad2deg(np.pi/2):     90.0
+  np.degrees(np.pi/2):     90.0
+  np.radians(180):         3.14159265359
+  np.deg2rad(180):         3.14159265359  
+
+双曲函数
+``````````````
+
+  ================ ===============
+  函数名称         描述
+  ================ ===============
+  np.sinh(A)       双曲正弦
+  np.cosh(A)       双曲余弦
+  np.tanh(A)       双曲正切
+  ny.arcsinh(A)    反双曲正弦
+  np.arccosh(A)    反双曲余弦
+  np.arctanh(A)    反双曲正切
+  ================ ===============
+
+其他数学函数
+```````````````
 
 有些数学函数没有对应的运算符，例如：
 
@@ -1629,22 +1814,12 @@ split() 可以指定用于分割的轴，其余参数与 vsplit() 和 hsplit() �
   ================ ===============
   np.abs(A)        绝对值，np.absolute() 的缩写
   np.reciprocal(A) 求倒数，和 1/A 有区别，默认不做类型转换，也即 1/2 = 0
-  np.around(A)     四舍五入圆整
-  np.rint(A)       圆整每个元素到最近的整数，保留dtype
-  np.floor(A)      上取整
-  np.ceil(A)       下取整
   np.exp(A)        以 e 为底的指数运算 e**A
   np.exp2(A)       以 2 为底的指数运算 2**A
   np.power(2, A)   通用指数函数
   np.log(A)        以 e 为底的对数运算 ln(A)
   np.log2(A)       以 2 为底的对数运算 log2(A)
   np.log10(A)       以 2 为底的对数运算 log10(A)
-  np.sin(A)        正弦函数
-  np.cos(A)        余弦函数
-  np.tan(A)        正切函数
-  np.arcsin(A)     反正弦函数
-  np.arccos(A)     反余弦函数 
-  np.arctan(A)     反正切函数
   ================ ===============
 
 np.reciprocal(A) 和 1/A 并不等同，它默认的结果数组和原数组类型相同：
@@ -1677,7 +1852,7 @@ np.reciprocal(A) 和 1/A 并不等同，它默认的结果数组和原数组类�
   [[ 0.          0.63092975]
   [ 1.          1.26185951]]
 
-NumPy 还提供了很多通用函数， 包括双曲三角函数、 比特位运算、 比较运算符、 弧度转化为角度的运算等等。
+NumPy 还提供了很多通用函数， 包括比特位运算、 比较运算符等等。
 
 通用函数特性
 ~~~~~~~~~~~~~~~
@@ -2659,7 +2834,9 @@ slogdet 用于求行列式的符号和以自然数 e 为底的对数：
 QR 因式分解
 ``````````````
 
-QR 分解是将矩阵分解为一个正交矩阵与上三角矩阵的乘积。A = Q.dot(R)，如果 A.shape(m,n)，则 Q.shape(m,m)，R.shape(m,n)。
+QR 分解是将矩阵分解为一个正交矩阵与上三角矩阵的乘积。A = Q.dot(R)，如果 A.shape(m,n)，则 Q.shape(m,n)，R.shape(n,n)。
+
+Q 的各列由 A 的一组标准正交基构成，并且 Q 的转置点乘 Q 等于单位矩阵。R 则是上三角矩阵。
 
 .. code-block:: python
   :linenos:
@@ -2690,10 +2867,58 @@ QR 分解是将矩阵分解为一个正交矩阵与上三角矩阵的乘积。A 
   [[ 0.  1.  2.]
    [ 3.  4.  5.]]  
 
-最小二乘解
-```````````````
+验证 Q 的转置点乘 Q 等于单位矩阵：
 
-lstsq （LeaST SQuare 的缩写）函数用最小二乘法拟合数据得到一个形如y = mx + c的线性方程，也即目标是求出参数 m 和 c。 
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  print(Q.T.dot(Q))
+  
+  >>>
+  [[ 1.  0.]
+   [ 0.  1.]]
+
+QR 求最小二乘解
+```````````````````
+
+QR 分解常用于求取 Ax = b 的最小二乘解（结果差值的平方和的开方根最小），求取公式为 x = inv(R) * (Q.T) * b：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  # 求解 Ax = b 的最小二成解 x = [[Xa],[Xb]]
+  A = np.array([[0, 1], [1, 1], [1, 1], [2, 1]])
+  b = np.array([[1], [0], [2], [1]])
+  
+  Q, R = la.qr(A)
+  lst = la.inv(R).dot(Q.T.dot(b))
+  print(lst)
+
+  >>>
+  [[  2.22044605e-16] # Xa = 0 Xb = 1 是最小二乘解
+   [  1.00000000e+00]]  
+
+以上过程等同于求解以下线性方程组的最小二乘解：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  0Xa + 1Xb = 1
+  1Xa + 1Xb = 0
+  1Xa + 1Xb = 2
+  2Xa + 1Xb = 1
+
+也可以理解为对 A 中的列向量如何进行 X1 和 X2 的权重组合来最接近向量 b。矩阵理论证明 b 距离 X1 和 X2 构成的空间的最短距离是向该空间的正交投影点，所以 X1 和 X2 组合成的向量如果构成 b 的正交投影向量，那么 X1 和 X2 就是最小二乘解。
+
+最小二乘法拟合直线
+````````````````````
+
+lstsq （LeaST SQuare 的缩写）函数用最小二乘法拟合数据，得到一个形如 y = mx + c 的线性函数，也即目标是求出参数 m 和 c。 
+
+求得的结果 m 和 c 满足所有点距直线的距离的平方和的平方根最小。
 
 .. code-block:: python
   :linenos:
@@ -2702,7 +2927,9 @@ lstsq （LeaST SQuare 的缩写）函数用最小二乘法拟合数据得到一�
   # 以 y = m*x + c 直线为例 
   x = np.array([0, 1, 2, 3, 4])
   y = np.array([-1, 0.2, 0.9, 2.1, 3])
-  A = np.vstack([x, np.ones(len(x))]).T
+
+  # 增加对应常数项 c 的列
+  A = np.vstack([x, np.ones(x.shape[0])]).T 
   m, c = np.linalg.lstsq(A, y)[0]
 
 为了查看效果，我们把 x,y 构成的点，和返回的拟合直线画出来：
@@ -2777,6 +3004,9 @@ lstsq （LeaST SQuare 的缩写）函数用最小二乘法拟合数据得到一�
   NormInf: 4.0
   Norm-Inf: 0.0
 
+向量距离和角度
+````````````````
+
 由于 u.dot(v) = \|u\|\|u\|cosa， 可以借助 2 范数求两个向量的夹角 a：
 
 .. code-block:: python
@@ -2788,14 +3018,79 @@ lstsq （LeaST SQuare 的缩写）函数用最小二乘法拟合数据得到一�
       V1 = np.array(V1)
 
       cos_rad = V0.dot(V1) / (la.norm(V0, 2)*la.norm(V1, 2))
-      return np.arccos(cos_rad) * 180 / np.pi
+      return np.rad2deg(np.arccos(cos_rad))
 
   print(vector_angle([0,1], [1,0]))
   
   >>>
   90.0
 
-cosa 在统计学中也被称为 u 和 v 的相关系数，它越小说明相关性越大。
+cosa 在统计学中也被称为 u 和 v 的相关系数，它越大说明夹角越小，相关性越大。
+
+范数也可以用来计算两个向量间的距离，即两个向量相减得到的新向量的 2 范数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def vector_dist(V0, V1):
+      V0 = np.array(V0)
+      V1 = np.array(V1)
+          
+      return la.norm(V1 - V0)
+  
+  print(vector_dist([0,1],[0,3]))
+  
+  >>>  
+  2.0
+
+向量正交投影
+````````````````
+
+.. figure:: imgs/mpl/proj.png
+  :scale: 80%
+  :align: center
+  :alt: proj
+
+  二维向量正交投影
+
+图中的 Vproj 为 Vy 在 Vu 上的投影，从点 Vy 到点 Vproj 是 Vy 到 Vu 所在直线上的最短距离 L，L 垂直于 Vu。
+
+如果把 L 看做一个向量，那么 Vy = Vproj + L。由于 L 垂直于 Vu，这是两个正交向量。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  from numpy import linalg as la
+  
+  # 计算Vy 在 Vu 上的正交投影，返回的是投影向量
+  def vector_proj(Vu, Vy):
+      Vu = np.array(Vu)
+      Vy = np.array(Vy) 
+      
+      return (Vy.dot(Vu)/Vu.dot(Vu)) * Vu
+  
+  # 返回最短距离
+  def vector_proj_dist(Vu, Vy):
+      Vproj = vector_proj(Vu, Vy)
+      return la.norm(Vproj - Vy)
+
+  Vu = np.array([4,2])
+  Vy = np.array([7,6])
+  Vproj = vector_proj(Vu, Vy) 
+  print(Vproj)
+  print(vector_proj_dist(Vu, Vy))
+  
+  >>>
+  [ 8.  4.]
+  2.2360679775
+
+向量投影可以推广到多维空间。对于 n 维向量来说这意味着 Vy 可以被投影到 n 维的各个正交基上，同时 Vy 等于各个正交基上投影的和。对于 Rn 空间的子空间，Vy 到子空间的投影点就是 Vy 到子空间的最短距离。
+
+使用向量投影原理，可以找到垂直于某个向量的向量，例如 L 和 Vu，所以可以将一个空间中不相关的基转换为正交基，格拉姆施密特方法基于向量投影原理来进行矩阵的 QR 分解。
+
+著名的最小二乘法也是基于向量投影原理实现的。
 
 广播和迭代
 -------------
