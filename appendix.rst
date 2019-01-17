@@ -8,10 +8,15 @@
 | [2] Micha Gorelick，Ian Ozsvald，胡世杰，徐旭彬(译).Python高性能编程[M].北京:人民邮电出版社，2017
 | [3] Jake VanderPlas，陈俊杰，陈小莉(译).Python数据科学手册[M].北京:人民邮电出版社，2017
 
+机器学习相关
+------------------
+- `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
+
 Python相关
 -----------
 - `Python 从入门到深入 <https://pythonhowto.readthedocs.io/zh_CN/latest/>`_ 
 - `Module of the Week <https://pymotw.com/3/>`_
+- `Numpy 和 Scipy 官网 <https://docs.scipy.org/doc/>`_
 
 数据库相关
 --------------
@@ -20,6 +25,7 @@ Python相关
 
 图像相关
 -----------
+- `GeoGebra 数学绘图工具 <https://www.geogebra.org/>`_
 - `Graphviz 官网 <http://www.graphviz.org>`_
 - `Graphviz 示例1 <https://graphs.grevian.org/example>`_
 - `Graphviz 示例2 <https://renenyffenegger.ch/notes/tools/Graphviz/examples/index>`_
