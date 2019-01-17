@@ -1,4 +1,4 @@
-matplotlib
+Matplotlib
 ================
 
 matplotlib 是 python 中一个非常强大的 2D 函数绘图模块，它提供了子模块 pyplot 和 pylab 。pylab 是对 pyplot 和 numpy 模块的封装，更适合在 IPython 交互式环境中使用。
@@ -1974,3 +1974,171 @@ mplot3d 也有用同样的输入数据创建三维晕渲（relief） 图的工�
   
   3D等高线不同视图  
  
+线框图和曲面图
+~~~~~~~~~~~~~~
+
+线框图
+`````````
+
+线框图使用多边形组合成曲面，使用 ax.plot_wireframe 绘制：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure()
+  ax = plt.axes(projection='3d')
+  ax.plot_wireframe(X, Y, Z, color='black')
+  ax.set_title('wireframe')
+  
+.. figure:: imgs/mpl/wireframe.png
+  :scale: 80%
+  :align: center
+  :alt: wireframe
+  
+  三维线框图
+  
+可以通过 rstride （row stride）和 cstride （column stride）参数调整 y 轴 和 x 轴上的线的密集程度，默认值均为 1，只接受整数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def wireframe_draw(ax, X, Y, Z, rstride=1, cstride=1):
+      ax.plot_wireframe(X, Y, Z,color='black', 
+                        rstride=rstride,
+                        cstride=cstride)
+      ax.set_xlabel('x')
+      ax.set_ylabel('y')
+      ax.set_zlabel('z')
+  
+  fig = plt.figure(figsize=(8,6))
+  ax = fig.add_subplot(2, 2, 1, projection='3d', title="rstride=5")
+  wireframe_draw(ax, X, Y, Z, rstride=5)
+  ax.view_init(90, 0) # 顶视图，查看行的线密度
+  
+  ax = fig.add_subplot(2, 2, 2, projection='3d', title="cstride=5")
+  wireframe_draw(ax, X, Y, Z, cstride=5)
+  ax.view_init(90, 0) # 顶视图，查看列的线密度
+  
+  ax = fig.add_subplot(2, 2, 3, projection='3d', title="cstride=5,rstride=5")
+  wireframe_draw(ax, X, Y, Z, rstride=5, cstride=5)
+  ax.view_init(90, 0)
+  
+  ax = fig.add_subplot(2, 2, 4, projection='3d', title="cstride=5,rstride=5")
+  wireframe_draw(ax, X, Y, Z, rstride=5, cstride=5)
+
+.. figure:: imgs/mpl/stride.png
+  :scale: 80%
+  :align: center
+  :alt: stride
+  
+  不同线密度的三维线框图
+  
+对线框图中的多边形使用配色方案进行颜色填充就成为了曲面图。
+
+曲面图
+````````````
+
+使用 ax.plot_surface 绘制曲面图。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure()
+  ax = plt.axes(projection='3d')
+  ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='viridis', edgecolor='none')
+  ax.set_title('surface')
+
+.. figure:: imgs/mpl/surface.png
+  :scale: 80%
+  :align: center
+  :alt: surface
+  
+  三维曲面图
+
+plot_surface 同样支持调整 rstride 和 cstride。同时支持设置阴影。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def surface_draw(ax, X, Y, Z, rstride=1, cstride=1):
+      ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none',
+                      rstride=rstride, cstride=cstride)
+      ax.set_xlabel('x')
+      ax.set_ylabel('y')
+      ax.set_zlabel('z')
+
+.. figure:: imgs/mpl/stride0.png
+  :scale: 80%
+  :align: center
+  :alt: stride
+  
+  不同线密度的三维曲面图
+
+极坐标曲面图
+``````````````` 
+
+使用极坐标曲面图，可以产生切片的可视化效果：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  r = np.linspace(0, 6, 20)
+  theta = np.linspace(-0.9 * np.pi, 0.8 * np.pi, 40)
+  r, theta = np.meshgrid(r, theta)
+  X = r * np.sin(theta)
+  Y = r * np.cos(theta)
+  Z = f(X, Y)
+  ax = plt.axes(projection='3d')
+  ax.plot_surface(X, Y, Z, rstride=1, cstride=1, 
+                  cmap='viridis', edgecolor='none')
+
+.. figure:: imgs/mpl/polar.png
+  :scale: 80%
+  :align: center
+  :alt: polar
+  
+  极坐标曲面图
+
+曲面三角剖分
+``````````````
+
+有时均匀采样的网格数据显得太过严格且不太容易实现，这时可以使用三角剖分图形（triangulation-based plot）。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def f(x, y):
+      return np.sin(x) * np.cos(y) * 2
+  
+  theta = 2 * np.pi * np.random.random(1000)
+  r = 6 * np.random.random(1000)
+  x = np.ravel(r * np.sin(theta))
+  y = np.ravel(r * np.cos(theta))
+  
+  z = f(x, y)
+
+首先生成二维的随机点，然后得到三维数据，接着使用散点图观察大致形状，然后使用 plot_trisurf 绘图，plot_trisurf 使用三角形来构造表面并填充配色。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(10,4))
+  ax = fig.add_subplot(1, 2, 1, projection='3d', title='scatter')
+  ax.scatter(x, y, z, c=z, cmap='viridis', linewidth=0.5)
+  
+  ax = fig.add_subplot(1, 2, 2, projection='3d', title='trisurf')
+  ax.plot_trisurf(x, y, z, cmap='viridis', edgecolor='none');
+
+.. figure:: imgs/mpl/tri.png
+  :scale: 80%
+  :align: center
+  :alt: triangle
+  
+  散点图和三角剖分曲面图
