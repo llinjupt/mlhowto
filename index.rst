@@ -16,6 +16,7 @@
   :numbered:
   
   numpy
+  pandas
   matplot
   scipy
   sympy

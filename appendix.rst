@@ -18,8 +18,9 @@ Python相关
 - `Module of the Week <https://pymotw.com/3/>`_
 - `Numpy 和 Scipy 官网 <https://docs.scipy.org/doc/>`_
 
-数据库相关
+数据相关
 --------------
+- `Pandas 官方文档 <http://pandas.pydata.org>`_
 - `Python 数据库操作实例 <http://www.cnblogs.com/idbeta/p/5209522.html>`_
 - `Sqlite数据库操作 <http://www.runoob.com/sqlite/sqlite-data-types.html>`_
 
