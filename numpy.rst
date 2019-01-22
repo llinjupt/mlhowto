@@ -315,13 +315,98 @@ full() 根据 shape 生成特定维度的数组，所有元素默认值为 fill_
    [2 2]]
   1 
 
+随机数数组
+~~~~~~~~~~~~
+
+均匀分布
+`````````````
+
+rand 返回离散均匀分布（discrete uniform）的 [0, 1] 取值填充的数组。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  # 单个随机值
+  print(np.random.rand())
+  
+  >>>
+  0.8257044198690662
+
+  # 1 维数组
+  print(np.random.rand(2))
+
+  >>>
+  [ 0.89012233  0.98822365]
+  
+  # 指定 shape 的数组
+  print(np.random.rand(2,3))
+  
+  >>>
+  [[ 0.58724409  0.17262095  0.29256442]
+   [ 0.89758811  0.00469506  0.00793409]]
+
+整型均匀分布
+`````````````
+
+randint 返回离散均匀分布（discrete uniform）的整型随机值填充的数组。
+
+::
+
+  randint(low, high=None, size=None, dtype='l')
+
+如果提供 high 从 [low, high) 中取随机数，否则从 [0, low) 中取随机数。size 指定 shape，dtype 指定元素类型，默认 int32。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 单个随机数
+  print(np.random.randint(1))
+  
+  >>>
+  0
+  
+  # 从 [0-2) 中取随机数，含 10 个元素的一维数组
+  print(np.random.randint(2, size=10))
+  
+  >>>
+  [0 0 1 1 1 0 0 1 0 1]
+  
+  # 从 [1-5) 中取随机数，指定 shape 的数组
+  print(np.random.randint(1, 5, size=(2, 4)))
+
+  >>>
+  [[1 3 4 1]
+   [3 2 4 2]]
+
+random() 返回连续型均匀分布（continuous uniform）的 [0, 1) 随机值填充的数组。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 单个随机数
+  print(np.random.random())
+
+  >>>
+  0.7490899812919358
+
+  # 1 维数组
+  print(np.random.random(1))
+  
+  >>>
+  [ 0.08542616]
+  
+  # 指定 shape 的数组
+  print(np.random.random((1,2)))
+  
+  >>>
+  [[ 0.78634523  0.66910924]]
+    
 正态分布
 `````````````
 
-::
-  
-  random.randn(d0, d1, ..., dn)
-  
 randn 返回符合正态分布（Normal distribution）的 0-1 随机值填充的数组。
 
 .. code-block:: python
@@ -342,7 +427,7 @@ randn 返回符合正态分布（Normal distribution）的 0-1 随机值填充�
 
   normal(loc=0.0, scale=1.0, size=None)
 
-np.random.normal() 是另一个支持更详细参数的正态分布函数，loc 指定均值，scale 指定方差值：
+np.random.normal() 是另一个支持更详细参数的正态分布函数，loc 指定均值，默认 0，scale 指定标准差，默认 1：
 
 .. code-block:: python
   :linenos:
@@ -357,65 +442,48 @@ np.random.normal() 是另一个支持更详细参数的正态分布函数，loc 
    [-1.74930541 -0.95083919 -1.50893838]
    [-0.15744789 -5.26709878 -3.04729709]]
 
-均匀分布
-`````````````
-
-::
-
-  rand(d0, d1, ..., dn)
-
-rand 返回离散均匀分布（discrete uniform）的 [0, 1] 取值填充的数组。
+泊松分布
+``````````
 
 .. code-block:: python
   :linenos:
   :lineno-start: 0
-
-  print(np.random.rand())
-  print(np.random.rand(2,3))
+    
+  # λ 为6，指定 shape 的泊松分布 
+  print(np.random.poisson(6, (3 ,3)))
   
   >>>
-  0.8257044198690662
-  [[ 0.58724409  0.17262095  0.29256442]
-   [ 0.89758811  0.00469506  0.00793409]]
+  [[4 5 1]
+   [6 1 8]
+   [3 2 8]]
 
-randint 返回离散均匀分布（discrete uniform）的整型随机值填充的数组。
+乱序操作
+``````````````
 
-::
-
-  randint(low, high=None, size=None, dtype='l')
-
-如果提供 high 从 [low, high) 中取随机数，否则从 [0, low) 中取随机数。
-size 指定 shape，dtype 指定元素类型，默认 int32。
+random.shuffle 可以对序列类型，例如 list 或者一维数组进行乱序操作，操作直接作用在参数对象上：
 
 .. code-block:: python
   :linenos:
   :lineno-start: 0
   
-  print(np.random.randint(2, size=10))
-  print(np.random.randint(1))
-  print(np.random.randint(5, size=(2, 4)))
-
-  >>>
-  [0 0 1 1 1 0 0 1 0 1]
-  0
-  [[4 2 2 1]
-   [1 0 2 1]]
-
-random() 返回连续型均匀分布（continuous uniform）的 [0, 1) 随机值填充的数组。
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  print(np.random.random())
-  print(np.random.random(1))
+  # 一维数组乱序
+  narray = np.arange(10)
+  np.random.shuffle(narray)
+  print(narray)
   
   >>>
-  0.7490899812919358
-  [ 0.08542616]
+  [6 4 8 3 1 9 0 5 2 7]
+  
+  # 列表乱序
+  list0 = [0,1,2,3]
+  np.random.shuffle(list0)
+  print(list0)
+  
+  >>>
+  [1, 3, 0, 2]
 
 元素范围映射
-`````````````````
+``````````````
 
 有时我们希望元素分布在任意指定的 [a, b) 区间，而不是 [0, 1) 之间，可以通过如下方式映射到 [a, b) 空间：(b - a) * random() + a。
 
@@ -431,7 +499,7 @@ random() 返回连续型均匀分布（continuous uniform）的 [0, 1) 随机值
    [-0.75450539 -1.48321213]]  
 
 随机种子
-~~~~~~~~~~~~~~~
+``````````
 
 如果设置了随机种子，可以保证每次生成相同的随机值，np.random.seed(seed=None)，种子是一个无符号 int32 整型。
 
