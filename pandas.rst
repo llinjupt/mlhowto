@@ -839,3 +839,336 @@ keys() 方法返回列名组成的索引类型 Index：
   Bill    5    5
   John   20  100
   Tom    21  101  
+
+数值运算
+-----------
+
+NumPy 的基本能力之一是快速对每个元素进行运算，既包括基本算术运算（加、 减、 乘、 除） ， 也包括更复杂的运算（三角函数、 指数函数和对数函数等），参考 :ref:`array_scalar`。 Pandas 继承了 NumPy 的功能，也即这些函数同样可以作用在 Pandas 对象上。
+
+除此之外，Pandas 也实现了一些高效技巧：一元运算作用在 Pandas 对象上时会保留索引和列标签；而对于二元运算（如加法和乘法），Pandas 在传递通用函数时会自动对齐索引进行计算。这就意味着，保存数据内容与组合不同来源的数据——两处在NumPy 数组中都容易出错的地方在 Pandas 中很容易实现。
+
+一元运算
+~~~~~~~~
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  sdata = pd.Series(np.arange(4))
+  print(sdata * 2)
+  
+  >>>  
+  0    0
+  1    2
+  2    4
+  3    6
+  dtype: int32
+
+可以发现 np 函数作用在 Pandas 对象上的返回值还是 Pandas 对象，会保留原标签。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df = pd.DataFrame(np.arange(4).reshape(2, 2), columns=['a', 'b'])
+  print(np.sin(df / 4 * np.pi))
+  
+  >>>
+       a         b
+  0  0.0  0.707107
+  1  1.0  0.707107
+
+二元运算
+~~~~~~~~
+
+当在两个 Series 或 DataFrame 对象上进行二元计算时，Pandas 会在计算过程中对齐两个对象的索引。当处理不完整的数据时，这一点非常方便。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  sdata0 = pd.Series(np.arange(3))
+  sdata1 = pd.Series(np.arange(2))
+  print(sdata0)
+  print(sdata1)
+  
+  >>>
+  0    0
+  1    1
+  2    2
+  dtype: int32
+  0    0
+  1    1
+  dtype: int32
+
+首先生成两个索引不同的 Series 对象，然后进行相加：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(sdata0 + sdata1)
+  
+  >>>
+  0    0.0
+  1    2.0
+  2    NaN
+  dtype: float64
+ 
+结果数组的索引是两个输入数组索引的并集。对于缺失位置的数据，Pandas 会用 NaN 填充，表示“此处无数”。这是 Pandas 表示缺失值的方法。
+
+如果用 NaN 值不是我们想要的结果， 那么可以用适当的对象方法代替运算符。 例如， A.add(B) 等价于 A + B， 也可以设置参数自定义 A 或 B 缺失的数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # sdata1 中缺失的索引 2 的值将使用 0 替代
+  print(sdata0.add(sdata1, fill_value=0))
+  
+  >>>
+  0    0.0
+  1    2.0
+  2    2.0  # 0 + 2
+  dtype: float64
+
+在计算两个 DataFrame 时，类似的索引对齐规则也同样会出现在共同（并集）列中：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  df0 = pd.DataFrame(np.arange(4).reshape(2,2), columns=list('BA'))  
+  df1 = pd.DataFrame(np.arange(2).reshape(2,1), columns=list('A'))
+
+  print(df0)
+  print(df1)
+  
+  >>>
+     B  A
+  0  0  1
+  1  2  3
+     A
+  0  0
+  1  1
+  
+  # 填充缺省值 NaN
+  print(df0 + df1)
+  >>>
+     A   B
+  0  1 NaN
+  1  4 NaN
+  
+  # 指定缺省值
+  print(df0.sub(df1, fill_value=0))
+  >>>
+     A    B
+  0  1  0.0
+  1  2  2.0
+
+两个对象的行列索引可以是不同顺序的，结果的索引会自动按顺序排列。 
+
+Python运算符与Pandas方法的映射关系:
+
+  ============ ============
+  Python运算符 Pandas 对象方法
+  ============ ============
+  \+            add()
+  \-            sub()、 subtract()
+  \*            mul()、 multiply()
+  /            truediv()、 div()、 divide()
+  //           floordiv()
+  %            mod()
+  \*\*           pow()
+  ============ ============
+ 
+DataFrame与Series的运算
+~~~~~~~~~~~~~~~~~~~~~~~
+
+DataFrame 与 Series 之间的运算遵循 NumPy 中二维数组和一维数组之间的广播运算规则。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  narray0 = np.array([2,2])
+  narray1 = np.array([[1,1],[2,2]])
+  print(narray0 + narray1)
+  
+  >>>
+  [[3 3]
+   [4 4]]
+   
+  sdata = pd.Series(narray0, index=list('AB'))
+  print(sdata)
+  
+  >>>
+  A    2
+  B    2
+  dtype: int32
+  
+  df = pd.DataFrame(narray1, columns=list('AB'))
+  print(df)
+  
+  >>>
+     A  B
+  0  1  2
+  1  1  2
+  
+  print(sdata + df)
+
+  >>>
+     A  B
+  0  3  3
+  1  4  4
+
+根据 NumPy 的广播规则，让二维数组减自身的一行数据会按行计算。如果想按列计算，就需要利用前面介绍过的运算符方法， 通过 axis 参数设置：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  # 默认按行计算  
+  print(df + df.iloc[0])
+  
+  >>>
+     A  B
+  0  2  2
+  1  3  3
+  
+  # 按列相加
+  print(df.add(df['A'], axis=0))
+  
+  >>>
+     A  B
+  0  2  2
+  1  4  4
+
+这些行列索引的保留与对齐方法说明 Pandas 在运算时会一直保存这些数据内容， 从而避免在处理数据类型有差异和 / 或维度不一致的 NumPy 数组时可能遇到的问题。
+
+缺失值处理
+-----------
+
+现实中采集的数据很少是干净整齐的，许多目前流行的数据集都会有数据缺失的现象。
+
+通常有两种方式表示缺失值： 
+
+1. 通过一个覆盖全局的掩码表示缺失值，例如 R 语言为每个元素保留 1 bit 用于标记缺失值。
+2. 用一个标签值（sentinel value） 表示缺失值，比如用 NaN（不是一个数） 表示缺失的浮点数。
+
+Pandas 选择用标签方法表示缺失值，包括两种 Python 原有的缺失值： 浮点数据类型的 NaN 值， 以及 Python 的 None 对象。
+
+None
+~~~~~~~~~~
+
+None 是一个 Python 内置对象，经常在代码中表示缺失值。 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  print(None, type(None).__name__)
+  
+  >>>
+  None NoneType
+  
+由于 None 是一个 Python 对象，只能用于 'object' 数组类型（即由 Python 对象构成的数组），不能用于其他类型的数组：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(np.array([1, None, 3, 4], dtype=object))
+  
+  >>>
+  [1 None 3 4]
+  
+  # 如果不是 object 类型将报错
+  print(np.array([1, None, 3, 4], dtype=int))
+
+  >>>
+  TypeError: int() argument must be a string, a bytes-like 
+  object or a number, not 'NoneType'
+
+这里 dtype=object 表示 NumPy 认为由于这个数组是 Python 对象构成的，因此将其类型判断为 object。虽然这种类型在某些情景中非常有用，对数据的任何操作最终都会在 Python 层面完成，但是在进行常见的快速操作时，这种类型比其他原生类型数组要更耗时。
+
+由于 Python 没有对 None 对象定义加减等运算操作，所以在包含 None 的数组上执行这类操作均会报错。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  narray = np.array([1, None, 3, 4], dtype=object)
+  print(narray.sum())
+  
+  >>>
+  TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'
+
+NaN
+~~~~~~~~~~~~~
+
+NaN（全称 Not a Number，不是一个数字），是一种按照 IEEE 浮点数标准设计、在任何系统中都兼容的特殊浮点数。表示未定义或不可表示的值。
+
+IEEE 754-1985中，用指数部分全为1、小数部分非零表示NaN。以32位IEEE单精度浮点数的NaN为例，按位表示即：S111 1111 1AXX XXXX XXXX XXXX XXXX XXXX，S为符号位，符号位S的取值无关紧要；A是小数部分的最高位（the most significant bit of the significand），其取值表示了 NaN 的类型：X 不能全为0，并被称为 NaN 的payload。
+
+通常返回 NaN 的运算有如下三种：
+
+1. 至少有一个参数是 NaN 的运算
+
+2. 不定式
+
+  - 下列除法运算：0/0、∞/∞、∞/−∞、−∞/∞、−∞/−∞
+  - 下列乘法运算：0×∞、0×−∞
+  - 下列加法运算：∞ + (−∞)、(−∞) + ∞
+  - 下列减法运算：∞ - ∞、(−∞) - (−∞)
+
+3. 产生复数结果的实数运算。例如：
+
+  - 对负数进行开偶次方的运算
+  - 对负数进行对数运算
+  - 对正弦或余弦到达域以外的数进行反正弦或反余弦运算
+
+由于 NaN 是特殊的浮点数，所以当数组成员包含 NaN 时，其类型为浮点型，默认为 float64。 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  narray = np.array([1, np.nan, 3, 4])
+  print(narray.dtype)
+  
+  >>>
+  float64
+  
+  # 作用在 NaN 上的运算总是返回 NaN
+  print(narray.sum())
+  
+  >>>
+  nan
+  
+  # 指定类型为 int 将报错
+  narray = np.array([1, np.nan, 3, 4], dtype=int)
+  
+  >>>
+  ValueError: cannot convert float NaN to integer
+
+NumPy 同时提供了一类特殊的累计函数，参考 :ref:`converge`，它们可以忽略缺失值的影响：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  print(np.nansum(narray))
+  
+  >>>
+  8.0
+  
+  print(np.nanmin(narray), np.nanmax(narray))
+  
+  >>>
+  1.0 4.0
+
+.. admonition:: 注意
+
+  NaN 是一种特殊的浮点数， 不是整数、 字符串以及其他数据类型。
+
