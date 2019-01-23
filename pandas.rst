@@ -1104,6 +1104,41 @@ None 是一个 Python 内置对象，经常在代码中表示缺失值。
   >>>
   TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'
 
+在 Pandas 中，None 被自动转化为 NaN 类型，由于 NaN 是特殊的浮点数，所以生成的对象类型默认为浮点型 float64： 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  ps = pd.Series([1, 2, None])
+  print(ps)
+  
+  >>>
+  0    1.0
+  1    2.0
+  2    NaN
+  dtype: float64
+
+当为一个整型对象的元素赋值为 None 时，类型自动转换为 float64：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([1, 2])
+  print(ps.dtype)
+  
+  >>>
+  int64
+  
+  ps[0] = None
+  print(ps)
+  
+  >>>
+  0    NaN
+  1    2.0
+  dtype: float64
+
 NaN
 ~~~~~~~~~~~~~
 
@@ -1171,4 +1206,361 @@ NumPy 同时提供了一类特殊的累计函数，参考 :ref:`converge`，它�
 .. admonition:: 注意
 
   NaN 是一种特殊的浮点数， 不是整数、 字符串以及其他数据类型。
+
+np.nan 表示常量 NaN，如果在创建 Pandas 对象时，包含 np.nan 成员，则对象 dtype 自动转化为 float64 类型，同样赋值操作也会改变 dtype：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  ps = pd.Series([1, 2, np.nan])
+  print(ps.dtype)
+  
+  >>>
+  float64
+  
+  ps = pd.Series([1, 2])
+  print(ps.dtype)
+  
+  >>>
+  int64
+  
+  ps[0] = np.nan
+  print(ps)
+  
+  >>>
+  0    NaN
+  1    2.0
+  dtype: float64
+
+缺失值转换规则
+~~~~~~~~~~~~~~~
+
+Pandas对不同类型缺失值的转换规则：
+
+  ========= ====================== ========
+  类型      缺失值转换规则         NA标签值
+  ========= ====================== ========
+  floating  无变化                 np.nan
+  object    无变化                 None 或 np.nan
+  integer   强制转换为 float64     np.nan
+  boolean   强制转换为 float64     np.nan
+  boolean   无变化                 None
+  ========= ====================== ========
+
+以 bool 类型为例，分别对元素赋值 None 和 np.nan，观察类型变化：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([1, 0, 1], dtype=bool)
+  
+  # 赋值为 None 等价于 False 类型不变
+  ps[1] = None
+  print(ps)
+  
+  >>>
+  0     True
+  1    False
+  2     True
+  dtype: bool 
+  
+  # 赋值为 np.nan 类型转换为 float64
+  ps[1] = np.nan
+  print(ps)
+
+  >>>
+  0    1.0
+  1    NaN
+  2    1.0
+  dtype: float64 
+
+缺失值函数
+~~~~~~~~~~~~
+
+Pandas 提供了一些列用于处理确实值的函数或方法。例如发现缺失值，替换缺失值等。
+
+发现缺失值
+```````````````
+
+Pandas 数据结构有两种有效的方法可以发现缺失值：isnull() 和 notnull()。每种方法都返回布尔类型的掩码数据，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([1, np.nan, None])
+  print(ps.isnull())
+  
+  >>>
+  0    False
+  1     True
+  2     True
+  dtype: bool
+  
+  # 与 isnull() 方法相反
+  print(ps.notnull())
+  
+  >>>
+  0     True
+  1    False
+  2    False
+  dtype: bool
+
+布尔类型掩码数组可以直接作为 Series 或 DataFrame 的索引使用：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([1, np.nan, 2, None])
+  print(ps[ps.notnull()])
+  
+  >>>
+  0    1.0
+  2    2.0
+  dtype: float64
+
+以上操作同样适用于 DataFrame 对象：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df = pd.DataFrame([1, np.nan, None])
+  print(df.isnull())
+  
+  >>>
+         0
+  0  False
+  1   True
+  2   True
+
+剔除缺失值
+`````````````
+
+dropna() 用于剔除缺失值，它返回一个数组副本。在 Series 上使用它非常简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 剔除缺失值
+  ps = pd.Series([1, np.nan, 2, None])
+  print(ps.dropna())
+  
+  >>>
+  0    1.0
+  2    2.0
+  dtype: float64
+
+由于 Series 是一维的，任何元素是 NaN 都可以直接删除这一元素（相当于一列），而在 DataFrame 上使用它们时需要设置一些参数， 例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  df = pd.DataFrame([[1, np.nan, 2],
+                      [2, 3, 5],
+                      [np.nan, 4, 6]])
+  print(df)
+  
+  >>>
+       0    1  2
+  0  1.0  NaN  2
+  1  2.0  3.0  5
+  2  NaN  4.0  6
+
+无法从 DataFrame 中单独剔除一个值，要么是剔除缺失值所在的整行，要么是整列。根据实际需求，来剔除整行或整列，DataFrame 中的 dropna() 会有一些参数可以配置。
+默认情况下， dropna() 会剔除任何包含缺失值的整行数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(df.dropna())
+  
+  >>>
+       0    1  2
+  1  2.0  3.0  5
+
+可以设置按不同的坐标轴剔除缺失值， 比如 axis=1（或 axis='columns'） 会剔除任何包含缺失值的整列数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(df.dropna(axis='columns'))
+  
+  >>>
+     2
+  0  2
+  1  5
+  2  6
+
+这么做也会把非缺失值一并剔除，因为可能有时候只需要剔除全部是缺失值的行或列，或者绝大多数是缺失值的行或列。可以通过设置 how 或 thresh 参数来满足，它们可以设置剔除行或列缺失值的数量阈值。
+
+默认设置是 how='any'， 也就是说只要有缺失值就剔除整行或整列（通过 axis 设置坐标轴）。还可以设置 how='all'， 这样就只会剔除全部是缺失值的行或列了：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df[3] = np.nan
+  print(df)
+  
+  >>>
+       0    1  2   3
+  0  1.0  NaN  2 NaN
+  1  2.0  3.0  5 NaN
+  2  NaN  4.0  6 NaN
+  
+  df = df.dropna(axis='columns', how='all')
+  print(df)
+  
+  >>>
+       0    1  2
+  0  1.0  NaN  2
+  1  2.0  3.0  5
+  2  NaN  4.0  6
+
+还可以通过 thresh 参数设置行或列中非缺失值的最小数量，从而实现更加个性化的配置：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df = df.dropna(axis='rows', thresh=3)
+  print(df)
+  
+  >>>
+       0    1  2   3
+  1  2.0  3.0  5 NaN
+
+第 1 行与第 3 行被剔除了， 因为它们只包含两个非缺失值。
+
+填充缺失值
+``````````````````
+
+有时可能并不想移除缺失值，而是想把它们替换成有效的数值。 有效的值可能是像 0、 1、 2 那样单独的值，也可能是经过填充（imputation） 或转换（interpolation） 得到的。 虽然你可以通过isnull() 方法建立掩码来填充缺失值， 但是 Pandas 为此专门提供了一个 fillna() 方法， 它将返回填充了缺失值后的数组副本。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([1, np.nan, 2, None], index=list('abcd'))
+  print(ps)
+  
+  >>>
+  a    1.0
+  b    NaN
+  c    2.0
+  d    NaN
+  dtype: float64
+
+我们将用一个单独的值来填充缺失值， 例如用 -1：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(ps.fillna(-1))
+  
+  >>>
+  a    1.0
+  b   -1.0
+  c    2.0
+  d   -1.0
+  dtype: float64
+
+可以用缺失值前面的有效值来从前往后填充（forward-fill）：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(ps.fillna(method='ffill'))
+  
+  >>>
+  a    1.0
+  b    1.0
+  c    2.0
+  d    2.0
+  dtype: float64
+
+也可以用缺失值后面的有效值来从后往前填充（back-fill） ：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(ps.fillna(method='bfill'))
+  
+  a    1.0
+  b    2.0
+  c    2.0
+  d    NaN
+  dtype: float64
+
+无论是从前往后还是从后往前，NaN 之后或之前如果都是 NaN 则无法实现填充。
+
+DataFrame 的操作方法与 Series 类似， 只是在填充时需要设置坐标轴参数 axis：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df = pd.DataFrame([[1, np.nan, 2],
+                     [2, 3, 5],
+                     [np.nan, np.nan, np.nan]])
+  print(df)
+  
+  >>>
+       0    1    2
+  0  1.0  NaN  2.0
+  1  2.0  3.0  5.0
+  2  NaN  NaN  NaN
+  
+  # 从前向后填充行
+  print(df.fillna(method='ffill', axis=1))
+  
+  >>>
+       0    1    2
+  0  1.0  1.0  2.0
+  1  2.0  3.0  5.0
+  2  NaN  NaN  NaN
+  
+  # 从后向前填充行
+  print(df.fillna(method='bfill', axis=1))
+  
+  >>>
+       0    1    2
+  0  1.0  2.0  2.0
+  1  2.0  3.0  5.0
+  2  NaN  NaN  NaN
+
+需要注意的是，假如在从前往后填充时，需要填充的缺失值前面没有值，那么它就仍然是缺失值，这个机制是递归填充。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 从前向后填充列
+  print(df.fillna(method='ffill', axis=0))
+  
+  >>>
+       0    1    2
+  0  1.0  NaN  2.0
+  1  2.0  3.0  5.0
+  2  2.0  3.0  5.0
+ 
+  # 从后向前填充列
+  print(df.fillna(method='bfill', axis=0))
+  
+  >>>
+       0    1    2
+  0  1.0  3.0  2.0
+  1  2.0  3.0  5.0
+  2  NaN  NaN  NaN
 
