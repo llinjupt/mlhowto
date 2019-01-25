@@ -4686,10 +4686,340 @@ NumPy 还提供了 np.recarray 类。 它和前面介绍的结构化数组几乎
 应用实例
 ---------------
 
+更复杂和专业的图像处理应该使用 PIL，PIL(Python Image Library)是python的第三方图像处理库，由于其强大的功能与众多的使用人数，几乎已经被认为是python官方图像处理库了。图形处理相关模块还有 OpenCV, SciKit-Image 和 Pillow。
+
+矩阵和图像变换
+~~~~~~~~~~~~~~~
+
+在图像处理软件中对图像的变换均是通过矩阵操作来完成的，这种矩阵被称为变换矩阵。
+
+基本的常用矩阵变换操作包括平移、缩放、旋转、斜切。每种变换都对应一个变换矩阵，通过矩阵乘法，可以把多个变换矩阵相乘得到复合变换矩阵。矩阵乘法不支持交换律，因此不同的变换顺序得到的变换矩阵也是不相同的。
+
+首先，我们使用四个坐标点来生成一个正方形，然后基于它进行各类变换：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  P = np.array([[0,1,1,0],  # x 轴坐标
+                [0,0,1,1]]) # y 轴坐标
+                
+  plt.figure(figsize=(7,7))
+  plt.title('Square', fontsize=16)
+  plt.xlim(-2, 2)
+  plt.ylim(-2, 2)
+  plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+
+.. figure:: imgs/numpy/square.png
+  :scale: 80%
+  :align: center
+  :alt: square
+
+  原始正方形
+
+可以看到该正方形左下角为坐标原点，单位边长为 1，使用矩阵进行线性变换，原点是不会移动的，所以平移操作并不是线性的，后面在平移小结会介绍。
+
+旋转
+`````````````
+
+首先看一个围绕原点旋转的示例，然后分析为何乘以某个矩阵就会实现旋转的效果。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # P 为二维数组，包含需要转换的坐标点数据，angle 为转换角度
+  def rotate(P, angle):
+      rad = angle/180 * np.pi
+      
+      # 2D 旋转变换矩阵
+      R = np.array([[np.cos(rad), -np.sin(rad)],
+                    [np.sin(rad), np.cos(rad)]])
+      return R.dot(P)
+
+rotate 函数实现逆时针旋转，当然只要把参数 angle 改为 -angle 就可以实现顺时针旋转。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  plt.figure(figsize=(7,7))
+  plt.title('Rotate', fontsize=16)
+  plt.xlim(-2, 2)
+  plt.ylim(-2, 2)
+  plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+  
+  # 依次旋转 45 度
+  for i in range(1,5,1):
+      rr = rotate(P, i*45)
+      plt.fill(rr[0], rr[1], alpha=1) # 自动填充不同颜色
+
+.. figure:: imgs/numpy/rotate.png
+  :scale: 80%
+  :align: center
+  :alt: rotate
+
+  矩阵旋转变换
+
+从图中可以看出，原始位置的正方形围绕原点向左逆时针依次旋转 45 度，这里旋转了四次。
+
+缩放
+`````````````
+
+缩放通过缩放变换矩阵完成：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # scalex 和 scaley 分别对应 x 轴和 y 轴缩放系数
+  def scale(P, scalex, scaley):
+    # 2 维缩放矩阵
+    S = np.array([[scalex, 0],
+                  [0, scaley]])
+    return S.dot(P)
+    
+  plt.figure(figsize=(7,7))
+  plt.xlim(-2, 2)
+  plt.ylim(-2, 2)
+  plt.title('Scale', fontsize=16)
+  plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+  
+  for i in range(1,5,1):
+      rr = scale(P, 1/i, 1/i)
+      rr = rotate(rr, -i*45) # 为了查看缩放效果，同时进行旋转
+      plt.fill(rr[0], rr[1], alpha=1)
+
+.. figure:: imgs/numpy/scale.png
+  :scale: 80%
+  :align: center
+  :alt: scale
+
+  矩阵缩放变换
+
+镜像
+````````
+
+所谓镜像，也即关于某根线进行对称映射。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # x 轴镜像
+  def xmirror(P):
+      MX = np.array([[1, 0],
+                     [0, -1]])
+      return MX.dot(P)
+  
+  # y 轴镜像
+  def ymirror(P):
+      MY = np.array([[-1, 0],
+                     [0, 1]])
+      return MY.dot(P)
+  
+  # 关于 y=x 镜像
+  def xymirror(P):
+      XY = np.array([[0, 1],
+                     [1, 0]])
+      return XY.dot(P)
+  
+  # 关于 y=-x 镜像 
+  def nxymirror(P):
+      XY = np.array([[0, -1],
+                     [-1, 0]])
+      return XY.dot(P)
+  
+  # 关于原点镜像 
+  def omirror(P):
+      XY = np.array([[-1, 0],
+                     [0, -1]])
+      return XY.dot(P)
+
+使用以上镜像函数生成一组效果图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  dic =  {'XMirror'  : xmirror(P),
+          'YMirror'  : ymirror(P),
+          'Y=x Mirror' : xymirror(P),
+          'Y=-x Mirror' : nxymirror(P),
+          'OriginMirror'  : omirror(P)
+          }
+  
+  # 调整坐标轴位置
+  def set_axis(plt):
+      ax = plt.gca()
+      ax.spines['left'].set_color('none')
+      ax.spines['top'].set_color('none')
+      ax.xaxis.set_ticks_position('bottom')
+      ax.spines['bottom'].set_position(('data', 0))
+      ax.yaxis.set_ticks_position('right')
+      ax.spines['right'].set_position(('data', 0))
+  
+      plt.xlim(-2, 2)
+      plt.ylim(-2, 2)
+      plt.xticks([-2,-1,0,1,2])
+      plt.yticks([-2,-1,0,1,2])
+      
+  index = 0
+  plt.figure(figsize=(12, 8))
+  for i in dic:
+      plt.subplot(2,3,index+1)
+      plt.title(i, fontsize=16)
+      set_axis(plt)
+      
+      plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+      T = dic[i]
+      plt.fill(T[0], T[1], facecolor='g', alpha=0.5)
+      index += 1
+
+.. figure:: imgs/numpy/mirror.png
+  :scale: 100%
+  :align: center
+  :alt: mirror
+
+  矩阵镜像变换
+
+斜切
+```````
+
+图像斜切是一种变形：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def oblique(P, shearx, sheary):
+      S = np.array([[1, shearx],
+                    [sheary, 1]])
+      return S.dot(P)
+  
+  dic =  {'X Oblique'  : oblique(P, -1, 0),
+        'Y Oblique'  : oblique(P, 0, -1)}
+  
+  index = 0
+  plt.figure(figsize=(8, 4))
+  for i in dic:
+      plt.subplot(1,2,index+1)
+      plt.title(i, fontsize=16)
+      set_axis(plt)
+      
+      plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+      M = dic[i]
+      plt.fill(M[0], M[1], facecolor='m', alpha=0.5)
+  
+      index += 1
+
+.. figure:: imgs/numpy/oblique.png
+  :scale: 100%
+  :align: center
+  :alt: oblique
+
+  矩阵斜切变换
+
+位移
+`````````
+
+位移变换不是线性变换，需要借助第三个维度的齐次坐标实现。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # x 和 y 参数表示在 x 和 y 轴上的位移距离
+  def move(P, x, y):
+      S = np.array([[1, 0, x],
+                    [0, 1, y],
+                    [0, 0, 1]])
+      
+      # 填充第三维坐标以适配矩阵点乘
+      P = np.vstack([P, np.ones((P.shape[1]))])
+      return S.dot(P)
+  
+  plt.figure(figsize=(8,8))
+  set_axis(plt)
+  plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+  M = move(P, -1, -2)
+  plt.fill(M[0], M[1], facecolor='m', alpha=0.5)
+  plt.show()
+
+.. figure:: imgs/numpy/move.png
+  :scale: 80%
+  :align: center
+  :alt: move
+
+  矩阵位移变换
+
+组合变换
+```````````````
+
+组合变换即将多个变换组合在一起，例如旋转和位移。
+
+由于所有的线性变换都是基于原点的（针对整个坐标系的），图像的处理先把原图移动到原点，然后基于原点缩放剪切处理后再移动到原位置
+，如果包含了移动，那么就要使用齐次坐标，所有的其他矩阵也要变为齐次坐标，这样可以得到复合变换矩阵，然后一次性点乘需要变换的坐标矩阵即可。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def homo_rotate(P, angle):
+      rad = angle/180 * np.pi
+  
+      P = np.vstack([P, np.ones((P.shape[1]))])
+      
+      m0 = move_matrix(-P[0][0], -P[1][0])
+      m1 = move_matrix(P[0][0], P[1][0])
+      
+      # 齐次坐标组合旋转变换
+      R = np.array([[np.cos(rad), -np.sin(rad), 0],
+                    [np.sin(rad), np.cos(rad),  0],
+                    [0,           0,            1]])
+     
+      T = m1.dot(R).dot(m0)
+      return T.dot(P)
+      
+  P = np.array([[0.5,1.5,1.5,0.5],
+                [0.5,0.5,1.5,1.5]])
+  
+  plt.figure(figsize=(8,8))
+  set_axis(plt)
+  plt.fill(P[0], P[1], facecolor='r', alpha=0.5)
+  M = homo_rotate(P, 45)
+  plt.fill(M[0], M[1], facecolor='m', alpha=0.5)
+  plt.show()
+
+.. figure:: imgs/numpy/mr.png
+  :scale: 80%
+  :align: center
+  :alt: mr
+
+  矩阵非原点旋转组合变换
+
+缩放和斜切的组合变换实现如下：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def homo_scale(P, scalex, scaley):
+      S = np.array([[scalex, 0, 0],
+                    [0, scaley, 0],
+                    [0,      0, 1]])
+      return S.dot(P)
+  
+  def homo_shear(P, shearx, sheary):
+      S = np.array([[1, shearx, 0],
+                    [sheary, 1, 0],
+                    [0,      0, 1]])
+      return S.dot(P)
+ 
+镜像变换的基准线如果通过原点，那么无需移动到原点，直接变换即可。
+
 简单图像处理
 ~~~~~~~~~~~~~
-
-更复杂和专业的图像处理应该使用 PIL，PIL(Python Image Library)是python的第三方图像处理库，由于其强大的功能与众多的使用人数，几乎已经被认为是python官方图像处理库了。图形处理相关模块还有 OpenCV, SciKit-Image 和 Pillow。
 
 一个图像由若干个像素组成，rows * cols 就是像素数。以著名的手写图片数据集 `MNIST <http://yann.lecun.com/exdb/mnist/>`_ 为例：
 
