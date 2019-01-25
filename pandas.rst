@@ -214,10 +214,22 @@ data 也可以是一个数值， 创建 Series 对象时会重复填充到每个
 
   Series 对象只会保留显式定义的键值对。
 
+Series.index 属性获取所有行索引信息：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 获取行索引信息
+  print(subsdata.index)
+
+  >>>
+  Index(['a', 'c'], dtype='object')
+
 DataFrame 对象
 ~~~~~~~~~~~~~~~~
 
-如果将 Series 类比为带索引的一维数组， 那么 DataFrame 就可以看作是一种既有行索引， 又有列名的二维数组。
+如果将 Series 类比为带索引的一维数组（或者含有一列数据的带有行标签的单列表）， 那么 DataFrame 就可以看作是一种既有行索引，又有列名的二维数组（或者含有行标签和列标签的表，每一列都是一个 Series 对象）。
 
 .. code-block:: python
   :linenos:
@@ -240,8 +252,8 @@ DataFrame 对象
   Bill   19  102
   John   20  100
   Tom    21  101
-  
-从示例中可以看出 pd.DataFrame 指定每列信息，它是一个指定列名的 Series 对象。它是一组 Series 的集合。
+
+从示例中可以看出 DataFrame 是一组 Series 的集合，每一列都是一个 Series 对象。
 
 DataFrame 索引
 ``````````````````
@@ -332,10 +344,10 @@ DataFrame 索引
    [2 2]
    [2 1]]
    
-  d = pd.DataFrame(narray,
-                   columns = ['foo', 'bar'],
-                   index=['a', 'b', 'c'])
-  print(d)
+  df = pd.DataFrame(narray,
+                    columns = ['foo', 'bar'],
+                    index=['a', 'b', 'c'])
+  print(df)
   
   >>>
      foo  bar
@@ -343,6 +355,19 @@ DataFrame 索引
   b    2    2
   c    2    1
 
+查看行索引和列索引：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  print(df.index)
+  print(df.columns)  
+  
+  >>>
+  Index(['a', 'b', 'c'], dtype='object')
+  Index(['foo', 'bar'], dtype='object')
+    
 通过 NumPy 结构化数组创建：
 
 .. code-block:: python
@@ -362,6 +387,45 @@ DataFrame 索引
   0  1  1.0
   1  1  1.0
   2  1  1.0
+
+更改行或列名
+~~~~~~~~~~~~~~~
+
+通过属性更改
+```````````````
+
+可以通过 df.index 和 df.columns 查看行名和列名，同样可以通过这些属性更改行或列的名称，对于 Series 来说只有行名：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  narray = np.random.randint(3, size=(3, 2))
+  df = pd.DataFrame(narray,
+                    columns = ['foo', 'bar'],
+                    index=['a', 'b', 'c'])
+  
+  # 更新行索引标签                 
+  df.index = [0, 1, 2]
+  print(df.index)
+  
+  # 更新列索引标签
+  df.columns = ['a', 'b']
+  print(df.columns)
+  
+  >>>
+  Int64Index([0, 1, 2], dtype='int64')
+  Index(['a', 'b'], dtype='object')
+  
+  print(df)
+
+  >>>
+     a  b
+  0  0  0
+  1  1  0
+  2  0  2
+
+注意行或列的标签个数和 DataFrame 对象的行数或列数必须一致，否则会报错。
 
 Index 对象
 ~~~~~~~~~~~~~~
@@ -411,6 +475,27 @@ Index 对象还有许多与 NumPy 数组相似的属性：
   
   >>>
   6 (6,) 1 int64
+
+排序操作
+````````````
+
+Index 对象支持对元素的排序：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  ind = pd.Index([2, 4, 5, 1, 11])
+  print(ind)
+  
+  >>>
+  Int64Index([2, 4, 5, 1, 11], dtype='int64')
+  
+  ind = ind.sort_values()
+  print(ind)
+  
+  >>>
+  Int64Index([1, 2, 4, 5, 11], dtype='int64')
 
 集合操作
 ``````````````````
@@ -468,7 +553,7 @@ Series数据选择
 访问数据
 ```````````````
 
-将Series看作字典，和字典一样， Series 对象提供了键值对的映射：
+将Series看作字典，和字典一样， Series 对象提供了键值对（索引）的映射：
 
 .. code-block:: python
   :linenos:
@@ -476,6 +561,8 @@ Series数据选择
   
   # 使用 in 或者 not in 判断键是否存在
   sdata = pd.Series([1, 2, 3.14], index=['num1', 'num2', 'pi'])
+  
+  # 等价于 sdata.index
   print(sdata.keys())
   print('pi' in sdata) # 等价于 'pi' in sdata.keys()
   
@@ -499,7 +586,7 @@ Series数据选择
   <zip object at 0x0000020B8A3DCF08>
   [('num1', 1.0), ('num2', 2.0), ('pi', 3.1400000000000001)]
 
-Series 不仅有着和字典一样的接口， 而且还具备和 NumPy 数组一样的数组数据选择功能， 包括索引、 掩码、 花哨的索引等操作，例如：
+Series 不仅有着和字典一样的接口， 而且还具备和 NumPy 数组一样的数组数据选择功能，包括索引、掩码、花式索引等操作，例如：
 
 .. code-block:: python
   :linenos:
@@ -556,8 +643,32 @@ Series 不仅有着和字典一样的接口， 而且还具备和 NumPy 数组�
 
 切片是绝大部分混乱之源。 需要注意的是，当使用显式索引（即 data['a':'c']） 作切片时， 结果包含最后一个索引； 而当使用隐式索引（即 data[0:2]） 作切片时， 结果不包含最后一个索引。
 
+索引标签默认是无序的，也即根据创建时标签声明的顺序来排列，我们可以对它进行排序，以方便切片操作：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  sdata = pd.Series([1, 2, 3.14], index=['num2', 'num1', 'pi'])
+  print(sdata)
+  
+  >>>
+  num2    1.00
+  num1    3.14
+  pi      2.00
+  dtype: float64
+  
+  # 对索引进行排序
+  sdata = sdata.sort_index()
+  print(sdata['num1':'num2'])
+  
+  >>>
+  num1    2.0
+  num2    1.0
+  dtype: float64
+
 索引器
-``````````````````
+````````````
 
 切片和取值的习惯用法经常会造成混乱。如果 Series 是显式整数索引，那么 data[1] 这样的取值操作会使用显式索引，而 data[1:3] 样的切片操作却会使用隐式索引。
 
@@ -1563,4 +1674,985 @@ DataFrame 的操作方法与 Series 类似， 只是在填充时需要设置坐�
   0  1.0  3.0  2.0
   1  2.0  3.0  5.0
   2  NaN  NaN  NaN
+
+数据加载
+--------------
+
+Pandas 提供了丰富的数据加载接口，例如 pd.read_csv，pd.read_json，pd.read_sql 等。
+
+csv 文件数据
+~~~~~~~~~~~~
+
+CSV 是逗号分隔值（Comma-Separated Values有时也称为字符分隔值，因为分隔字符也可以不是逗号）的缩写，其文件以纯文本形式存储表格数据（数字和文本）。可以使用记事本直接打开它，或者使用 Excel 打开。
+
+名为 students.csv 的示例文件内容如下：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  age,id,name
+  20,100,John
+  21,101,Tom
+  19,102,Bill
+
+读取数据
+`````````````
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 参数 header 默认值为 0，表示以第一行为列索引
+  # 等价于 df = pd.read_csv('students.csv')
+  df = pd.read_csv('students.csv', header=0)
+  print(df)
+  
+  >>>
+     age   id  name
+  0   20  100  John
+  1   21  101   Tom
+  2   19  102  Bill
+
+read_csv() 方法具有非常丰富的参数，常用参数说明如下：
+
+- sep：分隔符，默认是‘,’，CSV文件的分隔符
+- header:列名所在 csv 中的行（列索引），默认第一行为列名（默认header=0），header=None 说明第一行不是列名，它会生成新的整数列名。
+- names：当 csv 文件没有列名时候，可以用 names 加上要用的列名
+- index_col：要用的行名（index），int或sequence或False，默认为 None，即默认添加从 0 开始的 index，若要用第一列作为行索引则 index_col = 0。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # header 为 None，表示 csv 第一行数据作为普通数据  
+  df = pd.read_csv('students.csv', header=None)
+  print(df)
+  
+  >>>
+       0    1     2
+  0  age   id  name
+  1   20  100  John
+  2   21  101   Tom
+  3   19  102  Bill
+  
+  # 使用 names 指定列名
+  df = pd.read_csv('students.csv', header=None, names=['a', 'b', 'c'])
+  print(df)
+  
+       a    b     c
+  0  age   id  name
+  1   20  100  John
+  2   21  101   Tom
+  3   19  102  Bill  
+  
+  # 指定 csv 文件第一列为行名
+  df = pd.read_csv('students.csv', header=0, index_col=0)
+  print(df)
+  
+  >>>
+        id  name
+  age           
+  20   100  John
+  21   101   Tom
+  19   102  Bill 
+
+分块读取
+```````````
+
+read_csv() 的 chunksize 参数支持指定每次读取的行数，返回的是一个可迭代的对象 TextFileReader，这对于读取超大文件特别有用：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 每次读取两行
+  tfr = pd.read_csv('students.csv', header=0, chunksize=2)
+  print(type(tfr).__name__)
+  
+  >>>
+  TextFileReader
+  
+  for chunk in tfr:
+      print('------------------')
+      print(chunk)
+      
+  >>>    
+  ------------------
+     age   id  name
+  0   20  100  John
+  1   21  101   Tom
+  ------------------
+     age   id  name
+  2   19  102  Bill
+
+可以看到每次从 TextFileReader 迭代对象读取时都会带上列名。
+
+保存数据
+`````````````
+
+to_csv() 用于写出数据到文件，注意 index 参数指明是否写出行信息：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  studentdf = pd.DataFrame({'id': [100,101,102],
+                            'name':['John', 'Tom', 'Bill'],
+                            'age': [20, 21, 19]})
+  studentdf.to_csv('students.csv', index=False)
+
+其他数据类型
+~~~~~~~~~~~~
+
+以下列出 Pandas 支持的数据文件类型，以及读取和保存的方法：
+  
+  ============= ============ ================ ===============
+  数据格式类型    描述       读取方法         写出方法
+  ============= ============ ================ ===============
+  text          CSV          read_csv         to_csv
+  text          JSON         read_json        to_json
+  text          HTML         read_html        to_html
+  text          本地粘贴板   read_clipboard   to_clipboard
+  binary        Excel        read_excel       to_excel
+  binary        HDF5         read_hdf         to_hdf
+  binary        Feather包    read_feather     to_feather
+  binary        Parquet      read_parquet     to_parquet
+  binary        Msgpack      read_msgpack     to_msgpack
+  binary        Stata        read_stata       to_stata
+  binary        SAS          read_sas        
+  binary        Pickle       read_pickle      to_pickle
+  SQL           SQL          read_sql         to_sql
+  SQL           谷歌BigQuery read_gbq         to_gbq
+  ============= ============ ================ ===============
+
+查看行数据
+~~~~~~~~~~~~~
+
+head(n) 方法用于查看从头部开始的 n 行数据： 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  df = pd.read_csv('students.csv', header=0)
+  print(df.head(2))
+  
+  >>>
+     age   id  name
+  0   20  100  John
+  1   21  101   Tom
+
+tail(n) 方法用于查看尾部的 n 行数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(df.tail(2))
+  
+  >>>
+     age   id  name
+  1   21  101   Tom
+  2   19  102  Bill
+
+当我们对一个很大的数据文件一无所知时，可以打开前几行观察数据的类型，列标签等。
+
+层级索引
+--------------
+
+一级索引的 Series 看起来很像一维数组，且是单列数组。DataFrame 可以看做有两个索引的二维数组。
+
+通过层级索引（hierarchical indexing，也被称为多级索引，multi-indexing）配合多个有不同等级（level）的一级索引一起使用，这样就可以将高维数组转换成类似一维 Series 和二维 DataFrame 对象的形式。
+
+多级索引的 Series
+~~~~~~~~~~~~~~~~~
+
+多级索引的 Series，索引是一个二维数组，相当于多个索引决定一个值，类似于 DataFrame 的行索引和列索引：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps = pd.Series([90, 80, 95, 91, 92, 88], index=[['John'] * 3 + ['Tom'] * 3, 
+                  ['Maths', 'English', 'Chemistry'] * 2])
+  print(ps)
+  
+  >>>
+  John  Maths        90
+        English      80
+        Chemistry    95
+  Tom   Maths        91
+        English      92
+        Chemistry    88
+  dtype: int64
+
+  print(ps.index)
+  
+  >>>
+  MultiIndex(levels=[['John', 'Tom'], ['Chemistry', 'English', 'Maths']],
+           labels=[[0, 0, 0, 1, 1, 1], [2, 1, 0, 2, 1, 0]])
+
+此时的索引类型为 MultiIndex。MultiIndex 里面的 levels 属性表示索引的等级，可以看到 John 和 Tom 处在第一级，各科课程名称为第二级。
+
+labels 标签包含了各个索引等级对应的数据的整数索引。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 使用一级索引查看数据
+  print(ps['Tom'])
+  
+  >>>  
+  Maths        91
+  English      92
+  Chemistry    88
+  dtype: int64
+  
+  # 使用切片查看二级索引 Maths 数据
+  print(ps[:, 'Maths'])
+  
+  >>>
+  John    90
+  Tom     91
+  dtype: int64
+
+多级索引 Series 转 DataFrame
+````````````````````````````
+
+unstack() 方法可以快速将一个多级索引的 Series 转化为普通索引的 DataFrame：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  df = ps.unstack()
+  print(type(df).__name__)
+  
+  >>>
+  DataFrame
+  
+  print(df)
+  
+  >>>
+        Chemistry  English  Maths
+  John         95       80     90
+  Tom          88       92     91
+
+stack() 方法实现相反的转换：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  print(df.stack())
+  
+  >>>
+  John  Chemistry    95
+        English      80
+        Maths        90
+  Tom   Chemistry    88
+        English      92
+        Maths        91
+  dtype: int64
+
+增加索引层级
+`````````````
+
+如果我们可以用含多级索引的一维 Series 数据表示二维数据，那么我们就可以用 Series 或 DataFrame 表示三维甚至更高维度的数据。 多级索引每增加一级，就表示数据增加一维， 利用这一特点就可以轻松表示任意维度的数据了。
+
+假如上面示例中的学生成绩是 2012 年数据，我们要添加 2013 年的数据，只需要增加一个新的索引层级即可：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  newps = pd.DataFrame({'2012': ps, '2013': [98,87,93, 90,91,84]})
+  print(newps)
+  
+  >>>
+                  2012  2013
+  John Maths        90    98
+       English      80    87
+       Chemistry    95    93
+  Tom  Maths        91    90
+       English      92    91
+       Chemistry    88    84
+
+当然我们可以使用 stack() 转化为 Series 类型：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(newps.stack())
+
+  >>>
+  John  Maths      2012    90
+                   2013    98
+        English    2012    80
+                   2013    87
+        Chemistry  2012    95
+                   2013    93
+  Tom   Maths      2012    91
+                   2013    90
+        English    2012    92
+                   2013    91
+        Chemistry  2012    88
+                   2013    84    
+
+这一实现效果令人惊喜。求取各科平均成绩非常简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 求取两年各科平均成绩
+  average = (newps['2013'] + newps['2012']) / 2
+  print(average.unstack())
+  
+  >>>
+        Chemistry  English  Maths
+  John       94.0     83.5   94.0
+  Tom        86.0     91.5   90.5
+
+创建多级索引
+~~~~~~~~~~~~~
+
+有多种方式创建多级索引 MultiIndex 对象：
+
+- MultiIndex.from_arrays 转换由 arrays 组成的 list 为 MultiIndex
+- MultiIndex.from_tuples 转换元组为 MultiIndex
+- MultiIndex.from_product 由迭代对象的笛卡尔积生成 MultiIndex
+
+array 转多级索引
+`````````````````
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # names 指明每个层级的名称
+  arrays = [[1, 1, 2, 2], ['red', 'blue', 'red', 'blue']]
+  pm = pd.MultiIndex.from_arrays(arrays, names=('number', 'color'))
+  print(pm)
+  
+  >>>
+  MultiIndex(levels=[[1, 2], ['blue', 'red']],
+             labels=[[0, 0, 1, 1], [1, 0, 1, 0]],
+             names=['number', 'color'])
+  
+  # 查看多级索引的属性
+  print(pm.levels)
+  print(pm.labels)
+  print(pm.names)
+  
+  >>>
+  [[1, 2], ['blue', 'red']]
+  [[0, 0, 1, 1], [1, 0, 1, 0]]
+  ['number', 'color']
+
+元组转多级索引
+`````````````````
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  tuples = [(1, 'red'), (1, 'blue'),(2, 'red'), (2, 'blue')]
+  pm = pd.MultiIndex.from_tuples(tuples, names=('number', 'color'))
+  print(pm)
+  
+  >>>
+  MultiIndex(levels=[[1, 2], ['blue', 'red']],
+             labels=[[0, 0, 1, 1], [1, 0, 1, 0]],
+             names=['number', 'color'])
+
+笛卡尔积转多级索引
+```````````````````
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  numbers = [0, 1, 2]
+  colors = ['green', 'purple']
+  pm = pd.MultiIndex.from_product([numbers, colors], names=['number', 'color'])
+  print(pm)
+  
+  >>>
+  MultiIndex(levels=[[0, 1, 2], ['green', 'purple']],
+             labels=[[0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 0, 1]],
+             names=['number', 'color'])
+
+使用笛卡尔积方式创建 MultiIndex 对象，层次是比较清晰的。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 增加模拟数据，查看层级和层级名称
+  pf = pd.DataFrame(np.arange(6), index=pm)
+  print(pf)
+  
+  >>>
+  number color    
+  0      green   0
+         purple  1
+  1      green   2
+         purple  3
+  2      green   4
+         purple  5
+
+多级列索引
+``````````
+
+上面的示例均是创建多级行索引，当然也可以创建多级列索引。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  students = ['John', 'Tom']
+  subjects = ['Maths', 'English', 'Chemistry']
+
+  # 创建多级行索引  
+  index = pd.MultiIndex.from_product([students, subjects], names=['student', 'subject'])
+  
+  # 创建多级列索引
+  columns = pd.MultiIndex.from_product([['2012', '2013'], ['first_half', 'latter_half']],
+                                        names=['year', 'half'])
+  
+  # 模拟成绩数据，一共是 6 行 4 列
+  pf = pd.DataFrame(99 - np.random.randint(20, size=(6, 4)), index=index, columns=columns)
+  print(pf)
+  
+  >>>
+  year                    2012                   2013            
+  half              first_half latter_half first_half latter_half
+  student subject                                                
+  John    Maths             82          81         86          81
+          English           83          81         88          94
+          Chemistry         81          85         85          81
+  Tom     Maths             97          80         95          82
+          English           89          99         94          92
+          Chemistry         97          92         92          84
+
+有上例可以看出多级行列索引的创建非常简单。我们可以方便查看各级索引的数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 查询 2012 年上半年成绩数据
+  print(pf['2012','first_half'].unstack())
+  
+  subject  Chemistry  English  Maths
+  student                           
+  John            89       88     88
+  Tom             83       84     99
+
+如果想获取包含多种标签的数据，需要通过对多个维度（姓名、科目等标签）的多次查询才能实现，这时使用多级行列索引进行查询会非常方便。
+
+多级索引排序和切片
+~~~~~~~~~~~~~~~~~~~
+
+Series多级索引排序
+``````````````````
+
+和单级索引一样，多级索引顺序是按照声明顺序确定的，也即是无序的，如果按照索引字母顺序排序，将方便切片操作：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  students = ['Tom', 'John']
+  subjects = ['Maths', 'English', 'Chemistry']
+  index = pd.MultiIndex.from_product([students, subjects], names=['student', 'subject'])
+  
+  ps = pd.Series(np.arange(6) + 90, index=index)
+  print(ps)
+  
+  >>>
+  student  subject  
+  Tom      Maths        90
+           English      91
+           Chemistry    92
+  John     Maths        93
+           English      94
+           Chemistry    95
+  dtype: int32
+
+可以看到，默认的索引顺序和声明中索引顺序相同，但是使用切片 [start:end:step] 操作时，start 要小于 end，否则返回空对象，如果是乱序的，我们每次切片时都要记住声明的标签顺序，且声明顺序一旦更改，切片相关的代码就要更新，如果对索引进行排序，就不会再出现这类问题：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  # 默认使用 level=0 排序
+  ps = ps.sort_index()
+  print(ps)
+  
+  >>>
+  student  subject  
+  John     Chemistry    95
+           English      94
+           Maths        93
+  Tom      Chemistry    92
+           English      91
+           Maths        90
+  dtype: int32
+
+经过排序后，可以发现第一级索引和第二季索引都被更新了。 可以使用 level 参数指定优先进行排序的索引层：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 使用 subject 索引排序
+  print(ps.sort_index(level=1))
+  
+  >>>
+  student  subject  
+  John     Chemistry    95
+  Tom      Chemistry    92
+  John     English      94
+  Tom      English      91
+  John     Maths        93
+  Tom      Maths        90
+  dtype: int32  
+
+逆序排序
+```````````````
+
+sort_index() 方法的 ascending 参数可以指定升序或者降序排列，例如 ascending = False 将降序排列：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(ps.sort_index(ascending=False))
+  
+  >>>
+  student  subject  
+  Tom      Maths        90
+           English      91
+           Chemistry    92
+  John     Maths        93
+           English      94
+           Chemistry    95
+  dtype: int32
+
+Series多级索引访问
+````````````````````
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 使用已排序数据
+  print(ps)
+  
+  >>>
+  student  subject  
+  John     Chemistry    95
+           English      94
+           Maths        93
+  Tom      Chemistry    92
+           English      91
+           Maths        90
+  dtype: int32  
+  
+  # 直接通过访问属性方式访问
+  print(ps.Tom.Maths)
+  
+  >>>
+  90
+
+  # 通过数组访问方式，这类似于 2 维的 DataFrame 访问方式
+  print(ps.loc['Tom', 'Maths']) 
+  
+  >>>
+  90
+  
+  # 切片方式访问
+  print(ps.loc[:, 'Maths'])
+  
+  >>>
+  student
+  John    93
+  Tom     90
+  dtype: int32
+  
+  # 二级切片索引访问
+  print(ps.loc['Tom', 'Chemistry':'English'])
+  
+  >>>
+  student  subject  
+  Tom      Chemistry    92
+           English      91
+  dtype: int32  
+  
+使用 loc 或者 iloc 属性进行多级索引操作，应该为所有层级指定索引，例如 ps.loc[:, :]，而不是 ps.loc[:]。
+
+排序直接修改
+````````````````````
+
+以上示例排序结果不对对象直接修改，如果需要结果直接作用在排序对象上，可以传入 inplace = True，此时无返回值。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ps.sort_index(level=1, inplace=True)
+  print(ps)
+  
+  >>>
+  
+  student  subject  
+  John     Chemistry    95
+  Tom      Chemistry    92
+  John     English      94
+  Tom      English      91
+  John     Maths        93
+  Tom      Maths        90
+  dtype: int32
+
+DataFrame 多级索引排序
+```````````````````````
+
+与 Series 对象类似，DataFrame 同样支持多级索引的排序，唯一不同点在于它有行索引和列索引，可以接受 axis 参数：
+
+- axis = 0，对行索引进行排序，Series 只有行索引，所以 axis 永远为 0.
+- axis = 1，对列索引进行排序。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  students = ['Tom', 'John']
+  subjects = ['Maths', 'English', 'Chemistry']  
+  columns = pd.MultiIndex.from_product([['2013', '2012'], ['first_half', 'latter_half']],
+                                        names=['year', 'half'])
+  
+  # 使用固定的模拟成绩数据，以观察排序影响
+  pf = pd.DataFrame(75 + np.arange(24).reshape(6, 4), index=index, columns=columns)
+  print(pf)
+  
+  >>>
+  year                     2013                   2012           
+  half              latter_half first_half latter_half first_half
+  student subject                                                
+  Tom     Maths              75         76          77         78
+          English            79         80          81         82
+          Chemistry          83         84          85         86
+  John    Maths              87         88          89         90
+          English            91         92          93         94
+          Chemistry          95         96          97         98
+
+我们使用上面的示例数据，为了查看排序效果，我们把所有索引标签的顺序都颠倒了。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 行标签排序
+  print(pf.sort_index(axis=0))
+
+  >>>
+  year                     2013                   2012           
+  half              latter_half first_half latter_half first_half
+  student subject                                                
+  John    Chemistry          95         96          97         98
+          English            91         92          93         94
+          Maths              87         88          89         90
+  Tom     Chemistry          83         84          85         86
+          English            79         80          81         82
+          Maths              75         76          77         78
+
+行标签排序后，对列标签顺序无影响，同样列标签排序对行标签顺序无影响：
+ 
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 列标签排序  
+  print(pf.sort_index(axis=1))
+  
+  >>>
+  year                    2012                   2013            
+  half              first_half latter_half first_half latter_half
+  student subject                                                
+  Tom     Maths             78          77         76          75
+          English           82          81         80          79
+          Chemistry         86          85         84          83
+  John    Maths             90          89         88          87
+          English           94          93         92          91
+          Chemistry         98          97         96          95
+  
+  # 同时对行和列排序
+  sorted_pf = pf.sort_index(axis=0).sort_index(axis=1)
+  print(sorted_pf)
+  
+  >>>
+  year                    2012                   2013            
+  half              first_half latter_half first_half latter_half
+  student subject                                                
+  John    Chemistry         98          97         96          95
+          English           94          93         92          91
+          Maths             90          89         88          87
+  Tom     Chemistry         86          85         84          83
+          English           82          81         80          79
+          Maths             78          77         76          75
+
+无论是行排序还是列排序，均对行或列的所有层级标签依次进行了排序，我们当然可以使用 level 指定优先排序的索引层：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 优先使用 subject 排序
+  print(pf.sort_index(axis=0, level=1))
+
+  >>>
+  year                     2013                   2012           
+  half              latter_half first_half latter_half first_half
+  student subject                                                
+  John    Chemistry          95         96          97         98
+  Tom     Chemistry          83         84          85         86
+  John    English            91         92          93         94
+  Tom     English            79         80          81         82
+  John    Maths              87         88          89         90
+  Tom     Maths              75         76          77         78
+  
+  # # 优先使用半学期 half 排序        
+  print(pf.sort_index(axis=1, level=1))
+  
+  >>>
+  year                    2012       2013        2012        2013
+  half              first_half first_half latter_half latter_half
+  student subject                                                
+  Tom     Maths             78         76          77          75
+          English           82         80          81          79
+          Chemistry         86         84          85          83
+  John    Maths             90         88          89          87
+          English           94         92          93          91
+          Chemistry         98         96          97          95
+
+DataFrame多级索引访问
+`````````````````````````
+
+DataFrame 不支持属性访问方式。所以通常使用 loc 显式索引方式访问：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 使用已排序数据
+  pf.sort_index(inplace=True)
+  print(pf)
+  
+  >>>
+  year                     2013                   2012           
+  half              latter_half first_half latter_half first_half
+  student subject                                                
+  John    Chemistry          95         96          97         98
+          English            91         92          93         94
+          Maths              87         88          89         90
+  Tom     Chemistry          83         84          85         86
+          English            79         80          81         82
+          Maths              75         76          77         78
+  
+  # 访问 Tom 的各科成绩
+  print(pf.loc['Tom', :])
+  
+  >>>
+  year             2013                   2012           
+  half      latter_half first_half latter_half first_half
+  subject                                                
+  Chemistry          83         84          85         86
+  English            79         80          81         82
+  Maths              75         76          77         78
+  
+  # 查看 Tom 的 2012 年各科成绩
+  print(pf.loc['Tom', :]['2012'])
+  
+  >>>  
+    half       latter_half  first_half
+  subject                           
+  Chemistry           85          86
+  English             81          82
+  Maths               77          78
+  
+  # 查看 Tom 的 2012 年下半年各科成绩
+  # 等价于 print(pf.loc['Tom', '2012']['latter_half'])
+  print(pf.loc['Tom', :]['2012']['latter_half'])
+  
+  >>>
+    subject
+  Chemistry    85
+  English      81
+  Maths        77
+  Name: latter_half, dtype: int32
+
+注意体会 DataFrame 的数组访问方式，第一维索引的形式有几种：
+
+- ['Tom', '2012']：指定行索引和列索引
+- ['Tom', 'Maths']：均指定行索引
+- ['Tom', :]：均指定行索引
+
+显然第一维索引无法指定的列索引的第二层索引，就要通过增加第二维索引来访问，例如 ['Tom', '2012']['latter_half']。
+
+索引调整和重置
+~~~~~~~~~~~~~~~
+
+我们可以通过对象的 index 和 columns 属性更新行或列标签。也可以调整索引的顺序。
+
+reindex
+``````````````
+
+reindex() 是 pandas 对象的一个重要方法，其作用是在当前对象基础上创建一个新索引的新对象。它通常和 set_index() 配合使用：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  students = ['Tom', 'John']
+  subjects = ['Maths', 'English', 'Chemistry']
+  index = pd.MultiIndex.from_product([students, subjects], names=['student', 'subject'])
+  ps = pd.Series(np.arange(6) + 90, index=index)
+  
+  # 重制索引
+  flat_ps = ps.reset_index() 
+  print(flat_ps)
+
+  >>>
+    student    subject   0
+  0     Tom      Maths  90
+  1     Tom    English  91
+  2     Tom  Chemistry  92
+  3    John      Maths  93
+  4    John    English  94
+  5    John  Chemistry  95  
+
+  # 逆向转换
+  print(flat_ps.set_index(['student','subject']))
+  >>>
+  
+  student subject      
+  Tom     Maths      90
+          English    91
+          Chemistry  92
+  John    Maths      93
+          English    94
+          Chemistry  95
+  
+可以传入 drop = True 丢弃所有索引，此时变为 Series 对象，只保留数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  flat_ps = ps.reset_index(drop = True) 
+  print(flat_ps)
+  
+  >>>
+  0    90
+  1    91
+  2    92
+  3    93
+  4    94
+  5    95
+  dtype: int32
+
+多级索引数据统计
+~~~~~~~~~~~~~~~~~
+
+前面已经介绍过一些 Pandas 自带的数据累计方法，比如 mean()、sum() 和 max()。而对于层级索引数据，可以设置参数 level 实现对数据子集的累计操作。
+
+首先我们准备如下用于统计的带有多级索引的数据：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # Series 类型的数据
+  student  subject         # 行标签名
+  Tom      Maths        90
+           English      91
+           Chemistry    92
+  John     Maths        93
+           English      94
+           Chemistry    95
+  dtype: int32
+  
+  print(ps.index)
+  
+  >>>
+  MultiIndex(levels=[['John', 'Tom'], ['Chemistry', 'English', 'Maths']],
+             labels=[[1, 1, 1, 0, 0, 0], [2, 1, 0, 2, 1, 0]],
+             names=['student', 'subject'])
+           
+可以使用 level 指定要统计的行标签名或者整数索引，来进行统计：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(ps.mean(level='student')) # 等价于 ps.mean(level=0)
+  
+  >>>
+  student
+  John    94  # (93+94+95) / 3 = 94
+  Tom     91  # (90+91+92) / 3 = 91
+  dtype: int32
+
+结合 axis 参数， 就可以对 DataFrame 列索引进行类似的统计操作：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 准备以下 DataFrame 数据
+  year                     2013                   2012           
+  half              latter_half first_half latter_half first_half
+  student subject                                                
+  John    Chemistry          95         96          97         98
+          English            91         92          93         94
+          Maths              87         88          89         90
+  Tom     Chemistry          83         84          85         86
+          English            79         80          81         82
+          Maths              75         76          77         78   
+
+  # 查看多级索引信息
+  print(pf.index)
+  
+  >>>
+  MultiIndex(levels=[['John', 'Tom'], ['Chemistry', 'English', 'Maths']],
+             labels=[[0, 0, 0, 1, 1, 1], [0, 1, 2, 0, 1, 2]],
+             names=['student', 'subject'])
+
+  # 获取每个学生的平均成绩，axis=0 指定对行统计
+  print(pf.mean(level='student', axis=0))
+  
+  >>>
+  year           2013                   2012           
+  half    latter_half first_half latter_half first_half
+  student                                              
+  John             91         92          93         94
+  Tom              79         80          81         82
+
+  # 获取年平均成绩，axis=1 指定对列统计
+  print(pf.mean(level='year', axis=1))
+  
+  >>>
+  year               2012  2013
+  student subject              
+  John    Chemistry  97.5  95.5
+          English    93.5  91.5
+          Maths      89.5  87.5
+  Tom     Chemistry  85.5  83.5
+          English    81.5  79.5
+          Maths      77.5  75.5
 
