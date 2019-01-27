@@ -25,7 +25,7 @@ pandas 在 NumPy 的 ndarray 对象基础上封装了三个基本数据结构 Se
 Series 对象
 ~~~~~~~~~~~~~~~~ 
 
-Series 对象是一个带索引数据构成的一维数组。 可以使用 list 作为参数，来生成对应 Series 对象，例如：
+Series 对象是一个带索引标签（Labels）的一维数组，打印查看很像只有一列的表，可以看做向量。可以使用 list 作为参数，来生成对应 Series 对象，例如：
 
 .. code-block:: python
   :linenos:
@@ -41,7 +41,7 @@ Series 对象是一个带索引数据构成的一维数组。 可以使用 list 
   dtype: float64
 
   print(type(sdata).__name__)
-  print(sdata.dtype)
+  print(sdata.dtype) # dtype 属性记录成员的类型
   
   >>>
   Series
@@ -59,6 +59,17 @@ Series 对象是一个带索引数据构成的一维数组。 可以使用 list 
   >>>
   float64 2
   Series
+
+如同查看列表长度一样，可以使用 len() 查看成员数目：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  print(len(sdata))
+  
+  >>>
+  3
 
 Series 索引
 ``````````````
@@ -117,7 +128,7 @@ Series 成员可以是其他任何对象，也可以是不同对象，这看起�
 Series 是特殊字典
 ``````````````````
 
-字典是一种将任意键映射到一组任意值的数据结构，而 Series 对象是一种将类型键映射到一组类型值的数据结构。Pandas Series 的类型信息使得它在某些操作上比 Python 的字典更高效。
+字典是一种将任意键映射到一组任意值或对象的数据结构，而 Series 对象是一种将类型键映射到一组类型值的数据结构。Pandas Series 的类型信息使得它在某些操作上比 Python 的字典更高效。
 
 可以直接用 Python 的字典创建一个 Series 对象：
 
