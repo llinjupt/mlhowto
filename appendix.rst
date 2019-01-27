@@ -11,6 +11,7 @@
 机器学习相关
 ------------------
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
+- `莫烦PYTHON <https://morvanzhou.github.io>`_
 
 Python相关
 -----------
