@@ -3206,9 +3206,9 @@ cosa 在统计学中也被称为 u 和 v 的相关系数，它越大说明夹角
 
   二维向量正交投影
 
-图中的 Vproj 为 Vy 在 Vu 上的投影，从点 Vy 到点 Vproj 是 Vy 到 Vu 所在直线上的最短距离 L，L 垂直于 Vu。
+图中的 Vproj 为 Vy 在 Vu 上的投影，点 Vproj 是 Vy 到 Vu 所在直线上的最短距离点，经过 Vy 和 Vproj 点的直线 L 垂直于 Vu。
 
-如果把 L 看做一个向量，那么 Vy = Vproj + L。由于 L 垂直于 Vu，这是两个正交向量。
+如果把 L 看做一个向量，那么 Vy = Vproj + L。由于 L 垂直于 Vu，这是两个正交向量。所以 (Vy - Vproj)Vu = 0，其中 Vproj = cVu，c 为以常数，从而得出 c = (VyVu)/VuVu。
 
 .. code-block:: python
   :linenos:
@@ -3221,7 +3221,9 @@ cosa 在统计学中也被称为 u 和 v 的相关系数，它越大说明夹角
       Vu = np.array(Vu)
       Vy = np.array(Vy) 
       
-      return (Vy.dot(Vu)/Vu.dot(Vu)) * Vu
+      # Vproj = cVu，系数 c = (VyVu)/VuVu
+      c = Vy.dot(Vu)/Vu.dot(Vu)
+      return c * Vu
   
   # 返回最短距离
   def vector_proj_dist(Vu, Vy):
@@ -3900,7 +3902,7 @@ NumPy 借用了 Python 的位运算符 &、 \|、 ~ 和 ^ 来实现逻辑运算�
 索引列表
 `````````````
 
-传递索引的单个列表，用于提取一维数组
+传递索引的单个列表，用于提取一维数组：
 
 .. code-block:: python
   :linenos:
@@ -3908,12 +3910,14 @@ NumPy 借用了 Python 的位运算符 &、 \|、 ~ 和 ^ 来实现逻辑运算�
   
   A = np.arange(4)
   print(A)
-  index_list = [0, 3]
-  B = A[index_list]
-  print(B)
   
   >>>
   [0 1 2 3]
+  
+  # 使用列表进行索引
+  print(A[[0, 3]])
+  
+  >>>
   [0 3]
 
 更高维度的数组需要传递每个维度上的索引列表：
@@ -3924,14 +3928,16 @@ NumPy 借用了 Python 的位运算符 &、 \|、 ~ 和 ^ 来实现逻辑运算�
   
   A = np.arange(4).reshape(2, 2)
   print(A)
-  row = [0, 1]
-  column = [0, 1]
-  C = A[row, column]
-  print(C)
-
+  
   >>>
   [[0 1]
    [2 3]]
+  
+  row = [0, 1]
+  column = [0, 1]
+  print(A[row, column])
+
+  >>>
   [0 3]   # 对应 [A[0,0] A[1,1]]
 
 使用列表作为索引的结果均是一维数组。 
