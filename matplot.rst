@@ -2142,3 +2142,322 @@ plot_surface 同样支持调整 rstride 和 cstride。同时支持设置阴影�
   :alt: triangle
   
   散点图和三角剖分曲面图
+
+子图
+--------------
+
+已经接触过 subplot 函数来创建子图：在较大的图形（Figure）中同时放置一组较小的坐标轴。这些子图可可以是画中画（inset）、网格图（grid of plots），或者是其他更复
+杂的布局形式。
+
+axes 子图
+~~~~~~~~~~~~
+
+axes 子图又称为画中画子图，可以直接在当前 Figure 上生成新的坐标轴，可任意指定位置和大小。
+
+plt.axes
+``````````
+
+Figure 默认会生成一个坐标轴 axes，我们可以使用 plt.axes 手动在 Figure 中创建坐标。
+
+plt.axes 函数默认创建一个标准的坐标轴，并填满整张图。它还有一个可选参数，由图形坐标系统的四个值构成：[bottom, left, width, height]（底坐标、 左坐标、 宽
+度、 高度），数值的取值范围是一个百分比的小数，左下角（原点）为 0，右上角为 1。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(6,6))
+  # print(plt.axes) 可以默认值[0.125, 0.125, 0.775, 0.755]
+  plt.axes() # 绘制默认坐标
+  
+  # 在 Figure 原点绘制子坐标 1，高度和宽度分别为 20% 的 Figure 的高和宽
+  ax1 = plt.axes([0.0, 0.0, 0.2, 0.2])
+  ax1.plot([0,1], [0,1], c='r')
+  
+  # 在 Figure 的 60% 处绘制子坐标 1，高度和宽度分别为 20% 的 Figure 的高和宽
+  ax2 = plt.axes([0.6, 0.6, 0.2, 0.2])
+  ax2.plot([0,1], [0,1], c='m')
+  
+  plt.show()
+
+本示例的目的在于指明子坐标的位置和默认坐标轴无关，它是相对于 Figure 的。
+
+.. figure:: imgs/mpl/axes.png
+  :scale: 80%
+  :align: center
+  :alt: axes
+  
+  通过创建子坐标创建子图
+
+通过 fig 对象我们可以打印所有当前图像对象上的 axes 坐标对象 ：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  for i in fig.axes:
+      print(i)
+  
+  >>>    
+  Axes(0.125,0.125;0.775x0.755)
+  Axes(0,0;0.2x0.2)
+  Axes(0.6,0.6;0.2x0.2)
+
+Axes(0.125,0.125;0.775x0.755) 是默认坐标，其中原点为相对于 Figure 左下角 (0, 0) 向右平移画布宽度的 12.5%，向上平移画布宽度的 12.5% 作为默认坐标的原点，0.775x0.755 表示坐标轴大小，表示相对于 Figure 宽度的 77.5% 和高度的 77.5%。
+
+add_axes
+``````````
+
+通过 fig 的方法 fig.add_axes() 也可以添加新坐标轴。 用这个命令创建两个竖直排列的坐标轴：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  fig = plt.figure(figsize=(6,6))
+  x = np.linspace(0, 10)
+  
+  # 创建子图，原点右平移10%，上平移50%(等于 ax2 的原点上平移 0.1+0.4 高度)
+  ax1 = fig.add_axes([0.1, 0.5, 0.8, 0.4], xticklabels=[], ylim=(-1.2, 1.2))
+  ax1.plot(np.sin(x))
+  
+  ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.4], ylim=(-1.2, 1.2))
+  ax2.plot(np.cos(x));
+  
+  plt.show()
+
+.. figure:: imgs/mpl/axes1.png
+  :scale: 80%
+  :align: center
+  :alt: axes1
+  
+  通过 add_axes 创建子图
+
+可以看到两个紧挨着的坐标轴（上面的坐标轴没有刻度）：上子图（起点 y 坐标为 0.5 位置）与下子图的 x 轴刻度是对应的（起点 y 坐标为 0.1， 高度为 0.4） 。
+
+子图属性
+``````````
+
+- ax.set_title 为子坐标添加标题。
+- ax.set_xlim 和 ax.set_xlim 为子坐标指定范围。
+- ax.set_xlabel 和 ax.set_ylabel 设置坐标轴标题。
+- ax.set_xticks 和 set_yticks 设置坐标轴的标签。
+- ax.set_xticklabels 和 ax.set_yticklabels  设置标签文字。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(6,6))
+  
+  plt.axes()  # 创建默认坐标
+  
+  # 创建子坐标
+  ax1 = plt.axes([0.5, 0.5, 0.2, 0.2])
+  ax1.plot([0,1], [0,1], c='r')
+  
+  # 子图标题
+  ax1.set_title("sub axes", fontsize=16)
+  
+  # 子图坐标轴的标题
+  ax1.set_xlabel("x", fontsize=16)
+  ax1.set_ylabel("y", fontsize=16)
+  
+  # 设置 x,y 轴范围
+  ax1.set_xlim(-1,1)  
+  ax1.set_ylim(-1,1)
+
+  # 设定 x,y 轴的标签
+  ax1.set_xticks(range(-1,2,1))    
+  ax1.set_yticks(range(-1,2,1))  
+  
+  # 设定 x 轴的标签文字
+  ax1.set_xticklabels(list("abc")) 
+  
+  plt.show()
+
+.. figure:: imgs/mpl/axes2.png
+  :scale: 80%
+  :align: center
+  :alt: axes2
+  
+  设置子图属性
+
+网格子图
+~~~~~~~~~~~~~~
+
+plt.subplot
+```````````````
+
+最底层的方法是用 plt.subplot() 在一个网格中创建一个子图。这个命令有三个整型参数——将要创建的网格
+子图行数、列数和索引值，索引值从 1 开始， 从左上角到右下角依次增大。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(9,6))
+  
+  # 把 fig 划分成 2*3 的网格，并一次画图
+  for i in range(1, 7):
+      plt.subplot(2, 3, i)
+      
+      # 文本放置在子图的中心位置
+      plt.text(0.5, 0.5, str((2, 3, i)), fontsize=18, ha='center')
+  
+  plt.show()
+
+.. figure:: imgs/mpl/subplot.png
+  :scale: 80%
+  :align: center
+  :alt: subplot
+  
+  subplot 绘制网格子图
+
+plt.subplot 方法对应面向对象方法为 fig.add_subplot，参数一致。
+
+子图间隔调整
+``````````````````
+
+plt.subplots_adjust 可以调整子图之间的间隔。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(9,6))
+  
+  # 分别设置垂直间隔和水平间隔，数值以子图的高或宽为基准，按百分比生成间隔数据
+  fig.subplots_adjust(hspace=0.4, wspace=0.2)
+  for i in range(1, 7):
+      fig.add_subplot(2, 3, i) # 面向对象方式创建子图
+      plt.text(0.5, 0.5, str((2, 3, i)), fontsize=18, ha='center')
+  
+  plt.show()
+
+.. figure:: imgs/mpl/subplot1.png
+  :scale: 80%
+  :align: center
+  :alt: subplot1
+  
+  子图间隔调整
+
+示例中垂直间隔为子图高度的 40%，水平间隔为子图高度的 20%。
+
+plt.subplots
+``````````````
+
+plt.subplots 与 plt.subplot 不同，它不是用来创建单个子图的，而是用一行代码创建多个子图，并返回一个包含子图的 NumPy 数组。 关键参数是行数与列数，以及可选参数 sharex 与 sharey， 通过它们可以设置不同子图之间的关联关系。
+
+所谓关联关系，即它们可以使用相同的坐标等属性。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  fig, ax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(9,6))
+  print(type(fig).__name__, type(ax).__name__, sep='\n')
+  print(type(ax[0,0]).__name__)
+  
+  >>>
+  Figure
+  ndarray     # ax 是 NumPy 数组，存储了2*3 个的子坐标对象，索引为 [row, col]
+  AxesSubplot # ax 的每一个成员都是坐标对象
+
+通过 NumPy 坐标轴数组来设置文本信息：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  for i in range(2):
+      for j in range(3):
+          ax[i, j].text(0.5, 0.5, str((i, j)), fontsize=18, ha='center')
+  
+  # 通过索引引用子坐标对象绘图
+  ax[0,0].plot([0, 1], [0, 1])
+  ax[1,2].plot([0, 1], [1, 0])
+  ax[1,2].set_title("1,2", fontsize=16)
+  
+  plt.show()
+
+.. figure:: imgs/mpl/subplot2.png
+  :scale: 80%
+  :align: center
+  :alt: subplot2
+  
+  子图共享坐标轴
+
+注意，plt.subplot() 子图索引从 1 开始，plt.subplots() 返回的 ax 数组索引从 0 开始。
+
+不规则网格子图
+````````````````````
+
+以上 plt.subplot 和 plt.subplots 示例均自动为子图分配宽和高空间，如果要绘制不规则子图网格，plt.GridSpec() 是最好的工具。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  fig = plt.figure(figsize=(8,6))
+  
+  # 创建 2 行 3 列网格对象
+  grid = plt.GridSpec(2, 3, wspace=0.4, hspace=0.3)
+  
+  # 通过类似 Python 切片的语法设置子图的位置和扩展尺寸
+  plt.subplot(grid[0, 0]) # 第一个子图占用 1 行 1 列空间
+  plt.subplot(grid[0, 1:])# 第二个子图占用 1 行 2 列空间
+  plt.subplot(grid[1, :2])# 第三个子图占用 1 行 2 列空间
+  plt.subplot(grid[1, 2]) # 第四个子图占用 1 行 1 列空间
+  
+  # 在最后一个子图中绘制直线
+  plt.plot([0,1], [0,1])
+  
+  plt.show()
+
+参数2，3 就是创建每行五个，每列五个的网格，最后就是一个 2*3 的画布，相比于其他函数，使用网格布局的话可以更加灵活的控制占用多少空间。
+
+.. figure:: imgs/mpl/subgrid.png
+  :scale: 80%
+  :align: center
+  :alt: subgrid
+  
+  不规则网格子图
+
+这种灵活的网格排列方式用途十分广泛，可以实现多轴频次直方图（Multi-axes Histogram），seaborn 中封装了相关的 API。
+
+多频次直方图的示例：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 创建一些正态分布数据
+  mean = [0, 0]
+  cov = [[1, 1], [1, 2]]
+  x, y = np.random.multivariate_normal(mean, cov, 2000).T
+  
+  # 设置坐标轴和网格
+  fig = plt.figure(figsize=(8, 8))
+  grid = plt.GridSpec(4, 4, hspace=0.2, wspace=0.2)
+  main_ax = fig.add_subplot(grid[:-1, :-1])
+  x_hist = fig.add_subplot(grid[-1, :-1], yticklabels=[], sharex=main_ax)
+  y_hist = fig.add_subplot(grid[:-1, -1], xticklabels=[], sharey=main_ax)
+  
+  # 主坐标轴画散点图
+  main_ax.plot(x, y, 'ok', markersize=3, alpha=0.3)
+  
+  # 次坐标轴画频次直方图
+  x_hist.hist(x, 40, histtype='stepfilled', orientation='vertical', color='gray')
+  x_hist.invert_yaxis()
+  y_hist.hist(y, 40, histtype='stepfilled', orientation='horizontal', color='gray')
+  
+  plt.show()
+
+.. figure:: imgs/mpl/hist.png
+  :scale: 80%
+  :align: center
+  :alt: hist
+  
+  多轴频次直方图
+
