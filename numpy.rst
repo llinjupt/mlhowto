@@ -1404,7 +1404,7 @@ vstack(tuple) 接受一个由数组组成的元组，每个数组在列上的元
   :lineno-start: 0
     
   A = np.array([1, 2, 3])
-  B = np.array([[4, 5, 62019/1/4 19:54], [7, 8, 9]])
+  B = np.array([[4, 5, 6], [7, 8, 9]])
   print(np.vstack((A, B, A)))
 
   >>>
