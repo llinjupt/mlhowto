@@ -2283,6 +2283,14 @@ add_axes
   
   设置子图属性
 
+可以通过 ax.set 设置多个坐标属性，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ax.set(title='title', xlabel='x' ylabel='y')
+
 网格子图
 ~~~~~~~~~~~~~~
 
