@@ -12,6 +12,9 @@
 ------------------
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
 - `莫烦PYTHON <https://morvanzhou.github.io>`_
+- `scikit-learn和tensorflow的区别 <https://www.jianshu.com/p/0837b7c6ce10>`_
+- `主流机器学习框架对比 <https://www.leiphone.com/news/201702/T5e31Y2ZpeG1ZtaN.html>`_
+- `判断欠拟合还是过拟合 <https://blog.csdn.net/qq_30374549/article/details/80937159>`_
 
 Python相关
 -----------
