@@ -2736,7 +2736,7 @@ np.trace 返回对角线元素和，等价于 np.sum(np.diag(A)):
 .. _dot_product:
 
 点积
-````````````
+`````````
 
 注意点积(Dot product) 和 :ref:`outer_product` 的区别。 
 
@@ -2760,27 +2760,34 @@ np.dot 实现向量点积或矩阵乘积，如果 b 为标量则等同为 a * b�
   >>>
   11 # 1*3 + 2*4 
 
-乘标量：
+标量乘标量，向量乘标量，以及矩阵乘标量，均等于各个元素与标量相乘：
 
 .. code-block:: python
   :linenos:
   :lineno-start: 0
   
-  # 等同 [1 2] * 2
-  print(np.dot(np.array([1,2]), 2))
   # 等同 2 * 2
   print(np.dot(2, 2))
+  
+  >>>
+  4
+  
+  # 等同 [1 2] * 2
+  print(np.dot(np.array([1,2]), 2))
    
   >>>
   [2 4]
   
   A = np.arange(4).reshape(2,2)
   print(A)
-  print(A.dot(2))
   
   >>>
   [[0 1]
    [2 3]]  
+
+  print(A.dot(2))
+  
+  >>>
   [[0 2]
    [4 6]]
 
@@ -2789,13 +2796,52 @@ np.dot 实现向量点积或矩阵乘积，如果 b 为标量则等同为 a * b�
 .. code-block:: python
   :linenos:
   :lineno-start: 0
-    
+
   print(A.dot([1,2]))
   
   >>>
   [2 8]
   
 还有一个 np.inner 函数在向量乘的时候与 np.dot 行为一致，但是在矩阵乘时行为不一致，通常应该使用 np.dot。  
+
+矩阵乘向量
+```````````
+
+由于向量是 1 维的，所以它转置之后还是自身。通常我们使用矩阵和向量相乘，均是指列向量，而 np.dot 把一维向量自动作为行向量，并且结果还是行向量。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  A = np.arange(4).reshape(2,2)
+  print(A)
+  
+  >>>
+  [[0 1]
+   [2 3]]
+  
+  # 矩阵点乘行向量
+  B = np.array([1,2])
+  print(A.dot(B))
+  
+  >>>
+  [2 8]
+
+np.dot 乘以列向量，实际上执行的是矩阵点乘，列向量是 shape 为 (n, 1) 的二维矩阵，结果还是shape 为 (n, 1) 的二维矩阵（列向量）。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  # 矩阵点乘列向量 
+  C = B.reshape(2,1)
+  print(A.dot(C))
+  
+  >>>
+  [[2]
+   [8]]
+
+所以 np.dot 可以根据向量类型自动计算矩阵和向量的点积，并生成对应的向量。
 
 叉乘
 ```````````
