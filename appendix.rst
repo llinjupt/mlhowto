@@ -15,6 +15,8 @@
 - `scikit-learn和tensorflow的区别 <https://www.jianshu.com/p/0837b7c6ce10>`_
 - `主流机器学习框架对比 <https://www.leiphone.com/news/201702/T5e31Y2ZpeG1ZtaN.html>`_
 - `判断欠拟合还是过拟合 <https://blog.csdn.net/qq_30374549/article/details/80937159>`_
+- `马里兰大学，机器学习课程资料 <http://www.cs.umd.edu/class/spring2016/cmsc422//schedule/>`_
+- `标准化和归一化详解 <https://www.jianshu.com/p/95a8f035c86c>`_
 
 Python相关
 -----------
@@ -27,6 +29,10 @@ Python相关
 - `Pandas 官方文档 <http://pandas.pydata.org>`_
 - `Python 数据库操作实例 <http://www.cnblogs.com/idbeta/p/5209522.html>`_
 - `Sqlite数据库操作 <http://www.runoob.com/sqlite/sqlite-data-types.html>`_
+
+数学相关
+-----------
+- `拉格朗日乘子法 <http://jermmy.xyz/2017/07/27/2017-7-27-understand-lagrange-multiplier/>`_
 
 图像相关
 -----------
