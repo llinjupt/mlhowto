@@ -179,6 +179,46 @@ NumPy标准数据类型：
 
 NumPy 元素默认类型为 float64。
 
+类型转换
+`````````
+
+数组的类型转换，不可直接修改 dtype，dtype 只是用于对内存进行解读的方式，但是内存空间的内容不会有任何改变，类似 C 语言中的指针类型转换：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  np.random.seed(0)
+  a = np.random.random(2)
+  print(a.dtype)
+  print(a)
+  a.dtype = 'int32'
+  print(a.dtype)
+  print(a)
+
+  >>>  
+  float64
+  [ 0.5488135   0.71518937]
+  int32
+  [1449071272 1071747041 -815757517 1072095956]
+
+
+示例随机生成包含 2 个默认的 float64 元素的数组，直接修改类型为 ‘int32’，发现数组元素增加，这不是我们期待的结果。
+
+类型转换需要使用 numpy 提供的 astype 方法：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = a.astype(np.int32)
+  print(a.dtype)
+  print(a)
+
+  >>>
+  int32
+  [0 0]
+
 数组视窗
 ~~~~~~~~~~~~
 
