@@ -20,5 +20,6 @@
   matplot
   scipy
   sympy
+  opencv
   deeplearn
   appendix
