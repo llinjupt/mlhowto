@@ -36,6 +36,8 @@ Python相关
 
 图像相关
 -----------
+- `Matplotlib 用户指南 <https://wizardforcel.gitbooks.io/matplotlib-user-guide/>`_
+- `OpenCV-Python 官方教程 <https://opencv-python-tutroals.readthedocs.io/en/latest/index.html>`_
 - `GeoGebra 数学绘图工具 <https://www.geogebra.org/>`_
 - `Graphviz 官网 <http://www.graphviz.org>`_
 - `Graphviz 示例1 <https://graphs.grevian.org/example>`_
@@ -45,7 +47,7 @@ Python相关
 - `matplotlib 进阶和入门 <https://blog.csdn.net/qq_34337272/article/details/79555544>`_
 - `Pillow 图像处理 <https://pillow.readthedocs.io/en/5.3.x/>`_
 - `Turtle 绘图示例 <https://www.zhihu.com/question/271643290/answer/525019532>`_
-- `Matplotlib 用户指南 <https://wizardforcel.gitbooks.io/matplotlib-user-guide/>`_
+
 
 符号和表达式
 --------------
