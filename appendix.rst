@@ -28,7 +28,7 @@ Python相关
 --------------
 - `Pandas 官方文档 <http://pandas.pydata.org>`_
 - `Python 数据库操作实例 <http://www.cnblogs.com/idbeta/p/5209522.html>`_
-- `Sqlite数据库操作 <http://www.runoob.com/sqlite/sqlite-data-types.html>`_
+- `Sqlite 数据库操作 <http://www.runoob.com/sqlite/sqlite-data-types.html>`_
 
 数学相关
 -----------
@@ -47,7 +47,6 @@ Python相关
 - `matplotlib 进阶和入门 <https://blog.csdn.net/qq_34337272/article/details/79555544>`_
 - `Pillow 图像处理 <https://pillow.readthedocs.io/en/5.3.x/>`_
 - `Turtle 绘图示例 <https://www.zhihu.com/question/271643290/answer/525019532>`_
-
 
 符号和表达式
 --------------
