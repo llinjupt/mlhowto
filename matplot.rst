@@ -1,4 +1,4 @@
-Matplotlib
+matplotlib
 ================
 
 matplotlib 是 python 中一个非常强大的 2D 函数绘图模块，它提供了子模块 pyplot 和 pylab 。pylab 是对 pyplot 和 numpy 模块的封装，更适合在 IPython 交互式环境中使用。
