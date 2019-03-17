@@ -423,7 +423,7 @@ OpenCV 提供了缩放操作（Resizing）接口 resize：
   :linenos:
   :lineno-start: 0
 
-  # 按照宽度参数扩折高度参数进行线性缩放
+  # 按照宽度或高度参数进行线性缩放
   def resize(image, width=None, height=None, inter=cv2.INTER_AREA):
       '''linear scale with width or height size'''
       h, w = image.shape[:2]
@@ -1555,6 +1555,223 @@ Otsu’s 二值化
 
 任何一副灰度图像都可以被看成拓扑平面，灰度值高的区域可以被看成是山峰，灰度值低的区域可以被看成是山谷。我们向每一个山谷中灌不同颜色的水。随着水的位的升高，不同山谷的水就会相遇汇合，为了防止不同山谷的水汇合，我们需要在水汇合的地方构建起堤坝。不停的灌水，不停的构建堤坝知道所有的山峰都被水淹没。我们构建好的堤坝就是对图像的分割。这就是分水岭算法的背后哲理。
 
-图像梯度和边缘检测
--------------------
+图像梯度
+---------
 
+梯度的方向是函数 f(x, y) 变化最快的方向。在图像处理领域，当图像中存在边缘时，一定有较大的梯度值，处于边缘上的像素只与邻近的边缘像素差别小，而与任何一个非边缘方向像素值差别很大，特别是垂直方向，差别最大，此时梯度最大，当图像中有比较平滑的部分时，像素值变化较小，则相应的梯度也较小，图像处理中把梯度的模简称为梯度。
+
+经典的图像梯度算法是考虑图像的每个像素的某个邻域内的灰度变化，利用边缘临近的一阶或二阶导数变化规律，对原始图像中像素某个邻域设置梯度算子，通常我们用小区域模板进行卷积来计算，有Sobel算子、Robinson算子、Laplace算子等。
+
+Sobel Scharr 算子
+~~~~~~~~~~~~~~~~~~
+
+Sobel，Scharr 其实就是求一阶或二阶导数。Scharr 是对 Sobel（使用小的卷积核求解求解梯度角度时）的优化。
+
+Sobel 算子是高斯平滑与微分操作的结合体，所以它的抗噪声能力很好。可以设定求导的方向（xorder 或 yorder）。还可以设定使用的卷积核的大小（ksize）。
+
+如果 ksize=-1，会使用 3x3 的 Scharr 滤波器，它的的效果要比 3x3 的 Sobel 滤波器好（而且速度相同，所以在使用 3x3 滤波器时应该尽量使用 Scharr 滤波器）。 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def sobel(fname, scharr=0):
+      image = cv2.imread(fname)
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      cv2.imshow("Blurred", image)
+      
+      if (scharr): # ksize = -1 使能 scharr 算法
+          sobelX = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=-1)
+          sobelY = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=-1)
+      else:
+          # 参数 1,0 为只在 x 方向求一阶导数，最大可以求 2 阶导数
+          sobelX = cv2.Sobel(image, cv2.CV_64F, 1, 0)
+          # 参数 0,1 为只在 y 方向求一阶导数，最大可以求 2 阶导数
+          sobelY = cv2.Sobel(image, cv2.CV_64F, 0, 1)
+    
+      # 类型转回 uint8
+      sobelX = np.uint8(np.absolute(sobelX))
+      sobelY = np.uint8(np.absolute(sobelY))
+      
+      sobelCombined = cv2.bitwise_or(sobelX, sobelY)
+      
+      if (scharr):
+          cv2.imshow("Scharr X", sobelX)
+          cv2.imshow("Scharr Y", sobelY)
+          cv2.imshow("Scharr Combined", sobelCombined)
+      else:
+          cv2.imshow("Sobel X", sobelX)
+          cv2.imshow("Sobel Y", sobelY)
+          cv2.imshow("Sobel Combined", sobelCombined)
+      
+      cv2.waitKey(0)
+      
+  sobel("dave.jpg")
+
+可以看到对 x，y 方向求导分别提取垂直和水平线条：
+
+.. figure:: imgs/opencv/sobel.png
+  :scale: 60%
+  :align: center
+  :alt: sobel
+  
+  Sobel 算子处理效果图
+  
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def scharr(fname):
+      sobel(fname, scharr=1)
+  
+  scharr("dave.jpg")  
+
+对比可以发现 Scharr 算子保留了更多细节轮廓：
+  
+.. figure:: imgs/opencv/scharr.png
+  :scale: 60%
+  :align: center
+  :alt: Scharr
+  
+  Scharr 算子处理效果图
+
+cv2.CV_64F 设置输出图像的深度：一个从黑到白的边界的导数是整数，而一个从白到黑的边界点导数却是负数。如果原图像的深度是 np.uint8 时，所有的负值都会被截断变成 0，换句话说就是把把边界丢失掉。
+
+所以如果这两种边界都想检测到，最好的的办法就是将输出的数据类型设置的更高，比如 cv2.CV_16S， cv2.CV_64F 等。取绝对值然后再把它转回到 cv2.CV_8U。
+
+Laplacian 算子
+~~~~~~~~~~~~~~~~
+
+拉普拉斯算子使用二阶导数的形式定义，可假设其离散实现类似于二阶 Sobel 导数，我们看一下它的处理效果：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def laplacian(fname, ksize=3):
+      image = cv2.imread(fname)
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      cv2.imshow("Blurred", image)
+      lap = cv2.Laplacian(image, cv2.CV_64F, ksize=ksize)
+      lap = np.uint8(np.absolute(lap))
+      cv2.imshow("Laplacian", lap)
+      
+      cv2.waitKey(0)
+  
+  laplacian("dave.jpg")
+
+.. figure:: imgs/opencv/lap.png
+  :scale: 60%
+  :align: center
+  :alt: lap
+  
+  拉普拉斯算子处理效果图
+
+可以发现这些算子在滤波后，都会将非边缘区域转为黑色，边缘区域转为白色（饱和色），但是，噪声也很容易被错误地识别为边缘轮廓，可以在处理前考虑加入模糊处理。
+
+边缘检测
+~~~~~~~~~~
+
+边缘检测通常使用 Canny 算法。它是 John F.Canny 在1986 年提出的。它是一个有很多步构成的算法：包括噪声去除，计算图像梯度，非极大值抑制（NMS）和滞后阈值几部分。
+
+在 OpenCV 中只需 cv2.Canny() 一个函数就可以完成以上几步:
+
+- 第一个参数是输入图像。
+- 第二和第三个分别是 threshold1 和 threshold2，大于 threshold2 的值被认为是边缘，小于 threshold1 的值不被认为是边缘 。位于中间的像素由连接性判断是否为边缘。
+- 第三个参数设置用来计算图像梯度的 Sobel卷积核的大小，默认值为 3。取值为 3-7，越大边缘细节越多。
+- 最后一个参数是 L2gradient，它可以用来设定求梯度大小的方程，默认为 False。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def canny(fname, ksize=3):
+      image = cv2.imread(fname)
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      cv2.imshow("Original", image)
+  
+      canny = cv2.Canny(blurred, 30, 150, apertureSize = ksize)
+      cv2.imshow("Canny", canny)
+      
+      cv2.waitKey(0)
+  
+  canny("dave.jpg", 3)
+
+.. figure:: imgs/opencv/canny.png
+  :scale: 60%
+  :align: center
+  :alt: lap
+  
+  Canny 算法边缘检测
+
+Canny 两个阈值的设置对结果影响很大，如何自动适配这两个阈值呢？
+
+边缘自动检测
+~~~~~~~~~~~~~
+
+基于对多数图像的统计计算来得出通用的边缘上下限计算规律。
+
+识别和绘制轮廓
+~~~~~~~~~~~~~~
+
+轮廓可以简单认为成将连续的点（连着边界）连在一起的曲线，具有相同的颜色或者灰度。轮廓在形状分析和物体的检测和识别中很有用。
+
+- 为了更加准确，要使用黑白二值图。在寻找轮廓之前，要进行阈值化处理或者 Canny 边界检测。
+- 查找轮廓的函数会修改原始图像。如果在找到轮廓之后还想使用原始图像的话，应该将原始图像存储到其他变量中。
+- 在 OpenCV 中，查找轮廓就像在黑色背景中找白色物体：要找的物体应该是白色而背景应该是黑色。
+
+cv2.findContours 用于在黑白二值图中查找轮廓，它接受三个参数：输入图像（二值图像），轮廓检索方式和轮廓近似方法：
+  
+  ================= =====
+  轮廓检索方式        描述
+  ================= =====
+  cv2.RETR_EXTERNAL 只检测外轮廓
+  cv2.RETR_LIST 	  检测的轮廓不建立等级关系
+  cv2.RETR_CCOMP 	  建立两个等级的轮廓，上面一层为外边界，里面一层为内孔的边界信息
+  cv2.RETR_TREE 	  建立一个等级树结构的轮廓
+  ================= =====
+
+  =========================== =====
+  轮廓近似办法                描述
+  =========================== =====
+  cv2.CHAIN_APPROX_NONE 	    存储所有边界点
+  cv2.CHAIN_APPROX_SIMPLE 	  压缩垂直、水平、对角方向，只保留端点
+  cv2.CHAIN_APPROX_TX89_L1 	  使用teh-Chini近似算法
+  cv2.CHAIN_APPROX_TC89_KCOS 	使用teh-Chini近似算法
+  =========================== =====
+
+在 OpenCV 3.4 以后版本返回两个参数：轮廓（list 类型）和轮廓的层析结构。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def edges(fname):
+      image = cv2.imread(fname)
+      gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      blurred = cv2.GaussianBlur(gray, (9, 9), 0)
+      canny = cv2.Canny(blurred, 50, 180, apertureSize=3)
+      cv2.imshow("canny", canny)
+      cnts, hierarchy = cv2.findContours(canny, cv2.RETR_EXTERNAL, 
+                                         cv2.CHAIN_APPROX_SIMPLE) 
+      print(cnts) # 打印找到的轮廓数目
+      image = cv2.drawContours(image, cnts, -1, (0,255,0), 2)
+  
+      cv2.imshow("Coins", image)
+      cv2.waitKey(0)
+      
+  edges("coin.jpg")
+  
+  >>>
+  6   # 第二枚硬币有 2 个不连续的轮廓
+
+仔细观察发现，我们已经制定了 cv2.RETR_EXTERNAL 以只检测外轮廓，但是第二个硬币的轮廓明显不正确，仔细放大 canny 返回的二值图像，可以发现外层边界是有缺口的，也即不是闭合的。此种情况可以考虑腐蚀膨胀来使得轮廓联通，或者通过计算外接圆（依具体情况选择形状）是否重合来消除。
+
+.. figure:: imgs/opencv/edge.png
+  :scale: 60%
+  :align: center
+  :alt: edge
+  
+  查找轮廓
+
+cv2.drawContours 用于在原始图像上绘制轮廓。五个输入参数：原始图像，轮廓（数组列表），轮廓的索引（当设置为 -1 时，绘制所有轮廓），画笔颜色，线条宽度，返回绘制轮廓后的图像。
