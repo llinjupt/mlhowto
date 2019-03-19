@@ -1,3 +1,324 @@
+mahotas
+================
+
+Mahotas 是计算机视觉和图像处理 Python 库。它包含大量图像处理算法，使用 C++ 实现，性能很高。完全基于 numpy 的数组作为它的数据类型，有一个非常 Pyhonic 的算法接口。
+
+Mahotas 官方宣称提供超过 100 个算法函数，包含：
+
+- watershed 分水岭。
+- convex points calculations 凸点计算。
+- hit & miss thinning 击中/击不中，细化算法。
+- Zernike & Haralick, local binary patterns, and TAS features，泽尼克＆Haralick，枸杞多糖，和TAS的功能。
+- morphological processing，形态处理。
+- Speeded-Up Robust Features (SURF) 加速的鲁棒特征（SURF）等。
+- thresholding 阈值。
+- convolution 卷积。
+- Sobel edge detection Sobel 边缘检测。
+- 多边形绘制
+- 距离变换
+- 特征计算
+- 样条插值
+- freeimage & imread 文件读写接口
+
+这些算法有些在 opencv 中实现非常麻烦，可以实现功能互补，了解这些算法对现实应用有很大帮助。
+
+区域标记
+-----------
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  import matplotlib.pyplot as plt # 使用 matploblib 显示图片
+  import mahotas as mh
+  import numpy as np
+  
+  regions = np.zeros((8, 8), bool)
+  
+  regions[:3,:3] = 1
+  regions[6:,6:] = 1
+  labeled, nr_objects = mh.label(regions)
+  
+  # imshow 会将标记数据 labeled 映射到整个灰度空间 0-255
+  plt.imshow(labeled, interpolation='nearest', cmap='gray')
+  plt.show()
+
+.. figure:: imgs/opencv/label.png
+  :scale: 100%
+  :align: center
+  :alt: label
+
+  区域标记效果图
+
+为了理解区域（Region）标记的工作原理，就要先理解连通区域，在图片上看来像素是连续的区域，在 x 和 y 方向均没有断点，那么这些像素就组成了一个连通区域。
+
+首先创建一个布尔量（二值）8*8 全 0 数组，左上角 3*3 区域置为 1，右下角 2*2 区域置为 1，那么 regions 数组就成了这样：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(regions)
+  
+  >>>  
+  [[ True  True  True False False False False False]
+   [ True  True  True False False False False False]
+   [ True  True  True False False False False False]
+   [False False False False False False False False]
+   [False False False False False False False False]
+   [False False False False False False False False]
+   [False False False False False False  True  True]
+   [False False False False False False  True  True]]  
+
+根据连通区域的定义，左上角和右下角就成了两个区域。返回的 labeled 是标记后的数组，nr_objects 是连通区域的个数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(labeled)
+  print(labeled.dtype)
+  print(nr_objects)
+  
+  >>>
+  [[1 1 1 0 0 0 0 0] # 第一个区域被标记为 1
+   [1 1 1 0 0 0 0 0]
+   [1 1 1 0 0 0 0 0]
+   [0 0 0 0 0 0 0 0]
+   [0 0 0 0 0 0 0 0]
+   [0 0 0 0 0 0 0 0]
+   [0 0 0 0 0 0 2 2] # 第二个区域被标记为 2
+   [0 0 0 0 0 0 2 2]] 
+   int32             # 标记后的数组类型为 int32
+   2                 # 一共 2 个 连通区域
+
+可以看出标记从序号 1 开始，到 nr_objects - 1 结束。imshow 指定了 cmap='gray'，显示时会把 0-2 映射到 0-255 灰度空间。
+
+实际上在背景为 0 的数组上，连通区域的像素可以是任意非 0 值，它们均被标记为统一值。以下代码效果是一样的：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  regions = np.zeros((8,8), np.uint8)
+  
+  regions[:3,:3] = 1
+  regions[6:,6:] = 2
+  
+  labeled, nr_objects = mh.label(regions)
+
+扩展连通区域
+~~~~~~~~~~~~~
+
+上面的定义提到，只要有一个像素间断就认为是不连通了，我们当然可以设置这个间断的距离：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  regions = np.zeros((8,8), np.uint8)
+  
+  regions[:3,:3] = 1
+  regions[5,5] = 1
+  regions[6:,6:] = 2
+  
+  plt.figure()
+  labeled, nr_objects = mh.label(regions)
+  plt.subplot(1,2,1)
+  imshow(labeled, interpolation='nearest')  # 默认连通区域 1*1 分割
+  
+  plt.subplot(1,2,2)                        # 设置连通区域 x>=2 y>=2 时才不连通
+  labeled1, nr_objects1 = mh.label(regions, np.ones((2,2), bool))
+  plt.imshow(labeled1, interpolation='nearest')
+  plt.show()
+  
+.. figure:: imgs/opencv/label1.png
+  :scale: 100%
+  :align: center
+  :alt: label1
+
+  扩展连通区域
+
+上图为了显示对比更强烈，没有指定灰度显示，此时会使用默认的彩色颜色方案显示图片。
+
+如果一个对象在进行二值处理后出现不连续，那么就可以使用这种方法让区域连通。这在采用遮罩(masking)方式提取图片中物体时非常有用。
+
+统计标记区域
+~~~~~~~~~~~~~~~
+
+labeled_size 方法可以统计每个区域的像素数，返回一个列表，第一个成员是背景所占的像素数，然后是第一个标记区域的像素数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled, nr_objects = mh.label(regions)
+  sizes = mh.labeled.labeled_size(labeled)
+  print('Background size', sizes[0])
+  print('Size of first region: {}'.format(sizes[1]))
+  
+  >>>
+  Background size 50
+  Size of first region: 9
+
+我们也可以统计每个标记区域的像素值的和：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled, nr_objects = mh.label(regions)
+  array = np.ones(regions.shape) * 2
+
+  sums = mh.labeled_sum(array, labeled)
+  print(sums)
+
+  >>>
+  [ 100.   18.    2.    8.]
+
+区域过滤
+~~~~~~~~~~~~
+
+示例给出一张微观下的细胞图片，为统计细胞核数量，需要进行预处理：高斯模糊和二值化：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  f = mh.demos.nuclear_image()
+  
+  f = f[:,:,0] # 只显示 R 通道
+  plt.figure()
+  plt.subplot(1,2,1)
+  plt.imshow(f)
+  
+  # 进行高斯模糊
+  f = mh.gaussian_filter(f, 4)
+  # 二值化处理
+  f = (f > f.mean())
+  
+  plt.subplot(1,2,2)
+  plt.imshow(f)
+  plt.show()
+
+.. figure:: imgs/opencv/filter.png
+  :scale: 50%
+  :align: center
+  :alt: filter
+
+  高速模糊和二值化处理后的对比图
+
+对细胞核个数进行统计：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled, n_nucleus  = mh.label(f)
+  print('Found {} nuclei.'.format(n_nucleus))
+  
+  >>>
+  Found 42 nuclei.
+
+可以准确找出 42 个细胞核，但是有些是聚合物，并不是细胞核，可以通过一个细胞核所占像素大小进行过滤，超过 10000 个像素就被过滤掉：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  sizes = mh.labeled.labeled_size(labeled)
+  too_big = np.where(sizes > 10000)
+  labeled = mh.labeled.remove_regions(labeled, too_big)
+  
+  plt.imshow(labeled)
+  plt.show()
+
+看图可以发现所有大于 10000 个像素的聚合物均被去除了：
+
+.. figure:: imgs/opencv/filter1.png
+  :scale: 80%
+  :align: center
+  :alt: filter
+
+  通过像素数过滤连通区域
+
+有些细胞核处于边界上面，也可以去除掉：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled = mh.labeled.remove_bordering(labeled)
+
+.. figure:: imgs/opencv/filter2.png
+  :scale: 80%
+  :align: center
+  :alt: filter
+
+  过滤位于边界上的连通区域
+
+由于有些连通区域被移除了，可以对连通区域进行重新标记，以让区域序号连续：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  relabeled, n_left = mh.labeled.relabel(labeled)
+  print('After filtering and relabeling, there are {} nuclei left.'.format(n_left))
+  
+  >>>
+  After filtering and relabeling, there are 24 nuclei left.
+
+以上过滤可以通过一条语句完成：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  relabeled,n_left = mh.labeled.filter_labeled(labeled, remove_bordering=True, max_size=10000)
+
+实例应用
+~~~~~~~~~~~~
+
+这里使用区域标记来统计下图中的硬币个数：
+
+.. figure:: imgs/opencv/coin.jpg
+  :scale: 100%
+  :align: center
+  :alt: filter
+
+  统计硬币
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  image = cv2.imread("coin.jpg")
+  gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  blurred = cv2.GaussianBlur(gray, (11, 11), 0) # 使用较大的高斯模糊
+  ret,thresh = cv2.threshold(blurred, 0, 255, 
+                             cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+  
+  labeled, digits  = mh.label(thresh)
+  
+  # 最小像素至少为 100
+  relabeled, n_left = mh.labeled.filter_labeled(labeled, min_size=100) 
+  print("Find %d coins" % n_left)
+  plt.imshow(relabeled)
+  plt.show()
+
+  >>>
+  Find 5 coins
+
+.. figure:: imgs/opencv/coins.png
+  :scale: 100%
+  :align: center
+  :alt: coins
+
+  统计硬币
+
+如果硬币之间有交叠，就要先使用分水岭算法把硬币分隔开再统计。
+
 opencv
 ================
 
