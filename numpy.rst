@@ -2213,13 +2213,18 @@ mean() 用于求元素和的均值，等价于 sum()/size。
   :linenos:
   :lineno-start: 0
 
+  A = np.arange(1,7).reshape(2,3)
   print(A.mean())         # 所有元素均值
   print(A.mean(axis = 0)) # 0 轴元素均值
+  
+  >>>
+  3.5
+  [ 2.5  3.5  4.5]
+  
   print(A.mean() == A.sum()/A.size)
   print(A.mean(axis=0) == A.sum(axis=0)/A.shape[0])
   
   >>>
-  [ 2.5  3.5  4.5]
   True
   [ True  True  True]
 
