@@ -319,6 +319,62 @@ labeled_size 方法可以统计每个区域的像素数，返回一个列表，�
 
 如果硬币之间有交叠，就要先使用分水岭算法把硬币分隔开再统计。
 
+由于我们已经使用比较大的高斯核进行模糊处理，硬币内部的孔隙比较小，硬币间间隔比较大，可以扩大连通区域实现统计：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  labeled, digits  = mh.label(thresh, np.ones((5,5), bool))
+  print("Find %d coins!" % digits)
+
+如果要抠取的物体内部有很大孔隙，那么使用 opencv 的 boundingRect 生成 masking 来抠取是一个更好的选择。
+
+标记区域矩形框
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled, digits  = mh.label(thresh, np.ones((5,5), bool))
+  bboxes = mh.labeled.bbox(labeled)
+  print(bboxes[0])
+  
+  >>>
+  [  0 234   0 355]
+
+labeled.bbox 方法可以根据 labeled 返回矩形框信息（ndarray），第一个成员为背景矩形框，其余依次为编号为 i 的矩形框。
+
+提取边界信息
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  labeled, digits  = mh.label(thresh, np.ones((5,5), bool))
+  borders = mh.labeled.borders(labeled)
+  plt.imshow(borders)
+  plt.show()
+
+.. figure:: imgs/opencv/borders.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  边界信息
+
+移除标记区域
+~~~~~~~~~~~~~
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  regions = [1,2]
+  removed = mh.labeled.remove_regions(labeled, regions)
+
 opencv
 ================
 

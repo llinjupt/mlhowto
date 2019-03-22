@@ -38,6 +38,7 @@ Python相关
 -----------
 - `Matplotlib 用户指南 <https://wizardforcel.gitbooks.io/matplotlib-user-guide/>`_
 - `OpenCV-Python 官方教程 <https://opencv-python-tutroals.readthedocs.io/en/latest/index.html>`_
+- `Mahotas 计算机视觉库 <https://mahotas.readthedocs.io/en/latest/>`_
 - `GeoGebra 数学绘图工具 <https://www.geogebra.org/>`_
 - `Graphviz 官网 <http://www.graphviz.org>`_
 - `Graphviz 示例1 <https://graphs.grevian.org/example>`_
@@ -47,6 +48,7 @@ Python相关
 - `matplotlib 进阶和入门 <https://blog.csdn.net/qq_34337272/article/details/79555544>`_
 - `Pillow 图像处理 <https://pillow.readthedocs.io/en/5.3.x/>`_
 - `Turtle 绘图示例 <https://www.zhihu.com/question/271643290/answer/525019532>`_
+- `learnopencv <https://www.learnopencv.com>`_
 
 符号和表达式
 --------------
@@ -54,8 +56,14 @@ Python相关
 - `常用数学符号的 LaTeX 表示方法 <http://www.mohu.org/info/symbols/symbols.htm>`_
 - `Math in reStructuredText <https://yuyuan.org/MathInreStructuredText/#use-mathjax-in-restructuredtext>`_
 
-RST语法参考
-------------
+manim 环境配置
+--------------
+- `缺少sty文件时的安装方法 <https://blog.csdn.net/guojingjuan/article/details/84878630>`_
+- `3Blue1Brown风格的视频 <https://www.bilibili.com/read/cv17444>`_
+
+嵌入式相关
+------------------
+- 树莓派跑OpenCV https://www.pyimagesearch.com/2017/09/04/raspbian-stretch-install-opencv-3-python-on-your-raspberry-pi/
 
 LaTeX数学表达式
 ~~~~~~~~~~~~~~~~

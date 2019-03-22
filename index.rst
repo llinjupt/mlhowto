@@ -21,5 +21,6 @@
   scipy
   sympy
   opencv
+  practice
   deeplearn
   appendix
