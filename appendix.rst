@@ -3,13 +3,13 @@
 
 参考书目
 -----------
-
 | [1] Eric Matthes，袁国忠(译).Python编程从入门到实践[M].北京:人民邮电出版社，2016
 | [2] Micha Gorelick，Ian Ozsvald，胡世杰，徐旭彬(译).Python高性能编程[M].北京:人民邮电出版社，2017
 | [3] Jake VanderPlas，陈俊杰，陈小莉(译).Python数据科学手册[M].北京:人民邮电出版社，2017
 
 机器学习相关
 ------------------
+- `Neural Networks and Deep Learning (Michael Nielsen) <http://neuralnetworksanddeeplearning.com/index.html>`_
 - `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
 - `莫烦PYTHON <https://morvanzhou.github.io>`_
