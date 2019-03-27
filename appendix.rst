@@ -10,6 +10,7 @@
 
 机器学习相关
 ------------------
+- `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
 - `莫烦PYTHON <https://morvanzhou.github.io>`_
 - `scikit-learn和tensorflow的区别 <https://www.jianshu.com/p/0837b7c6ce10>`_
