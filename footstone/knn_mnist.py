@@ -130,11 +130,6 @@ class kNN_sklearn():
         plt.xlabel("Train dataset")         
         plt.ylabel("Error ratio(%)")        
         
-        #x = np.arange(1, 1 + len(self.costs_), 1) * self.steps_
-        #plt.xlim(1 * self.steps_, len(self.costs_) * self.steps_) 
-        #plt.ylim(0, max(self.costs_) + 1)
-        #plt.yticks(np.linspace(0, max(self.costs_) + 1, num=10, endpoint=True))
-        
         plt.plot(self.train_batch, self.error_ratio, c='grey')
         plt.scatter(self.train_batch, self.error_ratio, c='black')
         plt.show()
