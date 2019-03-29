@@ -445,7 +445,9 @@ random() 返回连续型均匀分布（continuous uniform）的 [0, 1) 随机值
 正态分布
 `````````````
 
-randn 返回符合标准正态分布（Normal distribution）的随机值填充的数组。
+正态分布（Normal distribution）又名高斯分布（Gaussian distribution）。
+
+randn 返回符合标准正态分布的随机值填充的数组。
 
 .. code-block:: python
   :linenos:
@@ -453,7 +455,7 @@ randn 返回符合标准正态分布（Normal distribution）的随机值填充�
     
   print(np.random.randn())    # 返回一个随机值
   print(np.random.randn(1))   # 返回一维数组
-  print(np.random.randn(2,2)) # 返回二维数组
+  print(np.random.randn(2, 2)) # 返回二维数组
 
   >>>
   0.48496737321135236  # float 类型
