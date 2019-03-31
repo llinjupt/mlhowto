@@ -198,6 +198,80 @@ conda 用于管理 Anaconda3 科学计算环境软件包。
   # ModuleNotFoundError: No module named 'PyQt5.QtWebKitWidgets'
   conda update -c conda-forge qt pyqt
 
+Numba
+~~~~~~~~
+
+Numba 是一个优化计算密集型 Python 代码的软件包，和 Anaconda 师出同门，基于 LLVM（Low Level Virtual Machine）编译器在运行时（JIT，Just in time）将 Python 代码编译为本地机器指令，而不会强制大幅度的改变普通的Python代码（使用装饰器修饰即可）。
+
+Numba 的核心应用领域是 math-heavy（强数学计算领域）和 array-oriented（面向数组）功能，它们在 Python 中执行相当缓慢（实际上它是多层 for 循环的强力克星）。如果在 Python 中编写一个模块，必须循环遍历一个非常大的数组来执行一些计算，而不能使用向量操作来加速。所以“通常”这类库函数是用 C，C ++ 或Fortran编写的，编译后，在Python中作为外部库使用。Numba 使得这类函数也可以写在普通的 Python 模块中，而且运行速度的差别正在逐渐缩小（官方宣称可以达到原生代码的效率）。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  conda install numba
+
+Numba 的使用异常简单，只需要在需要优化的函数前添加函数装饰器，Numba 提供多种装饰器和装饰器参数，最简单的应用如下所示：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 导入运行时优化装饰器 jit
+  from numba import jit
+  
+  @jit
+  def test_numba(size=10000):
+      total = 0.0
+      bigmatrix = np.ones((size,size))
+      
+      start = time.time()
+      for i in range(bigmatrix.shape[0]):
+          for j in range(bigmatrix.shape[1]):
+              total += bigmatrix[i, j]
+      print("bigmatrix sum cost walltime {:.02f}s".format(time.time()-start))
+      return total
+  
+  test_numba()
+
+对比结果令人印象深刻，大约有100倍的时间差距，Numba 非常适用于优化大量 for 循环的情况，更深入的参数使用参考 `Numba 用户指南 <http://numba.pydata.org/numba-doc/latest/user/index.html/>`_ 。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  bigmatrix sum cost walltime 44.37s
+  bigmatrix sum cost walltime 0.41s
+
+注意被 Numba 修饰器修饰的函数中不可使用 import 或者 from 语句导入第三方软件包。
+
+numexpr
+~~~~~~~~~~~
+
+安装 numexpr 非常简单，它是专门针对 numpy 表达式的加速包。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  conda install numexpr
+
+numexpr 的使用也很简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  import numpy as np
+  import numexpr as ne
+  
+  # 矩阵越大效果越好
+  a = np.arange(1e6)   
+  
+  >>> ne.evaluate("a + 1")
+
+深入使用 numexpr 参考 `numexpr 官方指南 <https://numexpr.readthedocs.io/en/latest/>`_ 。
+
 写在前面
 ----------
 
@@ -1289,7 +1363,7 @@ kNN 算法启示
 
   错误率和样本数关系曲线
 
-为何下降速度越来越慢，一个启发性解释：训练样本的像素的向量终点在高维空间落在不同的区域，相同数字的向量终点回聚集在一个小的范围内（距离近，夹角小），这一范围如果映射成到平面上，就可以想象成一个圆形（当然也可以是其他可以描述一片聚集区域的图形）区域，越靠近圆心训练样本越密集，越靠近边界分布越稀少（如果从像素的直方图上统计相同数字的分布符合正态分布，那么映射到高维空间不会改变这一分布特性）。当训练样本很少时，这个圆的形状就不能完全体现出来，当样本越多，那么这个圆形就很越加完美的显现出来，当到达一定程度后，更密集的训练样本就很难对圆形的表达力进行提高了。
+为何下降速度越来越慢，一个启发性解释：训练样本的像素的向量终点在高维空间落在不同的区域，相同数字的向量终点会聚集在一个小的范围内（距离近，夹角小），这一范围内的点如果映射到平面上，就可以想象成一个圆形（当然也可以是其他可以描述一片聚集区域的图形）区域，越靠近圆心训练样本越密集，越靠近边界分布越稀少（如果从像素的直方图上统计相同数字的分布符合正态分布，那么映射到高维空间不会改变这一分布特性）。当训练样本很少时，这个圆的形状就不能完全体现出来，当样本越多，那么这个圆形就越加完美的展现出来，当到达一定程度后，更密集的训练样本就很难对圆形的表达力进行提高了。
 
 使用正态分布（高斯分布）来模拟这种情况：
 
@@ -1332,11 +1406,372 @@ kNN 算法启示
 
   绘制 10000 个正态分布点
 
-通常人书写时有某种倾向，比如向左倾斜，那么图形看起来就不会是正圆，就会被拉长成椭圆，当然其他倾向会对聚集的空间形状也有扭曲影响。如果我们把这种人书写的各种倾向进行泛化，比如对图片统一进行左倾，右倾，或者扭曲，抖动处理，那么这个圆形就接近正圆（这里看起来是椭圆，是因为图片长宽高比例不同）了。（这里假设人手写数字符合正态分布，当然也可以是其他分布，只是形状不同）。
+通常人书写时有某种倾向，比如向左倾斜，那么图形看起来就不会是正圆，就会被拉长成椭圆，当然其他倾向会对聚集的空间形状也有扭曲影响。如果我们把这种人书写的各种倾向进行泛化，比如对图片统一进行左倾，右倾，或者扭曲，抖动处理，那么这个圆形就接近正圆（这里看起来是椭圆，是因为图片宽高比例不同）了。（这里假设人手写数字符合正态分布，当然也可以是其他分布，只是形状不同）。
 
 经过优化的算法库的性能要远远优于未优化的代码，尝试不同软件包提供的同种算法，会发现性能上有很大区别。
 
 另外从矩阵计算向量距离的方式上可以看到，使用任何一种方式把图像向量化（二维变一维）都是等价的，无论是从左上角开始，按行变换，还是按列或者 zig-zag，只要所有样本均进行这种处理，它们都是等价的，不会改变向量距离，也即单个点像素距离的累积。
 
 这种二维变一维的转换丢失了很多二维信息，比如水平或垂直方向上像素之间的关系（例如轮廓信息），这与人识别数字的方式是本质不同的，人脑可以把握更本质的图像特征。
+
+卷积
+------------
+
+图像卷积（Convolution）可以提取图像更多特征。卷积的本质就是大矩阵和小矩阵的元素对应乘法运算（不是点积）结果相加，使用结果值替换卷积核坐标元素值，并且滑动小矩阵遍历大矩阵所有可被卷积的元素。
+
+.. figure:: imgs/practice/convol.png
+  :scale: 100%
+  :align: center
+  :alt: convol
+
+  卷积示意图
+
+如上图所示，卷积的运算步骤如下：
+
+- 定义一个卷积核（小矩阵），上图中的红色窗口就是一个 3*3 的卷积核，之所以使用方阵是便于快速计算（底层库进行方阵运算速度更快）
+- 从左上角开始（x=0,y=0）将卷积核对齐图片（大矩阵，这里认为是一张灰度图或者一张图片彩色图的单个颜色通道），卷积核矩阵元素与重合的对应元素相乘，乘积相加，结果替换卷积核中间的位置（这就是为何卷积核大小选取奇数的原因）的元素。注意替换是在图片矩阵的副本中进行。
+- 每计算一次，向右滑动一次卷积核（红色窗口），直到卷积核对齐到最右侧，然后回到最左侧向下滑动一个像素
+- 直至计算结束，可以看到蓝色窗口中的所有元素都被替换（卷积）了
+
+对于蓝色窗口外部的元素，显然没有办法进行卷积运算，只能够根据需要人为设定，比如保持不变，或者清0（这基于边缘像素对物体识别影响很小的假设），或者采用艺术化处理。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # convolute.py
+  def convolution_ignore_border(img, kernel):
+      from skimage.exposure import rescale_intensity
+      
+      yksize, xksize = kernel.shape
+      
+      # kernel must with odd size
+      if yksize % 2 == 0 or xksize % 2 == 0:
+          print("kernel must with odd size")
+          return None
+  
+      y_slide_count = img.shape[0] - kernel.shape[0]
+      x_slide_count = img.shape[1] - kernel.shape[1]    
+      if x_slide_count < 0 or y_slide_count < 0:
+          print("img size too small to do convolution")
+          return None
+  
+      newimg = img.copy().astype(np.float64)    
+  
+      # sliding kernel along y(right) and x(down) from left-top corner
+      centery, centerx = yksize >> 1, xksize >> 1
+      for y in range(0,y_slide_count+1):
+          for x in range(0,x_slide_count+1):
+              sum = (img[y:y+yksize,x:x+xksize] * kernel).sum()
+              # round reducing truncation error float64 -> uint8
+              newimg[y+centery, x+centerx] = round(sum)
+
+      # rescale the output image in range [0, 255]
+      newimg = rescale_intensity(newimg, in_range=(0, 255))
+      return (newimg * 255).astype(np.uint8)
+  
+  np.random.seed(0)
+  matrix = np.random.randint(0, 256, size=(8, 8), dtype=np.uint8)
+  kernel = np.ones((3, 3)) * 1.0 / 9
+  newimg = convolution_ignore_border(matrix, kernel)
+  
+下图中左侧马赛克图片就是上面的数字矩阵对应的灰度图像，这里使用 3*3 的平均模糊卷积核，经过卷积处理之后，图像明显变模糊了。但是由于我们没有对边缘像素进行任何处理，所以边缘显得非常突兀，一个可行的办法是对原图像边缘进行扩展处理，然后再进行卷积。
+
+.. figure:: imgs/practice/convol_cmp.png
+  :scale: 100%
+  :align: center
+  :alt: convol
+
+  卷积处理效果对比图
+
+OpenCV 中的 copyMakeBorder 函数用来对边界进行插值（borderInterpolate）处理。使用copyMakeBorder将原图稍微放大，就可以处理边界的情况了。扩充边缘的插值处理有多种方式：
+
+- BORDER_REPLICATE，复制边界值填充，形如：aaaaaa|abcdefgh|hhhhhhh，OpenCV 中的中值滤波medianBlur采用的边界处理方式。
+- BORDER_REFLECT，对称填充，形如：fedcba|abcdefgh|hgfedcb
+- BORDER_REFLECT_101，对称填充，以最边缘像素为轴，形如：gfedcb|abcdefgh|gfedcba，这种方式也是OpenCV边界处理的默认方式(BORDER_DEFAULT=BORDER_REFLECT_101)也是filter2D, blur, GaussianBlur, bilateralFilter 的默认处理方式，这种方式在边界处理中应用是最广泛的。
+- BORDER_WRAP，对边镜像填充，形如：cdefgh|abcdefgh|abcdefg
+- BORDER_CONSTANT，以一个常量像素值(由参数 value给定)填充扩充的边界值，这种方式多用在仿射变换，透视变换中。
+
+在卷积神经网络（Convolutional Neural Networks）中通常采用清 0 处理，也即使用 BORDER_CONSTANT 方式，value 设置为 0。
+
+.. figure:: imgs/practice/convol_append.png
+  :scale: 80%
+  :align: center
+  :alt: convol
+
+  边框扩展卷积示意图
+
+支持边框扩展的卷积操作实现：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def convolution(img, kernel):
+      from skimage.exposure import rescale_intensity
+      
+      yksize, xksize = kernel.shape
+      # kernel must with odd size
+      if yksize % 2 == 0 or xksize % 2 == 0:
+          print("kernel must with odd size")
+          return None
+  
+      newimg = img.copy().astype(np.float64)
+      y_slide_count,x_slide_count = img.shape
+  
+      left_right = (xksize - 1) // 2
+      top_bottom = (yksize - 1) // 2
+      img = cv2.copyMakeBorder(img, top_bottom, top_bottom, 
+                               left_right, left_right, cv2.BORDER_REFLECT_101)
+  
+      # sliding kernel along y(right) and x(down) from left-top corner
+      for y in range(0,y_slide_count):
+          for x in range(0,x_slide_count):
+              sum = (img[y:y+yksize,x:x+xksize] * kernel).sum()
+              # round reducing truncation error float64 -> uint8
+              newimg[y, x] = round(sum)
+      
+      # rescale the output image in range [0, 255]
+      newimg = rescale_intensity(newimg, in_range=(0, 255))
+      return (newimg * 255).astype(np.uint8)
+
+为了验证程序的正确性，这里与 OpenCV 实现的 filter2D 进行卷积的结果进行对比：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def verify_convolution(size=8):
+      np.random.seed(0)
+      matrix = np.random.randint(0, 256, size=(size, size), dtype=np.uint8)
+      kernel = np.ones((3, 3)) * 1.0 / 9
+      newimg = convolution(matrix, kernel)
+      print(np.all(newimg == cv2.filter2D(matrix, -1, kernel)))
+  
+  verify_convolution()
+  
+  >>>
+  True
+
+实验证明我们的实现和 OpenCV 的实现结果完全相同，接下来我们使用不同的卷积核来检验图片的处理效果，并对比两种实现的性能差别。
+
+图片卷积处理
+~~~~~~~~~~~~~~~
+
+首先定义一些常见的卷积核。例如均值模糊卷积核：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  smallblur = np.ones((7, 7), dtype=np.float64) * (1.0 / (7 * 7))
+  largeblur = np.ones((21, 21), dtype=np.float64) * (1.0 / (15 * 15))  
+
+锐化卷积核：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  sharpen = np.array(([0, -1, 0],
+                      [-1, 5, -1],
+                      [0, -1, 0]), dtype=np.int32)
+
+用于边缘处理的拉普拉斯卷积核，Sobel 卷积核：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  laplacian = np.array(([0, 1, 0],
+                        [1, -4, 1],
+                        [0, 1, 0]), dtype=np.int32)
+
+  sobelX = np.array(([-1, 0, 1],
+                     [-2, 0, 2],
+                     [-1, 0, 1]), dtype=np.int32)
+  sobelY = np.array(([-1, -2, -1],
+                     [0, 0, 0],
+                     [1, 2, 1]), dtype=np.int32)
+
+浮雕图案卷积核：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  emboss = np.array(([-2, -1, 0],
+                     [-1, 1, 1],
+                     [0, 1, 2]), dtype=np.int32)
+                     
+.. figure:: imgs/practice/conimgs.png
+  :scale: 100%
+  :align: center
+  :alt: convol
+
+  各种卷积核卷积效果图
+
+尽管已经验证我们手动实现的卷积函数和 OpenCV 的 filter2D 函数结果相同，然而对比一下运算效率更有意义：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def convolute_speed_cmp(count=100, type=0):
+      image = cv2.imread(arg_get("image"))
+      gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      kernel = np.ones((3, 3)) * 1.0 / 9
+  
+      start = time.time()
+      if type == 0:
+          for i in range(0,count):
+              convolution(gray, kernel)
+          print("convolution cost walltime {:.02f}s with loop {}".format(time.time()-start, count))
+      else:
+          for i in range(0,count):
+              cv2.filter2D(gray, -1, kernel)
+          print("filter2D cost walltime {:.02f}s with loop {}".format(time.time()-start, count))
+          
+  convolute_speed_cmp(10, 0)
+  convolute_speed_cmp(10000, 1)
+
+验证结果对比惊人，为了节省计算时间，不得不分成两个分支，以进行不同的循环。测试图片 640 * 480 的分辨率，竟然达到了 4000 倍的性能差距，笔者当然不相信 OpenCV 能进行如此强劲的优化，很显然我们只是对同一副进行循环处理，OpenCV 内部进行了类似缓存的处理，但是即便每次循环都采用不同的图像，效果依然有 2000 倍之差。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  $ python convolute.py  --image imgs\Monroe.jpg
+  convolution cost walltime 21.74s with loop 10
+  filter2D cost walltime 5.42s with loop 10000
+
+一个可行的优化方式是对卷积核进行扩展以代替 W*H（图片宽和高的像素数）次的窗口滑动，此时只需要向右向下滑动 kW 和 kH 次，这可以节约大量的循环处理时间。如果要深入理解 OpenCV 的效果为何如此强劲，就要从它的源码入手。
+
+Fast 版本的卷积函数有些复杂，而且有些技巧，不过这种优化是值得的：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def convolution_fast(img, kernel):
+      from skimage.exposure import rescale_intensity
+      
+      yksize, xksize = kernel.shape
+      # kernel must with odd size
+      if yksize % 2 == 0 or xksize % 2 == 0:
+          print("kernel must with odd size")
+          return None
+  
+      newimg = img.copy().astype(np.float64) * 0
+  
+      # extend four borders to convolute border pixels
+      left_right = (xksize - 1) // 2
+      top_bottom = (yksize - 1) // 2
+      img = cv2.copyMakeBorder(img, top_bottom, top_bottom, 
+                               left_right, left_right, 
+                               cv2.BORDER_REFLECT_101)
+    
+      # extend kernel as possible as the img size, but no bigger than img
+      ytile = img.shape[0] // yksize
+      xtile = img.shape[1] // xksize
+      nkernel = np.tile(kernel, (ytile, xtile))
+      
+      # sliding kernel along y(right) and x(down) from left-top corner
+      ynksize, xnksize = nkernel.shape
+
+      for y in range(0, yksize):
+          for x in range(0, xksize):
+              # use nkernel convolute img, so have a cross window
+              w_window = min([img.shape[0] - y, ynksize])
+              h_window = min([img.shape[1] - x, xnksize])
+              
+              # resize the window round base kernel size
+              (ny, ry) = divmod(w_window, yksize)
+              (nx, rx) = divmod(h_window, xksize)
+              
+              w_window  -= ry
+              h_window  -= rx
+              
+              tmp = img[y:w_window+y, x:h_window+x] * nkernel[:w_window, :h_window]
+              tmp = tmp.reshape(ny, yksize, nx, xksize).sum(axis=(1, 3))
+  
+              for i in range(tmp.shape[0]):
+                  for j in range(tmp.shape[1]):
+                      newimg[y + i * yksize, x + j * xksize] = round(tmp[i,j])
+  
+      # rescale the output image in range [0, 255]
+      newimg = rescale_intensity(newimg, in_range=(0, 255))
+      return (newimg * 255).astype(np.uint8)
+
+与此同时更新性能测试函数，type 为 0 和 2 时分别对应快速版本和普通版本。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def convolute_speed_cmp(image=None, count=100, type=0):
+      if image is None:
+          image = cv2.imread(arg_get("image"))
+          gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      else:
+          gray = image
+
+      kernel = np.ones((3, 3)) * 1.0 / 9
+      start = time.time()
+      if type == 0:
+          for i in range(0,count):
+              convolution_fast(gray + count, kernel)
+          print("convolution_fast cost walltime {:.02f}s with loop {}".format(time.time()-start, count))
+      elif type == 1:
+          for i in range(0,count):
+              cv2.filter2D(gray + count, -1, kernel)
+          print("filter2D cost walltime {:.02f}s with loop {}".format(time.time()-start, count))
+      else:
+          for i in range(0,count):
+              convolution(gray + count, kernel)
+          print("convolution cost walltime {:.02f}s with loop {}".format(time.time()-start, count))        
+  
+  convolute_speed_cmp(None, 10, 0)
+  convolute_speed_cmp(None, 10, 2)
+
+结果显示，快速版本比原函数提高了 4 倍左右的性能，但是距离 OpenCV 的优化版还是差了上千倍。这一结果令人异常深刻。如果直接采用底层语言，性能将会继续提升，采用分治法协同处理是加速的另一个选择。
+显然 OpenCV 的代码实现一定经过大量的优化，读一读源码将受益匪浅。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  $ python convolute.py  --image imgs\Monroe.jpg
+  convolution_fast cost walltime 5.95s with loop 10
+  convolution cost walltime 20.47s with loop 10
+
+我们无需直接编写底层代码，而能一窥底层代码能带来的近似的优化性能，numba 就可以实现，只需要在优化函数前添加装饰器：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  from numba import jit
+  
+  @jit
+  def convolution_fast(img, kernel):
+  ......
+
+效果很明显，性能大约提升了 13 倍：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  $ python convolute.py  --image imgs\Monroe.jpg
+  # numba 优化版本
+  convolution cost walltime 3.10s with loop 10
+  
+  # 维优化版本
+  convolution cost walltime 40.57s with loop 10
+
+使用 numba 时是要有针对性的，通常当代码中有很多大的 for 循环时，优化效果很好，如果是小循环，或者逻辑处理代码，则可能效果差强人意，这里之所以选择优化 convolute 而不是 convolute_fast 就是基于这种原因，实际上 convolute_fast 优化后的效果反而没有 convolute 效果好。
+
+实践中的优化要基于目标环境通过各个方面（瓶颈分析，软件优化，硬件增强）进行优化，没有一刀切的黄金策略。
+
 
