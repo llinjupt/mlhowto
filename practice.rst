@@ -270,6 +270,11 @@ numexpr 的使用也很简单：
   
   >>> ne.evaluate("a + 1")
 
+numpy 对矢量操作优化的一个缺陷是它一次只能处理一个操作。这意味着，当我们对 numpy 矢量进行 A * B + C 这样的操作时，首先要等待 A * B 操作完成，
+数据保存在一个临时矢量中，然后将这个新的矢量和 C 相加。
+
+numexpr 模块可以将整个矢量表达式编译成非常高效的代码，可以将缓存失效以及临时变量的数量最小化。
+
 深入使用 numexpr 参考 `numexpr 官方指南 <https://numexpr.readthedocs.io/en/latest/>`_ 。
 
 写在前面
