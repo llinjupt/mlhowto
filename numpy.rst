@@ -740,6 +740,122 @@ logspace() 等价于先等差再对元素以底数 base 乘幂：
   >>>
   [  1.   2.   4.   8.  16.  32.]
 
+行列操作
+-------------
+
+合并行或列
+~~~~~~~~~~~~~
+
+np.r\_ 按列连接两个矩阵，就是把两矩阵上下相加，要求列数相等，类似于 pandas 中的 concat()。
+np.c\_ 按行连接两个矩阵，就是把两矩阵左右相加，要求行数相等，类似于pandas 中的 merge()。
+
+这两个方法是对 [] 运算符的扩展，调用是要用中括号 [], 而不是 ()。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  import numpy as np
+  a = np.array([1, 2, 3])
+  b = np.array([4, 5, 6])
+  c = np.c_[a,b]
+  
+  print(np.r_[a, b])
+  print(np.c_[c, a])
+  
+  >>>
+  [1 2 3 4 5 6]
+  [[1 4]
+   [2 5]
+   [3 6]]
+  
+  print(np.hstack([a, b]))
+  print(np.vstack([a, b])) 
+  
+  >>>
+  [1 2 3 4 5 6]
+  [[1 2 3]
+   [4 5 6]]
+
+可以看到 hstack 效果和 np.c\_ 效果一样，但是 vstack 堆叠和 np.r\_ 效果并不一致。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.array([1, 2, 3])
+  b = np.array([4, 5, 6])
+  
+  # 按列合并为二维数组
+  print(np.column_stack([a, b]))
+  
+  >>>
+  [[1 4]
+   [2 5]
+   [3 6]]
+  
+  # 按行合并为二维数组
+  print(np.row_stack([a, b]))
+  
+  >>> 
+  [[1 2 3]
+   [4 5 6]]
+
+扩展行或列
+~~~~~~~~~~~~~
+
+::
+  
+  numpy.insert(arr, obj, values, axis=None)
+  
+numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向量后的数组。若axis=None，则返回一个扁平(flatten)数组。
+
+- arr：要插入元素的数组
+- obj：int，指定插入的位置，在第几行/列之前
+- values： 要插入的数组
+- axis：要插入的的轴，插入某一行(0)，列(1)
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.array([1, 2, 3])
+  b = np.array([0,0])
+  
+  # 0 轴插入
+  c = np.insert(a, 1, b, 0)
+  print(c)
+  
+  >>>
+  [1 0 0 2 3]
+
+  a = np.array([1, 2, 3, 4]).reshape(2,2)
+  b = np.array([0,0])
+  print(a)
+
+  >>>
+  [[1 2]
+   [3 4]]
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  # 行插入
+  print(np.insert(a, 1, b, 1))
+  
+  >>>
+  [[1 2]
+   [0 0]
+   [3 4]]
+  
+  # 列插入
+  print(np.insert(a, 1, b, 1))
+
+  >>>
+  [[1 0 2]
+   [3 0 4]]
+ 
 索引和切片
 -------------
 
@@ -1770,7 +1886,7 @@ split() 可以指定用于分割的轴，其余参数与 vsplit() 和 hsplit() �
   np.fix(A,out)      向原点 0 舍入到最接近的整数，out可选，拷贝返回值
   np.floor(A)        上取整，取数轴上右侧最接近的整数
   np.ceil(A)         下取整，取数轴上左侧最接近的整数
-  np.trunc(A,out)    截断到整数
+  np.trunc(A,out)    截断到整数，直接删除小数部分，与 np.fix 效果等同
   ================== ===============
 
 由于 python2.7 以后的 round 策略使用的是 decimal.ROUND_HALF_EVEN，也即整数部分为偶数则舍去，奇数则舍入，这有利于更好地保证数据的精确性。numpy 的四舍五入同样使用此策略。
@@ -1826,7 +1942,7 @@ split() 可以指定用于分割的轴，其余参数与 vsplit() 和 hsplit() �
   np.ceil([-0.9,1.9)):             [-0.  2.]
   np.floor([-0.9,1.9)):            [-1.  1.]
 
-截断到整数：
+截断到整数，直接删除小数部分，与 np.fix 效果等同：
 
 .. code-block:: python
   :linenos:
