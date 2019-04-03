@@ -291,6 +291,13 @@ NumPy 可以配置为使用线程数字处理器库（如MKL）。
 移动端迁移学习方案
 Apple turicreate CoreML ->iOS
 Google Tensorflow -> Android
+Facebook PyText（文本分类），ParlAI（智能会话）
+
+PyText是基于NLP深度学习技术、通过Pytorch构建的建模框架。PyText解决了既要实现快速实验又要部署大规模服务模型的经常相互冲突。它主要通过以下两点来实现上面的需求：
+
+- 通过为模型组件提供简单且可扩展的接口和抽象，
+- 使用PyTorch通过优化的Caffe2执行引擎导出模型，进行预测推理。
+
 
 加速：cython or OpenMP https://www.openmp.org/
 
@@ -1139,7 +1146,7 @@ kNN 算法实现非常简单，计算待预测样本与训练集上每一样本�
 scikit-learn kNN算法
 `````````````````````
 
-scikit-learn 模块实现了传统机器学习的各类算法，并进行了大量优化，借此无需在制造不好用的轮子。这里对 scikit-learn kNN算法进行定量的性能分析。
+scikit-learn 模块实现了传统机器学习的各类算法，并进行了大量优化，借此无需再制造不好用的轮子。这里对 scikit-learn kNN算法进行定量的性能分析。
 
 .. code-block:: python
   :linenos:
@@ -1411,7 +1418,7 @@ kNN 算法启示
 
   绘制 10000 个正态分布点
 
-通常人书写时有某种倾向，比如向左倾斜，那么图形看起来就不会是正圆，就会被拉长成椭圆，当然其他倾向会对聚集的空间形状也有扭曲影响。如果我们把这种人书写的各种倾向进行泛化，比如对图片统一进行左倾，右倾，或者扭曲，抖动处理，那么这个圆形就接近正圆（这里看起来是椭圆，是因为图片宽高比例不同）了。（这里假设人手写数字符合正态分布，当然也可以是其他分布，只是形状不同）。
+通常人书写时有某种倾向，比如向左倾斜，那么图形看起来就不会是正圆，就会被拉长成椭圆，当然其他倾向会对聚集的空间形状也有扭曲影响。如果我们把这种人书写的各种倾向进行泛化，比如对图片统一进行左倾，右倾，或者扭曲，抖动处理，那么这个圆形就接近正圆了。（这里假设人手写数字符合正态分布，当然也可以是其他分布，只是形状不同）。
 
 经过优化的算法库的性能要远远优于未优化的代码，尝试不同软件包提供的同种算法，会发现性能上有很大区别。
 
@@ -1640,7 +1647,7 @@ OpenCV 中的 copyMakeBorder 函数用来对边界进行插值（borderInterpola
   convolute_speed_cmp(10, 0)
   convolute_speed_cmp(10000, 1)
 
-验证结果对比惊人，为了节省计算时间，不得不分成两个分支，以进行不同的循环。测试图片 640 * 480 的分辨率，竟然达到了 4000 倍的性能差距，笔者当然不相信 OpenCV 能进行如此强劲的优化，很显然我们只是对同一副进行循环处理，OpenCV 内部进行了类似缓存的处理，但是即便每次循环都采用不同的图像，效果依然有 2000 倍之差。
+验证结果对比惊人，为了节省计算时间，不得不分成两个分支，以进行不同的循环。测试图片 640 * 480 的分辨率，竟然达到了 4000 倍的性能差距，笔者当然不相信 OpenCV 能进行如此强劲的优化，很显然我们只是对同一幅图片进行循环处理，OpenCV 内部进行了类似缓存的处理，但是即便每次循环都采用不同的图像，效果依然有 2000 倍之差。
 
 .. code-block:: sh
   :linenos:
@@ -1652,7 +1659,7 @@ OpenCV 中的 copyMakeBorder 函数用来对边界进行插值（borderInterpola
 
 一个可行的优化方式是对卷积核进行扩展以代替 W*H（图片宽和高的像素数）次的窗口滑动，此时只需要向右向下滑动 kW 和 kH 次，这可以节约大量的循环处理时间。如果要深入理解 OpenCV 的效果为何如此强劲，就要从它的源码入手。
 
-Fast 版本的卷积函数有些复杂，而且有些技巧，不过这种优化是值得的：
+Fast 版本的卷积函数有些复杂，实现也要有些技巧，不过这种优化是值得的：
 
 .. code-block:: python
   :linenos:
@@ -1676,7 +1683,7 @@ Fast 版本的卷积函数有些复杂，而且有些技巧，不过这种优化
                                left_right, left_right, 
                                cv2.BORDER_REFLECT_101)
     
-      # extend kernel as possible as the img size, but no bigger than img
+      # extend kernel as big as the img size, but no bigger than img
       ytile = img.shape[0] // yksize
       xtile = img.shape[1] // xksize
       nkernel = np.tile(kernel, (ytile, xtile))
@@ -1775,8 +1782,733 @@ Fast 版本的卷积函数有些复杂，而且有些技巧，不过这种优化
   # 维优化版本
   convolution cost walltime 40.57s with loop 10
 
-使用 numba 时是要有针对性的，通常当代码中有很多大的 for 循环时，优化效果很好，如果是小循环，或者逻辑处理代码，则可能效果差强人意，这里之所以选择优化 convolute 而不是 convolute_fast 就是基于这种原因，实际上 convolute_fast 优化后的效果反而没有 convolute 效果好。
+使用 numba 时提升性能时是有前提条件的，通常当代码中有很多大的 for 循环时，优化效果很好，如果是小循环，或者逻辑处理代码，则可能效果差强人意，这里之所以选择优化 convolute 而不是 convolute_fast 就是基于这种原因，实际上 convolute_fast 优化后的效果反而没有 convolute 效果好。
 
 实践中的优化要基于目标环境通过各个方面（瓶颈分析，软件优化，硬件增强）进行优化，没有一刀切的黄金策略。
 
+从感知机到逻辑回归
+--------------------
+
+感知机原理
+~~~~~~~~~~~
+
+感知机（Perceptron）除在介绍神经网络时被偶然提到，很少再被郑重对待。然而对感知机的理解决定了对机器学习中的基本概念，比如代价函数，梯度下降和深度学习中的神经网络的理解。是机器学习领域的一块名副其实的基石（Footstone）。
+
+弗兰克·罗森布拉特（Frank Rossenblatt）在1958年提出了感知机模型。这一模型的亮点在于他提出了一个自学习算法，此算法可以自动通过优化得到权重系数（Weights，简写为 w，向量形式，维数对应输入值x的个数），此系数与输入值(x,向量，表示输入可由多个特性组成)的乘积决定了神经元是否被激活，所谓激活在这个感知机模型中就是指：激活表示输出 1，未激活表示输出 -1，这样就实现了分类。
+
+.. figure:: imgs/practice/perceptron.png
+  :scale: 60%
+  :align: center
+  :alt: face
+
+  Rossenblatt 感知机模型（图片来自 Python Machine Learning）
+
+这幅图看起来很复杂，可本质上只是一个线性表达式，线性表达式可以方便地使用向量点乘（点积 Vector Dot Product）来实现。计算点乘的函数被称为净输入函数（本质就是输入向量 x 和权重向量 w 的点乘），使用 Z 表示，净输入就是对激活函数的激励，它被送到激活函数（阶跃函数）φ（z），当φ（z）>=0 时输出 1，否则输出 0。
+
+注意到输入中总是有 1 存在，它的权重是 w0，它的输入分量就是 w0，被高深地称为神经元阈值，实际上就是线性表达式的常数项，看起来是非常数项 >= -w0 时，也即激励输入 >= 0 就被激活，看做阈值也是很形象的。
+
+一个线性表达式如果是 2 元的（输入 x 有2个特征值，x向量维度为2），那么令这个表达式等于0，就成了平面坐标上直线方程，可以绘制出一条直线，直线上的所有点代入这个表达式结果就是 0，法线一侧代入结果 > 0，另一侧代入结果 < 0，所以感知机只能解决线性可分的问题。如果 x 维度为3，则是一个空间平面，维度再高就被称为超平面（因为已经超出人脑可以想象的平面了）。 
+
+实际上整个神经网络的基石就是建立在感知机模型叠加各式各样的激活函数（通常是光滑可微容易实现梯度下降的非线性函数，实际上大部分神经网络的发展历史就是围绕这个激活函数的不停优化在前进）上，每每想到这点就感觉人工智能的真正实现还可能非常遥远，不免有些沮丧！
+
+输入点乘权重代表线性部分，激活函数代表非线性部分，多层的线性和非线性函数的叠加组合就构成了所谓的进行深度学习神经网络，理解起来很简单，但是理论证明这个网络可以以任意精确度模拟任一复杂的多元连续函数。
+
+感知机的亮点在于在给定的输入样本上，可以自动通过算法寻找实现分类的权重，也即向量 w。
+
+这里选取两个输入的或运算为例，之所以选择它，不是随意的，而是基于如下考量：
+
+- 它可以转化为一个线性分类问题，由于输出只有 0（用输出-1表示） 或 1，也即是分为 2 类
+- 它的输入只有 2 个参数，也即特征值 x 向量参数只有 2 个，这可以很好地从图像上描绘分类的状况
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # Bool or Train         x1  x2  y
+  BoolOrTrain = np.array([[0, 0, -1],
+                          [0, 1,  1],
+                          [1, 0,  1],
+                          [1, 1,  1]])
+
+训练集简单到可以直接手写出来，这里使用矩阵表示，前两列表示 x 的输入向量（可以看做四个行向量组成，矩阵中实现向量行列变换非常容易，也不费解），并且可以在平面上将这些输入特征点画出来：
+
+.. figure:: imgs/practice/boolor.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  异或的点图表示
+
+直觉上就可以看到左下角原点处的点和其他三个点分为两类，这两类之间存在无数条从左上角到右下角的方向的直线可以把它们分割开。
+
+.. figure:: imgs/practice/train.png
+  :scale: 80%
+  :align: center
+  :alt: boolor
+
+  感知机的参数学习过程
+
+.. role:: raw-latex(raw)
+    :format: latex html
+    
+为了理解感知机对权重的更新过程，图中只画了简单的一个正样本的点，来分析下这个点对随机初始化权重 :raw-latex:`\(w_{old}\)` 的更新过程。
+
+- :raw-latex:`\(w_{old}\)` 是直线的法向量，且方向指向直线正分类一侧（代入直线表达式 > 0），显然图中样本点被错误分类了。
+- :raw-latex:`\(w_{old}\)` 加上错误分类样本点的向量，就得到了新的权重，实际编码中这个错误样本点的向量还要乘上一个被称为学习率的 :raw-latex:`\(\eta\)`， 取值范围 (0-1)。
+- 显然此时直线的法线变成了 :raw-latex:`\(w_{new}\)` ，指向了样本点所在的一侧，此时样本点就被正确分类了。
+
+实际上考虑到常数项 :raw-latex:`\(w_{0}\)` 的存在，直线在旋转时会向某个方向平移（由w0, w2的改变值决定）。如果是负样本点，就要减去错误分类样本点的向量，正样本对直线有顺时针旋转的吸引力，负样本对直线由逆时针旋转的推动力（斥力），在经过所有错误样本点的这种吸引和推动力作用下，直线最终会落在所有样本点均正确分类的位置上。无论是正样本还是负样本对权重的更新可以总结为:
+
+.. math::
+
+  \Delta w = \eta (y^{i} - {\hat{y}}^i)x^{i}
+
+其中：
+
+- :raw-latex:`\(y^{i}\)` 是标签值，也即真实的样本分类值
+- :raw-latex:`\({\hat{y}}^i\)` 是预测值，也即净输入值对激励函数的作用后的输出
+
+到这里就明白为何感知机在误分类时为何要求输出是 -1，而不是 0 了，这样才能保证实际值和预测值的差要么是 2 要么是 -2，否则正负样本对权重更新就是不平衡的了。
+
+如果是线性不可分问题，那么算法将无法收敛，总是不停抖动（不停顺时针逆时针转动），无法得到准确结果。
+
+上面的或运算例子可以使用手算来进行，步骤如下：
+
+- 假设初始化时的权重为向量 [1,1,1]，第一个元素对应阈值，所以法向量为 [1,1]，它是一条位于所有点左下方的直线，
+- 使用初始化权重计算所有样本点，找出所有错误分类样本点。由于(0,0)位于正分类一侧，所以是错误分类点
+- 使用错误分类点[1,0,0]，第一个元素对应阈值的输入，总是 1，代入上面的公式计算调整量，设学习率为 0.2，则为 0.2 * [1,0,0] * (-1 - 1) = [-0.4,0,0]，新的法向量为 [1,1,1] + [-0.4,0,0] = [0.6,1,1]
+- 使用新权重量计算所有样本点，找出所有错误分类样本点。继续调整，直至所有点被正确分类
+- 最终会得到一个法向量 [-0.2,1,1] 使得所有样本点被正确分类
+
+从以上的计算过程中可以发现，由于每次调整可能把已经正确分类的点分到错误一侧，每次都要对所有样本点计算错误分类；此外最终找到的直线不是最优的，只是刚刚好能完全分类的直线，这与初始化的权重值，学习率，也即训练时的样本点选取顺序都有关。
+
+感知机实战
+~~~~~~~~~~~
+
+感知机的关键实现就在于权重的调整，可以每次调整一个错误的分类样本，直至分类正确，这被称为 Online 在线训练。注意权重向量被初始化为浮点型向量。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  perceptron.py
+  
+  ''' Rosenblatt Perceptron Model '''
+  class Perceptron(object):
+      def __init__(self, eta=0.05, n_iter=100):
+          self.eta = eta
+          self.n_iter = n_iter
+          self.complex = 0 # Statistical algorithm complexity
+      
+      def errors(self, X, y):
+          '''Statistics all errors into self.errors_'''
+  
+          predicts = self.appendedX_.dot(self.w_)
+          diffs = np.where(predicts >= 0.0, 1, -1) - y
+          errors = np.count_nonzero(diffs)
+          self.errors_.append(errors)
+          
+          return errors, diffs
+      
+      def fit_online(self, X, y):
+          self.w_ = np.array([0, -1, 1]) * 1.0
+          samples = X.shape[0]
+          self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+  
+          self.errors_ = []
+  
+          # record every w during whole iterations
+          self.wsteps_ = []
+          self.wsteps_.append(self.w_.copy())
+          
+          errors, diffs = self.errors(X, y)
+          if errors == 0:
+              return
+  
+          for _ in range(self.n_iter):
+              # pick all wrong predicts row (1 sample features) 
+              errors_indexs = np.nonzero(diffs)[0]
+              for i in errors_indexs:
+                  xi = X[i, :]
+                  target = y[i]
+                  fitted = 0
+  
+                  # try to correct the classificaton of this sample
+                  while True:
+                      delta_w = self.eta * (target - self.predict(xi))
+                      if (delta_w == 0.0):
+                          break
+  
+                      fitted = 1
+                      self.w_[1:] += delta_w * xi
+                      self.w_[0] += delta_w * 1
+                      self.complex += 1
+  
+                  if fitted == 1:
+                      self.wsteps_.append(self.w_.copy())
+                      errors, diffs = self.errors(X, y)
+                      if errors == 0:
+                          return
+  
+          if len(self.errors_) and self.errors_[-1] != 0:
+              print("Warn: didn't find a hyperplane in %d iterations!" % self.n_iter)
+          
+          return self
+
+类方法中的加权值计算和阶跃函数都非常简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # X is a vector including features of a sample 
+  def net_input(self, X):
+      '''Calculate net input'''
+      return np.dot(X, self.w_[1:]) + self.w_[0] * 1
+  
+  # X is a vector including features of a sample 
+  def sign(self, X):
+      '''Sign function'''
+      return np.where(self.net_input(X) >= 0.0, 1, -1)
+  
+  # X is a vector including features of a sample 
+  def predict(self, X):
+      '''Return class label after unit step'''
+      return self.sign(X)
+
+另一种更常用的方法称为批量训练，在所有错误分类上对权重进行调整，在上面的感知机类中添加如下函数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def fit_batch(self, X, y):
+      self.w_ = np.array([1, 1, 1]) * 1.0
+      self.errors_ = []
+      
+      # record every w during whole iterations
+      self.wsteps_ = []
+      
+      for _ in range(self.n_iter):
+          errors = 0
+          self.wsteps_.append(self.w_.copy())
+          
+          # pick every row (1 sample features) as xi and label as target
+          for xi, target in zip(X, y):
+              delta_w = self.eta * (target - self.predict(xi))
+              if delta_w == 0.0:
+                  continue
+
+              # although update all w_, but for correct-predicted the delta_wi is 0
+              self.w_[1:] += delta_w * xi
+              self.w_[0] += delta_w * 1
+              self.complex += 1
+              errors += int(delta_w != 0.0)
+
+          self.errors_.append(errors)
+          if errors == 0:
+              break
+          
+      if len(self.errors_) and self.errors_[-1] != 0:
+          print("Warn: didn't find a hyperplane in %d iterations!" % self.n_iter)
+      
+      return self
+
+这里在代码中嵌入了一些统计用的成员，比如 wsteps\_ 记录了每一步调整的权重值，errors\_ 则记录每一次调整后的错误分类的数目。complex 则用于统计算法的复杂度。这有助于对感知机的收敛速度提供量化的观察窗口：使用它们通过 matplotlib 作图可以得到非常直观的感受。
+
+这里使用批量权重调整，并初始化权重为 [1,1,1]，学习率 eta 为 0.2，观察是否和手动计算得出的权重值相同：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def boolOrTrain():
+      # Bool or Train         x11 x12 y1
+      BoolOrTrain = np.array([[0, 0, -1],
+                              [0, 1,  1],
+                              [1, 0,  1],
+                              [1, 1,  1]])
+      X = BoolOrTrain[:, 0:-1]
+      y = BoolOrTrain[:, -1]
+      
+      BoolOr = Perceptron(eta=0.2)
+      BoolOr.fit_batch(X, y)
+      
+      print('Weights: %s' % BoolOr.w_)
+      print('Errors: %s' % BoolOr.errors_)
+
+  boolOrTrain()
+  
+  >>>
+  Weights: [-0.2  1.   1. ]
+  Errors: [1, 1, 1, 0]
+
+最终的权重和手算是一致的，一共调整了四次，最后一次错误分类数为 0，从坐标图中可以看到整个收敛过程：
+
+.. figure:: imgs/practice/perconv.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  感知机对或运算分类调整过程
+
+图中分割平面的直线颜色由浅变深，反应了直线调整的过程，黑色实线就是完成分类的最终直线，这里一并把调整的向量也画出来：
+
+.. figure:: imgs/practice/pervector.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  感知机对或运算分类向量调整过程
+
+由于每次均是对阈值权重调整，这里无法看出二维向量的变换，它们总是 [1,1]，相互重合了。
+
+尽管如此，为何这种收敛似乎带有偶然性，实际上 Block & Novikoff 定理证明了感知机在线性可分问题上的收敛性，并且计算是有限次的：感知机的收敛速度与样本数无关，而与两分类间的最小距离的平方成反比，与样本向量离原点最大距离的平方成正比。
+
+Adaline 感知机
+~~~~~~~~~~~~~~~~~
+
+从感知机模型机制可知，由于预测差值总是 2 或者 -2，它的权重调整值 :raw-latex:`\(\Delta w\)` 总是离散的。所有的权重组合可以看成是一个连续的平面，而阶跃函数使得输出不再连续，这使得输出的代价函数
+（通常使用所有标签值和预测值的误差平方和表示）是跳跃的，也即若干个 0，-2 或者 2 的平方和，反馈到参数的调整上就是不停的跳来跳去，而不是连续的缓慢移动。在线性不可分时就无法收敛。
+
+自适应线性神经网络（Adaptive Linear Neuron，Adaline）改变了这一情况。Adeline 算法相当有趣，它阐明了代价函数的核心概念，并且对其做了最小化优化（梯度下降），这是理解逻辑回归（logistic regression）、支持向量机（support vector machine）以及神经网络的基础。
+
+自此开辟了机器学习新的方向：引入代价函数，并使用梯度下降法调优。
+
+所谓的“自适应线性神经元”，其实就是把返回调整值从激励值上取，而不是激活函数的输出上，它更合适的称谓是Adaline 感知机。
+
+.. figure:: imgs/practice/adaline.png
+  :scale: 80%
+  :align: center
+  :alt: boolor
+
+  Adaline 感知机模型（图片来自 Python Machine Learning）
+
+机器学习中监督学习算法的一个核心组成在于：在学习训练阶段定义一个待优化的目标函数。这个目标函数通常是需要寻找最小化处理的代价函数，此时的参数就是要找的权重值。在Adaline中，可以将代价函数（Cost Function）J 定义为通过模型得到的输出与实际标签之间的误差平方和（即和方差，Sum of Squared Error，SSE）：
+
+.. math::
+  
+  J(w) = \frac{1}{2}\sum_{i}{(y^{i}- \phi(z^i))}^2
+
+通过公式可以看到，对于连续的权重组合（代价函数的自变量），代价函数的输出也是连续的，平面上它是一个U形的抛物线，三维空间则是下凹的凸面。无论是低维度还是高维度空间它都是连续的光滑的曲面，处处可微。
+
+另一种常见的代价函数是标准差（即均方差 Mean squared error，MSE，也称为平方损失 Square loss），MSE = SSE / n，其中 n 为样本数，由于训练样本数为常数，实际上效果和SSE 一样。均方差对应了平均欧氏距离，基于 MSE 的最小化来进行模型求解的方法称为“最小二乘法”（LSM，Least square method）。线性回归中就使用了 LSM ，它最终找到一条直线，使得所有样本到直线的欧氏距离最小。
+
+要找到 w 使得代价函数 J 取得最小值，显然就是从任一点沿着梯度反方向（对w中各个分量的偏导数）进行迭代，这就是梯度下降的本质，而要用梯度下降就要寻找一个光滑可导的函数。它们是相辅相成的。注意到上面公式中的1/2，它在求偏导时被消去，只是为了方便计算而已。此时的 :raw-latex:`\(\Delta w\)` 表示为：
+
+.. math::
+
+  \Delta w = -\eta \nabla J(w)
+
+众所周知梯度方形是变化最快的方向，所以反方向就是学习速率最快的方向。
+
+注意权重的更新是基于训练集中所有样本完成的（而不是每次一个样本渐进更新权重，理解这一点非常重要，注意代价函数中的求和符号，否则梯度下降就不成立了），这也是此方法被称作“批量”梯度下降的原因。
+
+Adaline 感知机实战
+~~~~~~~~~~~~~~~~~~~
+
+Adaline 模型和感知器模型的区别很小，只需要更新相关的 fit 函数即可。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # adaline.py
+  
+  class AdalineGD(object):
+  #......
+    def fit_adaline(self, X, y):
+        samples = X.shape[0]
+        x_features = X.shape[1]
+        self.w_ = 1.0 * np.zeros(1 + x_features) + 1
+        
+        self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+        self.errors_ = []
+        self.costs_ = []
+        
+        # record every w during whole iterations
+        self.wsteps_ = []
+        self.steps_ = 100  # every steps_ descent steps statistic one cose and error sample
+        
+        while(1):
+            if (self.complex % self.steps_ == 0):
+                errors, diffs = self.errors(X, y)
+                self.wsteps_.append(self.w_.copy())
+                cost = 1 / 2 * np.sum((y - self.appendedX_.dot(self.w_)) ** 2) 
+                self.costs_.append(cost)
+
+            self.complex += 1
+            
+            # minmium cost function with partial derivative wi
+            deltaw = (y - self.appendedX_.dot(self.w_))
+            deltaw = -self.eta * deltaw.dot(self.appendedX_)
+
+            if np.max(np.abs(deltaw)) < 0.0001:
+                print("deltaw is less than 0.0001")
+                return self
+            
+            self.w_ -= deltaw
+            if(self.complex > self.n_iter):
+                print("Loops beyond n_iter %d" % self.n_iter)
+                return self
+        
+        return self
+
+这里增加了 costs\_ 成员用于统计代价函数值的变换。通常一个正确实现的算法，它应该具有下降的趋势。这里依然使用或运算进行测试，为了和感知器比较，注意到权重向量初始化为全 1。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def boolOrTrain():
+      # Bool or Train         x11 x12 y1
+      BoolOrTrain = np.array([[0, 0, -1],
+                              [0, 1,  1],
+                              [1, 0,  1],
+                              [1, 1,  1]])
+      X = BoolOrTrain[:, 0:-1]
+      y = BoolOrTrain[:, -1]
+      
+      BoolOr = AdalineGD(0.01, 1000)
+      BoolOr.fit_adaline(X, y)
+  
+      print('Weights: %s' % BoolOr.w_)
+      print('Errors: %s' % BoolOr.errors_)
+
+  boolOrTrain()
+  
+  >>>
+  deltaw is less than 0.00001
+  Weights: [-0.49840705  0.99865703  0.99865703]
+  Errors: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+这里当  :raw-latex:`\(\Delta w\)`  很小时就退出迭代， 通过作图可以查看看出误差函数下降非常之快：
+
+.. figure:: imgs/practice/adaerr.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  Adaline 感知器错误率下降过程图
+
+Adaline 感知器获得的分割平面要比原始的阶跃激活函数感知器精确得多，应该观察到，从最初的直线（最浅色）到最后的黑色直线变化，开始变化很大，也即误差函数值下降很快，慢慢变慢，直至停止，也即基本达到了最小值。
+
+.. figure:: imgs/practice/adaresult.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  Adaline 感知器获得的分割平面
+
+需要注意到不合适的学习率不仅不会让误差缩小还会导致无法收敛而产生震荡并扩散。通常使用较小的学习率来验证算法的正确性，然后不停调整学习率，在速度和正确性上获得平衡。
+
+随机梯度下降
+~~~~~~~~~~~~~
+
+Adaline 算法采用批量梯度下降 BGD(Batch Gradient Descent)，BGD的特点是总是综合所有数据的梯度，下降过程很平滑。但是计算量比较大。
+
+当数据上千万量级时可以随机取出部分数据进行随机梯度下降 SGD (Stochastic Gradient Descent)，每次使用一个样本计算梯度值，下降曲线看起来弯弯曲曲，具有较多噪声。但是随着当训练周期越来越大，在整体趋势上，它依然会收敛到最优值附近。这是由大数定律保证的。这样就可以方便查看中间的结果，否则采用 BGD 一个计算周期就耗费很长时间。
+
+实际上要得到相同的精度结果，SGD 并不会比 BGD 降低整体的计算量，在训练周期上基本上是等价的。只是在大数据集上，我们并不需要得到最优值，而是使用 SGD 得到一个可以接受（可满足分类精度）的中间值，从而避免耗费大量时间去寻找最优值。
+
+这里重新实现 AdalineSGD 类，shuffle 随机选择样本数据的开关，否则顺序选择（如果样本分布已经是比较随机的，那么这个操作是不需要）。random_state 用于设置随机种子，以便重现结果。
+
+新增了 shuffle 函数用于对样本乱序处理。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # adaline.py
+  
+  class AdalineSGD(object):
+    def __init__(self, eta=0.001, n_iter=1000,
+                 shuffle=True, random_state=None):
+ 
+        self.eta = eta
+        self.n_iter = n_iter
+        self.w_initialized = False
+        self.shuffle_flag = shuffle
+        if random_state:
+            np.random.seed(random_state)
+
+        self.complex = 0 # Statistical algorithm complexity
+   
+    def errors(self, X, y):
+        '''Statistics all errors into self.errors_'''
+
+        predicts = self.appendedX_.dot(self.w_)
+        diffs = np.where(predicts >= 0.0, 1, -1) - y
+        errors = np.count_nonzero(diffs)
+        self.errors_.append(errors)
+        
+        self.wsteps_.append(self.w_.copy())
+        cost = 1 / 2 * np.sum((y - self.appendedX_.dot(self.w_)) ** 2)
+        self.costs_.append(cost)
+        
+        return errors, diffs
+    
+    def shuffle(self, X, y):
+        '''Shuffle training data'''
+        r = np.random.permutation(X.shape[0])
+        return X[r], y[r]
+    
+    def update_weights(self, xi, target):
+        '''Apply Adaline learning rule to update the weights'''
+        deltaw = self.eta * (target - self.net_input(xi))
+        self.w_[1:] += xi.dot(deltaw)
+        self.w_[0] += deltaw * 1
+        
+        return deltaw
+
+    def partial_fit(self, X, y):
+        '''Online update w after first training'''
+        if not self.w_initialized:
+            self.w_ = 1.0 * np.zeros(1 + X.shape[1])
+            self.w_initialized = True
+
+        for xi, target in zip(X, y):
+            self.update_weights(xi, target)
+
+    def fit_sgd(self, X, y):
+        samples = X.shape[0]
+        x_features = X.shape[1]
+        self.w_ = 1.0 * np.zeros(1 + x_features)
+        self.w_initialized = True
+        
+        self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+        self.errors_ = []
+        self.costs_ = []
+        
+        # record every w during whole iterations
+        self.wsteps_ = []
+        self.steps_ = 1  # every steps_ descent steps statistic one cose and error sample
+        
+        while(1):            
+            self.complex += 1
+            if(self.complex > self.n_iter):
+                print("Loops beyond n_iter %d" % self.n_iter)
+                return self
+            
+            deltaws = []
+            for xi, target in zip(X, y):
+                deltaw = self.update_weights(xi, target)
+                deltaws.append(deltaw)
+                if (self.complex % self.steps_ == 0):
+                    errors, diffs = self.errors(X, y)
+
+            if np.max(np.abs(np.array(deltaws))) < 0.0001:
+                print("deltaw is less than 0.0001")
+                self.wsteps_.append(self.w_.copy()) # record last w
+                return self
+
+            if self.shuffle_flag:
+                X, y = self.shuffle(X, y)
+                self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+            
+        return self
+
+    # X is a vector including features of a sample 
+    def net_input(self, X):
+        '''Calculate net input'''
+        return np.dot(X, self.w_[1:]) + self.w_[0] * 1
+    
+    # X is a vector including features of a sample 
+    def sign(self, X):
+        '''Sign function'''
+        return np.where(self.net_input(X) >= 0.0, 1, -1)
+
+    # X is a vector including features of a sample 
+    def predict(self, X):
+        '''Return class label after unit step'''
+        return self.sign(X)
+
+为了比较 BGD 和 SGD 在训练时的效果，这里使用比较大的数据集： Iris 鸢尾花数据集。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def irisTrainSGD(type=1):
+      import pandas as pd
+      '''
+      Columns Information:
+         1. sepal length in cm
+         2. sepal width in cm
+         3. petal length in cm
+         4. petal width in cm
+         5. class: 
+            -- Iris Setosa
+            -- Iris Versicolour
+            -- Iris Virginica
+  
+      '''
+      df = pd.read_csv('db/iris/iris.data', header=0)
+      
+      # get the classifications
+      y = df.iloc[0:100, 4].values
+      y = np.where(y == 'Iris-setosa', 1, -1)
+      
+      # get samples' features 2(sepal width) and 4(petal width)
+      X = df.iloc[0:100, [1,3]].values
+
+      if type:
+          irisPerceptron = AdalineSGD(0.001, 40, 0) # 关闭 shuffle
+          irisPerceptron.fit_sgd(X, y)
+      else:
+          irisPerceptron = AdalineGD(0.001, 40)
+          irisPerceptron.fit_adaline(X, y)
+  
+      print('Weights: %s' % irisPerceptron.w_)
+  
+  irisTrainSGD(1)
+  irisTrainSGD(0)
+
+  >>>
+  LastCost: 9.009440
+  Weights: [ 0.39266545  0.1224748  -1.06803989]
+  LastCost: 7.638876
+  Weights: [ 0.39475523  0.16713579 -1.12436288]
+
+注意这里关闭了随机梯度下降的 shuffle，也即按样本顺序学习，每次选取一个样本更新权重。 
+
+.. figure:: imgs/practice/sgd.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  SGD 代价函数下降曲线
+
+对比两个曲线，它们的同样迭代 40 次，但是计算量是相同的，因为在 SGD 中我们循环处理了样本。SGD 允许我们在大数据时快速得到每次迭代的结果，但是在同样计算量下却不能提供比 SGD 更好的结果。这是一种折中。
+
+.. figure:: imgs/practice/bgd.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  BGD 代价函数下降曲线
+    
+重复强调：实际上要得到相同的精度结果，SGD 并不会比 BGD 降低整体的计算量，在训练周期上基本上是等价的。只是在大数据集上，我们并不需要得到最优值，而是使用 SGD 得到一个可以接受（可满足分类精度）的中间值，从而避免耗费大量时间去寻找最优值。
+
+如果打开 SGD 的 shuffle 选项，则会得到一个比较平滑的曲线，与此同时也得到了更精确的权重值。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  LastCost: 8.044033
+  Weights: [ 0.39865223  0.15436865 -1.08668558]
+
+.. figure:: imgs/practice/shuffle.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  SGD 乱序代价函数下降曲线
+
+SGD 最大的优点是它的在线学习特性。即在对输入进行处理的时候，也可以不断学习，相比于之前的BGD，只是在训练的时学习并修正权重，等到对实际的预测数据进行处理时，是不能改变权重参数的。
+
+但是由于 SGD 一次使用一个样本更新权重，使得输入很容易受噪声（错误样本）影响，这可以算缺点，也可以算优点，是缺点是因为噪声使得每次迭代不一定朝最优的方向，是优点是因为这样的情况有时可以避免网络（更复杂网络的代价函数可能是非凸函数）陷入局部最优。
+
+SGD 永远不会收敛到最小值，它只会在最小值附近不断的波动，它最大的缺点，就是不能通过向量化（并行化）来进行加速，因为每次都必须基于上个样本更新权重后才能进行下一个样本的迭代。
+
+mini-batch 梯度下降
+~~~~~~~~~~~~~~~~~~~~
+
+- 当每次是对整个训练集进行梯度下降的时候，就是 BGD 梯度下降。
+- 当每次只对一个样本进行梯度下降的时候，是 SGD 梯度下降。
+- 当每次处理样本的个数在上面二者之间，就是 MBGD （mini batch）梯度下降，也即小批量梯度下降。
+
+当数据集很大时，BGD 训练算法是非常慢的，使用 MBGD 梯度下降更新参数更快，有利于更鲁棒地收敛，避免局部最优。
+和 SGD 梯度下降相比，使用 MBGD 的计算效率更高，可以帮助快速训练模型。
+
+实现小批量梯度下降，只需要在类中添加 fit_batch 类方法即可：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def fit_mbgd(self, X, y, batchn=10):
+      samples = X.shape[0]
+      x_features = X.shape[1]
+      self.w_ = 1.0 * np.zeros(1 + x_features) + 1
+      
+      self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+      self.errors_ = []
+      self.costs_ = []
+      
+      # record every w during whole iterations
+      self.wsteps_ = []
+      self.steps_ = 1  # every steps_ descent steps statistic one cose and error sample
+      
+      if samples <= batchn:
+          batchn = samples
+      elif batchn <= 0:
+          batchn = 1
+      
+      batch_index = 0
+      batches = samples // batchn
+      
+      print("Fit Batch SGD with batchn %d, batches %d." % (batchn, batches))
+      while(1):
+          self.complex += 1
+          if(self.complex > self.n_iter):
+              print("Loops beyond n_iter %d" % self.n_iter)
+              return self
+
+          # minmium cost function with partial derivative wi
+          for i in range(batchn):
+              start_index = batch_index * i
+              batchX = self.appendedX_[start_index : start_index + batchn, :]
+              batchy = y[start_index : start_index + batchn]
+              deltaw = -self.eta * ((batchy - batchX.dot(self.w_))).dot(batchX)
+
+              if np.max(np.abs(deltaw)) < 0.0001:
+                  print("deltaw is less than 0.0001")
+                  self.wsteps_.append(self.w_.copy()) # record last w
+                  return self
+              
+              self.w_ -= deltaw
+              if (self.complex % self.steps_ == 0):
+                  errors, diffs = self.errors(X, y)
+              
+          # must do shuffle, otherwise may lose samples at tail
+          X, y = self.shuffle(X, y)
+          self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+              
+      return self
+
+修改测试函数添加 fit_mbgd 测试分支：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def irisTrainSGD(type=0):
+      ......
+      elif type == 2:
+          irisPerceptron = AdalineSGD(0.001, 40)
+          irisPerceptron.fit_mbgd(X, y)  
+  
+  irisTrainSGD(2)
+  
+  >>>
+  Fit Batch SGD with batchn 10, batches 10.
+  Loops beyond n_iter 40
+  LastCost: 6.712262
+  Weights: [-0.12631779  0.28915588 -1.14584922]
+
+结合下图可以看出曲线具有大波动特征，这就是小批量的典型的波浪特征，结果要批量下降要好，在于在小批量更新权重之后进行了样本的随机处理。
+
+.. figure:: imgs/practice/mbgd.png
+  :scale: 100%
+  :align: center
+  :alt: boolor
+
+  MBGD 代价函数下降曲线
+
+MBGD 的 batch 大小也是一个影响着算法效率的参数：
+
+- 如果训练集较小，一般小于 2K，就直接使用 BGD。
+- 一般 MBGD 的批量选择 2 的 n 次幂会运行得相对快一些。这个值设为 2 的 n 次幂，是为了符合 CPU/GPU 的内存访问的对齐要求。
 
