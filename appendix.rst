@@ -6,9 +6,10 @@
 | [1] Eric Matthes，袁国忠(译).Python编程从入门到实践[M].北京:人民邮电出版社，2016
 | [2] Micha Gorelick，Ian Ozsvald，胡世杰，徐旭彬(译).Python高性能编程[M].北京:人民邮电出版社，2017
 | [3] Jake VanderPlas，陈俊杰，陈小莉(译).Python数据科学手册[M].北京:人民邮电出版社，2017
+| [4] Python Machine Learning （美）塞巴斯蒂安·拉施卡（Sebastian Raschka）[M].北京:机械工业出版社，2017
 
 机器学习相关
-------------------
+--------------
 - `Neural Networks and Deep Learning (Michael Nielsen) <http://neuralnetworksanddeeplearning.com/index.html>`_
 - `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
@@ -17,7 +18,9 @@
 - `主流机器学习框架对比 <https://www.leiphone.com/news/201702/T5e31Y2ZpeG1ZtaN.html>`_
 - `判断欠拟合还是过拟合 <https://blog.csdn.net/qq_30374549/article/details/80937159>`_
 - `马里兰大学，机器学习课程资料 <http://www.cs.umd.edu/class/spring2016/cmsc422//schedule/>`_
+- `机器学习 <https://thepythonguru.com/top-5-machine-learning-libraries-in-python/#more-1948>`_
 - `标准化和归一化详解 <https://www.jianshu.com/p/95a8f035c86c>`_
+- `Artificial Intelligence, Deep Learning, and NLP <http://www.wildml.com/>`_
 
 Python相关
 -----------
@@ -33,6 +36,7 @@ Python相关
 
 数学相关
 -----------
+- `机器学习中的基本数学知识 <https://www.cnblogs.com/steven-yang/p/6348112.html>`_
 - `拉格朗日乘子法 <http://jermmy.xyz/2017/07/27/2017-7-27-understand-lagrange-multiplier/>`_
 
 图像相关
@@ -64,7 +68,7 @@ manim 环境配置
 
 嵌入式相关
 ------------------
-- 树莓派跑OpenCV https://www.pyimagesearch.com/2017/09/04/raspbian-stretch-install-opencv-3-python-on-your-raspberry-pi/
+- `树莓派跑OpenCV <https://www.pyimagesearch.com/2017/09/04/raspbian-stretch-install-opencv-3-python-on-your-raspberry-pi/>`_
 
 LaTeX数学表达式
 ~~~~~~~~~~~~~~~~
@@ -76,11 +80,18 @@ LaTeX数学表达式
 .. math::
   
   \ P(X=a|Y=b)=\frac{P(X=a,Y=b)}{P(Y=b)}
- 
+
+.. math::
+
+  \Delta w = \eta (y^{i} - {\hat{y}}^i)x^{i}
+  
+此行必须添加，否则后序表达式出错：
+
 .. role:: raw-latex(raw)
     :format: latex html
 
 This: :raw-latex:`\((x+a)^3\)`
+This: :raw-latex:`\((x+a)_3\)`
 
 this: :raw-latex:`\(W \approx \sum{f(x_k) \Delta x}\)`
 
