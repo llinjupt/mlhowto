@@ -109,6 +109,22 @@ def show_matrix(matrix, color='black'):
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.show()
 
+def plot_matrix(matrix, color='black'):
+    h, w = matrix.shape
+
+    plt.figure(figsize=(w / 2 + 1, h / 2 + 1))
+    tb = plt.table(cellText=matrix, loc=(0,0), cellLoc='center')
+
+    tc = tb.properties()['child_artists']
+    for cell in tc:
+        cell.set_height(1/h)
+        cell.set_width(1/w)
+
+    ax = plt.gca()
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
+
 def chessboard(square=10, size=15, color=(255, 0, 0)):
     '''Create a chessboard color with order RGB'''
     
@@ -318,4 +334,3 @@ def convolute_speed_cmp(image=None, count=100, type=0):
             convolution(gray + count, kernel)
         print("convolution cost walltime {:.02f}s with loop {}".format(time.time()-start, count))        
 
-convolute_speed_cmp(None, 10, 2)

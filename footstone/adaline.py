@@ -8,16 +8,6 @@ Created on Thu Feb 14 16:10:34 2018
 import numpy as np
 import matplotlib.pyplot as plt
 
-def normalize(X):
-    '''Min-Max normalization :(xi - min(xi))/(max(xi) - min(xi))'''
-    minV = np.min(X, axis=0) * 1.0
-    maxV = np.max(X, axis=0) * 1.0
-
-    return (X * 1.0 - minV) / (maxV - minV)
-
-def standard(X):
-    return (X - np.mean(X, axis=0)) / np.std(X, axis=0)
-
 class AdalineGD(object):
     ''' Adaline Gradient Descent Model
 
@@ -47,12 +37,17 @@ class AdalineGD(object):
         '''Statistics all errors into self.errors_'''
 
         predicts = self.appendedX_.dot(self.w_)
-        diffs = np.where(predicts >= 0.0, 1, -1) - y
+        diffs = np.where(predicts >= 0.0, self.positive, self.negtive) - y
         errors = np.count_nonzero(diffs)
         self.errors_.append(errors)
         
         return errors, diffs
-
+    
+    def update_labels(self, y):
+        # for sign and predict
+        self.positive = np.max(y)
+        self.negtive = np.min(y)
+        
     def fit_adaline(self, X, y):
         ''' Fit Training data with adaptive model
         
@@ -71,6 +66,8 @@ class AdalineGD(object):
         samples = X.shape[0]
         x_features = X.shape[1]
         self.w_ = 1.0 * np.zeros(1 + x_features) + 1
+        self.update_labels(y)
+        
         #self.w_ = np.array([0, -1, 1]) * 1.0
         
         #X[:,:] = standard(X)[:,:]
@@ -118,7 +115,7 @@ class AdalineGD(object):
     # X is a vector including features of a sample 
     def sign(self, X):
         '''Sign function'''
-        return np.where(self.net_input(X) >= 0.0, 1, -1)
+        return np.where(self.net_input(X) >= 0.0, self.positive, self.negtive)
 
     # X is a vector including features of a sample 
     def predict(self, X):
@@ -261,11 +258,12 @@ class AdalineGD(object):
         plt.ylim(-max_, max_)
         plt.yticks(np.arange(-max_, max_))
 
-        plt.scatter(x1[labels == 1], x2[labels == 1], c='black', marker='o')
-        plt.scatter(x1[labels == -1], x2[labels == -1], c='black', marker='s')
+        max,min = self.positive,self.negtive
+        plt.scatter(x1[labels == max], x2[labels == max], c='black', marker='o')
+        plt.scatter(x1[labels == min], x2[labels == min], c='black', marker='s')
 
         for index, x, y in zip(range(len(labels)), x1, x2):
-            plt.annotate('(%s,%s)'%(x,y), xy=(x,y), xytext=(-20,-20), 
+            plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
                      textcoords = 'offset pixels', ha='left', va='bottom')
         
         return plt
@@ -301,7 +299,6 @@ class AdalineGD(object):
 
         plt.show()
         
-
 class AdalineSGD(object):
     ''' Adaline Stochastic Gradient Descent Model
 
@@ -343,7 +340,7 @@ class AdalineSGD(object):
         '''Statistics all errors into self.errors_'''
 
         predicts = self.appendedX_.dot(self.w_)
-        diffs = np.where(predicts >= 0.0, 1, -1) - y
+        diffs = np.where(predicts >= 0.0, self.positive, self.negtive) - y
         errors = np.count_nonzero(diffs)
         self.errors_.append(errors)
         
@@ -357,9 +354,24 @@ class AdalineSGD(object):
         '''Shuffle training data'''
         r = np.random.permutation(X.shape[0])
         return X[r], y[r]
-    
+
+    def update_labels(self, y):
+        # for sign and predict
+        self.positive = np.max(y)
+        self.negtive = np.min(y)
+        self.positive_num = np.count_nonzero(y == self.positive)
+        self.negtive_num = np.count_nonzero(y == self.negtive)
+        
     def update_weights(self, xi, target):
         '''Apply Adaline learning rule to update the weights'''
+
+        '''        
+        # emulate svm
+        if target > 0 and self.net_input(xi) > target:
+            return 0
+        if target < 0 and self.net_input(xi) < target:
+            return 0
+        '''
         deltaw = self.eta * (target - self.net_input(xi))
         self.w_[1:] += xi.dot(deltaw)
         self.w_[0] += deltaw * 1
@@ -392,8 +404,9 @@ class AdalineSGD(object):
         '''
         samples = X.shape[0]
         x_features = X.shape[1]
-        self.w_ = 1.0 * np.zeros(1 + x_features) + 1
+        self.w_ = 1.0 * np.zeros(1 + x_features) 
         self.w_initialized = True
+        self.update_labels(y)
         #self.w_ = np.array([0, -1, 1]) * 1.0
         
         #X[:,:] = standard(X)[:,:]
@@ -420,20 +433,22 @@ class AdalineSGD(object):
                 deltaws.append(deltaw)
                 if (self.complex % self.steps_ == 0):
                     errors, diffs = self.errors(X, y)
-
+            
+            '''
             if np.max(np.abs(np.array(deltaws))) < 0.0001:
                 print("deltaw is less than 0.0001")
                 self.wsteps_.append(self.w_.copy()) # record last w
                 return self
-
+            '''
+            
             if self.shuffle_flag:
                 X, y = self.shuffle(X, y)
                 self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
             
         return self
 
-    def fit_mbgd(self, X, y, batchn=10):
-        ''' Mini Batch SGD if batchn = 1 equal fit_sgd, if batchn >= samples equal fit_adaline
+    def fit_mbgd(self, X, y, batchn=8):
+        ''' Mini BGD if batchn = 1 equal fit_sgd, if batchn >= samples equal fit_adaline
         
             Parameters:
             -------------
@@ -450,6 +465,7 @@ class AdalineSGD(object):
         samples = X.shape[0]
         x_features = X.shape[1]
         self.w_ = 1.0 * np.zeros(1 + x_features)
+        self.update_labels(y)
         #self.w_ = np.array([0, -1, 1]) * 1.0
         
         #X[:,:] = standard(X)[:,:]
@@ -471,8 +487,8 @@ class AdalineSGD(object):
         
         batch_index = 0
         batches = samples // batchn
-        
-        print("Fit Batch SGD with batchn %d, batches %d." % (batchn, batches))
+
+        print("Fit MBGD with batchn %d, batches %d." % (batchn, batches))
         while(1):
             self.complex += 1
             if(self.complex > self.n_iter):
@@ -485,11 +501,13 @@ class AdalineSGD(object):
                 batchX = self.appendedX_[start_index : start_index + batchn, :]
                 batchy = y[start_index : start_index + batchn]
                 deltaw = -self.eta * ((batchy - batchX.dot(self.w_))).dot(batchX)
-
+                
+                '''
                 if np.max(np.abs(deltaw)) < 0.0001:
                     print("deltaw is less than 0.0001")
                     self.wsteps_.append(self.w_.copy()) # record last w
                     return self
+                '''
                 
                 self.w_ -= deltaw
                 if (self.complex % self.steps_ == 0):
@@ -499,7 +517,7 @@ class AdalineSGD(object):
             X, y = self.shuffle(X, y)
             self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
                 
-        return self  
+        return self
     
     # X is a vector including features of a sample 
     def net_input(self, X):
@@ -509,7 +527,7 @@ class AdalineSGD(object):
     # X is a vector including features of a sample 
     def sign(self, X):
         '''Sign function'''
-        return np.where(self.net_input(X) >= 0.0, 1, -1)
+        return np.where(self.net_input(X) >= 0.0, self.positive, self.positive)
 
     # X is a vector including features of a sample 
     def predict(self, X):
@@ -629,7 +647,7 @@ class AdalineSGD(object):
         c = str((1 - step/(steps + 1)) * 0.90)
         self.draw_line(plt, self.wsteps_[step], x1, x2, step + 1, c)
 
-    def draw_points(self, X, labels, title='', figsize=(4,4)):
+    def draw_points(self, X, labels, title='', figsize=(4,4), coordinate=False):
         if np.shape(self.w_)[0] != 3:
             print("can't draw the hyperplane with D%d", np.shape(self.w_)[0])
             return # can't draw the hyperplane
@@ -646,35 +664,45 @@ class AdalineSGD(object):
 
         max_ = abs(np.max(np.abs(X))) + 1
         
-        plt.xlim(-max_, max_ + 0.5)
+        plt.xlim(-max_, max_)
         plt.xticks(np.arange(-max_, max_))
         
         plt.ylim(-max_, max_)
         plt.yticks(np.arange(-max_, max_))
 
-        plt.scatter(x1[labels == 1], x2[labels == 1], c='black', marker='o')
-        plt.scatter(x1[labels == -1], x2[labels == -1], c='black', marker='s')
+        max,min = self.positive, self.negtive
+        plt.scatter(x1[labels == max], x2[labels == max], c='black', marker='o')
+        plt.scatter(x1[labels == min], x2[labels == min], c='black', marker='s')
         
-        if len(X) < 100:
+        if coordinate:
             for index, x, y in zip(range(len(labels)), x1, x2):
-                plt.annotate('(%s,%s)'%(x,y), xy=(x,y), xytext=(-20,-20), 
+                plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
                          textcoords = 'offset pixels', ha='left', va='bottom')
         
         return plt
     
-    def draw_separate_line(self, X, y, title=''):
+    def draw_separate_line(self, X, y, title='', figsize=(4,4)):
         if np.shape(self.w_)[0] != 3:
             print("can't draw the hyperplane with D%d", np.shape(self.w_)[0])
             return # can't draw the hyperplane
         
         title = "Adaline" + (' ' + title) if len(title) else ''
-        plt = self.draw_points(X, y, title)
+        plt = self.draw_points(X, y, title, figsize=figsize)
         
         # x1 and x2 features
         x1 = X[:, 0]
         x2 = X[:, 1]
         
         self.draw_line(plt, self.w_, x1, x2, 0, c='black')
+        
+        w_ = self.w_.copy()
+        w_[0] -= 1
+        self.draw_line(plt, w_, x1, x2, 0, c='gray')
+        w_[0] += 2
+        self.draw_line(plt, w_, x1, x2, 0, c='gray')
+        
+        self.draw_foot_point(X,y)
+        plt.show()
 
     def draw_converge_lines(self, X, y):
         if np.shape(self.w_)[0] != 3:
@@ -692,54 +720,21 @@ class AdalineSGD(object):
             self.draw_w_line(plt, X, i)
 
         plt.show()
-
-def irisTrainSGD(type=0):
-    import pandas as pd
-    '''
-    Columns Information:
-       1. sepal length in cm
-       2. sepal width in cm
-       3. petal length in cm
-       4. petal width in cm
-       5. class: 
-          -- Iris Setosa
-          -- Iris Versicolour
-          -- Iris Virginica
-
-    '''
-    df = pd.read_csv('db/iris/iris.data', header=0)
-    
-    # get the classifications
-    y = df.iloc[0:100, 4].values
-    y = np.where(y == 'Iris-setosa', 1, -1)
-    
-    # get samples' features 2(sepal width) and 4(petal width)
-    X = df.iloc[0:100, [1,3]].values
-    '''
-    # get samples' features 2(sepal length) and 4(petal length)
-    X = df.iloc[0:100, [0,2]].values
-    '''
-
-    if type == 1:
-        irisPerceptron = AdalineSGD(0.001, 40, 1)
-        irisPerceptron.fit_sgd(X, y)
-    elif type == 0:
-        irisPerceptron = AdalineGD(0.001, 40)
-        irisPerceptron.fit_adaline(X, y)
-    elif type == 2:
-        irisPerceptron = AdalineSGD(0.001, 40)
-        irisPerceptron.fit_mbgd(X, y)
-
-    #irisPerceptron.draw_errors()
-    #irisPerceptron.draw_separate_line(X, y, 'iris')
-    #irisPerceptron.draw_converge_lines(X, y)
-    #irisPerceptron.draw_vectors()
-    irisPerceptron.draw_costs()
-    print("LastCost: %f" % irisPerceptron.costs_[-1])
-    print('Weights: %s' % irisPerceptron.w_)
-    #print('Steps: %d' % len(irisPerceptron.errors_))
-    #print('Complex: %d' % irisPerceptron.complex)
-
+        
+    def draw_foot_point(self, X, y):
+        import drawutils
+        xaverage = X[y==self.positive].sum(axis=0) / self.positive_num
+        yaverage = X[y==self.negtive].sum(axis=0) / self.negtive_num
+       
+        fx1, fx2 = drawutils.get_footpoint(xaverage[0], xaverage[1], self.w_)
+        plt.plot([xaverage[0], fx1], [xaverage[1], fx2], c='red')
+        
+        plt.scatter(xaverage[0], xaverage[1], c='red', marker='p')
+        plt.scatter(yaverage[0], yaverage[1], c='red', marker='p')
+        
+        fx1, fx2 = drawutils.get_footpoint(yaverage[0], yaverage[1], self.w_)
+        plt.plot([yaverage[0], fx1], [yaverage[1], fx2], c='red')
+        
 def boolOrTrain():
     # Bool or Train         x11 x12 y1
     BoolOrTrain = np.array([[0, 0, -1],
@@ -760,4 +755,160 @@ def boolOrTrain():
     BoolOr.draw_converge_lines(X,y)
 
 #irisTrainSGD(1)
-irisTrainSGD(2)
+def draw_normal_distribution(points=100):
+    import matplotlib.pyplot as plt
+
+    np.random.seed(1)
+    rand_num = np.random.normal(0, 1, (4, points))
+    Ax, Ay = rand_num[0] + 3, rand_num[1] + 3
+    Bx, By = rand_num[2] - 3, rand_num[3] - 3
+     
+    plt.figure(figsize=(4,4))
+    plt.title("Normal Distribution with {} points".format(points))
+    plt.xlim(-10, 10) 
+    plt.ylim(-10, 10) 
+
+    plt.scatter(Ax, Ay, s=5, c='black', marker='o')
+    plt.scatter(Bx[points // 2:], By[points // 2:], s=5, c='black', marker='o')
+    plt.show()
+
+# generate noraml distribution train set
+def normal_distribute_trainset(positive=100, negtive=100, type='normal'):
+    np.random.seed(3)
+    
+    if type == 'normal':
+        numA = np.random.normal(3, 2, (2, positive))
+        numB = np.random.normal(-3, 2, (2, negtive))
+    elif type == 'ones':
+        numA = np.ones((2, positive)) - 3
+        numB = np.ones((2, negtive)) + 5
+    else:
+        numA = np.zeros((2, positive)) - 3
+        numB = np.zeros((2, negtive)) + 5
+
+    Ax, Ay = numA[0] * 0.6, numA[1]
+    Bx, By = numB[0] * 1.5, numB[1]
+    
+    labels = np.zeros((negtive + positive, 1))
+    trainset = np.zeros((negtive + positive, 2))
+    trainset[0:positive,0] = Ax[:]
+    trainset[0:positive,1] = Ay[:]
+    labels[0:positive] = 1
+    
+    trainset[positive:,0] = Bx[:]
+    trainset[positive:,1] = By[:]
+    labels[positive:] = -1
+
+    return trainset, labels.reshape(positive + negtive,)
+
+import scaler
+def normal_distribute_test():
+    positive_num = 20
+    negtive_num = 20
+    X,y = normal_distribute_trainset(positive_num, negtive_num)
+   
+    X = scaler.standard(X)
+    X,y = scaler.shuffle(X, y)
+    ND = AdalineSGD(0.0001, 20000)
+    ND.fit_sgd(X, y)
+
+    print('Weights: %s' % ND.w_)
+    print('Errors: %s' % ND.errors_[-1])
+    print("LastCost: %f" % ND.costs_[-1])
+    ND.draw_separate_line(X, y,'Normal Distribute')
+
+    #BoolOr.draw_vectors()
+    #ND.draw_costs()
+    #BoolOr.draw_converge_lines(X,y)
+
+normal_distribute_test()
+
+def iris_dataset_prepare(ratio=0.3, random_state=0):
+    import pandas as pd
+    import crossvalid,scaler
+    
+    df = pd.read_csv('db/iris/iris.data', header=0)
+    
+    # get the classifications
+    y = df.iloc[0:100, 4].values
+    y = np.where(y == 'Iris-setosa', 1, -1)
+    
+    # get samples' features 2(sepal width) and 4(petal width)
+    X = df.iloc[0:100, [1,3]].values
+    
+    X_train, X_test, y_train, y_test = crossvalid.data_split(X, y, ratio=ratio, 
+                                                             random_state=random_state)
+
+    ds = scaler.DataScaler(X_train)
+    X_train = ds.sklearn_standard(X_train)
+    X_test = ds.sklearn_standard(X_test)
+    
+    return X_train, X_test, y_train, y_test
+
+def irisTrainSGD(type=0):
+    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+
+    if type == 1:
+        irisPerceptron = AdalineSGD(0.001, 40, 1)
+        irisPerceptron.fit_sgd(X_train, y_train)
+    elif type == 0:
+        irisPerceptron = AdalineGD(0.001, 40)
+        irisPerceptron.fit_adaline(X_train, y_train)
+    elif type == 2:
+        irisPerceptron = AdalineSGD(0.001, 40)
+        irisPerceptron.fit_mbgd(X_train, y_train)
+    else:
+        import time
+        import perceptron
+        irisPerceptron = perceptron.Perceptron(0.01, 50)
+        start = time.time()
+        irisPerceptron.fit_batch(X_train, y_train)
+        print("time {:.4f}ms".format((time.time() - start) * 1000))
+    
+    predict = irisPerceptron.predict(X_test)
+    errnum = (predict != y_test).sum()
+    print("Misclassified number {}, Accuracy {:.2f}%".format(errnum, \
+          (X_test.shape[0] - errnum)/ X_test.shape[0] * 100))
+
+    #irisPerceptron.draw_errors()
+    #irisPerceptron.draw_separate_line(X, y, 'iris')
+    #irisPerceptron.draw_converge_lines(X, y)
+    #irisPerceptron.draw_vectors()
+    #irisPerceptron.draw_costs()
+    #print("LastCost: %f" % irisPerceptron.costs_[-1])
+    print('Weights: %s' % irisPerceptron.w_)
+    #print('Steps: %d' % len(irisPerceptron.errors_))
+    #print('Complex: %d' % irisPerceptron.complex)
+
+def sklearn_perceptron_test():
+    from sklearn.linear_model import Perceptron
+    from sklearn.metrics import accuracy_score
+    import time
+    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+    
+    clf = Perceptron(max_iter=50, n_jobs=1, eta0=0.01, random_state=0)
+    #clf = SGDClassifier(loss="squared_loss", eta0=0.01, max_iter=1000, learning_rate="constant", penalty=None, random_state=1)
+    start = time.time()
+    clf.fit(X_train, y_train)
+    print("time {:.4f}ms".format((time.time() - start) * 1000))
+    print(clf.coef_, clf.intercept_)
+    predict = clf.predict(X_test)
+    print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
+                                                          accuracy_score(y_test, predict)*100))
+
+def sklearn_adaline_test():
+    from sklearn.linear_model import SGDClassifier
+    from sklearn.metrics import accuracy_score
+    import time
+    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+    
+    clf = SGDClassifier(loss='squared_loss', max_iter=50, eta0=0.01, 
+                       random_state=0, learning_rate="optimal", penalty=None, shuffle=False)
+    start = time.time()
+    clf.fit(X_train, y_train)
+    print("time {:.4f}ms".format((time.time() - start) * 1000))
+    print(clf.coef_, clf.intercept_)
+    predict = clf.predict(X_test)
+    print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
+                                                          accuracy_score(y_test, predict)*100))
+

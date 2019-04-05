@@ -50,8 +50,7 @@ class Perceptron(object):
             self: object
         '''
         
-        # self.w_ = np.ones(1 + X.shape[1])
-        self.w_ = np.array([1, 1, 1]) * 1.0
+        self.w_ = np.ones(1 + X.shape[1])
         self.errors_ = []
         
         # record every w during whole iterations
@@ -76,7 +75,7 @@ class Perceptron(object):
             self.errors_.append(errors)
             if errors == 0:
                 break
-            
+
         if len(self.errors_) and self.errors_[-1] != 0:
             print("Warn: didn't find a hyperplane in %d iterations!" % self.n_iter)
         
@@ -303,7 +302,7 @@ class Perceptron(object):
         plt.scatter(x1[labels == -1], x2[labels == -1], c='black', marker='s')
 
         for index, x, y in zip(range(len(labels)), x1, x2):
-            plt.annotate('(%s,%s)'%(x,y), xy=(x,y), xytext=(-20,-20), 
+            plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
                      textcoords = 'offset pixels', ha='left', va='bottom')
         
         return plt
@@ -587,7 +586,7 @@ class AdalineGD(object):
         plt.scatter(x1, x2, c='black')
         
         for x, y in zip(x1, x2):
-            plt.annotate('(%s,%s)'%(x,y), xy=(x,y), xytext=(-20,-15), 
+            plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-15), 
                      textcoords = 'offset pixels', ha='left', va='bottom')
         self.draw_line(plt, self.w_, x1, x2, 0, c='black')
 
@@ -617,7 +616,7 @@ class AdalineGD(object):
         
         plt.scatter(x1, x2, c='black')
         for x, y in zip(x1, x2):
-            plt.annotate('(%s,%s)'%(x,y), xy=(x,y), xytext=(0, -5),
+            plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(0, -5),
                      textcoords = 'offset pixels', ha='left', va='top')
 
         self.draw_line(plt, self.w_, x1, x2, len(self.wsteps_), c='black')
@@ -706,4 +705,4 @@ def boolXorTrain():
     BoolAnd.draw_vectors()
     BoolAnd.draw_costs()
 
-boolOrTrain()
+#boolOrTrain()

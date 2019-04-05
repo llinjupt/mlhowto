@@ -17,7 +17,7 @@ def draw_normal_distribution(points=100):
     Ax, Ay = rand_num[0] - 3, rand_num[1] - 3
     Bx, By = rand_num[2] + 3, rand_num[3] + 3
      
-    plt.figure()
+    plt.figure(figsize=(4,4))
     plt.title("Normal Distribution with {} points".format(points))
     plt.xlim(-10, 10) 
     plt.ylim(-10, 10) 
@@ -137,7 +137,7 @@ class kNN_sklearn():
 if __name__ == '__main__':
     # knn = kNN()
     # knn.batch_test()
-    knn_sk = kNN_sklearn(alg='brute')
-    knn_sk.batch_test()
-    knn_sk.error_ratio_draw()
-    
+#    knn_sk = kNN_sklearn(alg='brute')
+#    knn_sk.batch_test()
+#    knn_sk.error_ratio_draw()
+    draw_normal_distribution(10000)
