@@ -43,3 +43,145 @@ def rotation_transform(theta):
     A = [[np.math.cos(theta), -np.math.sin(theta)],
          [np.math.sin(theta), np.math.cos(theta)]]
     return np.array(A)
+
+# resolution is step size in the mesh
+def plot_decision_regions(X, y, clf, test_idx=None, resolution=0.01):
+    from matplotlib.colors import ListedColormap
+    # setup marker generator and color map
+    markers = ('s', 'x', '^', 'v')
+    colors = ('red', 'blue', 'lightgreen', 'cyan')
+    cmap = ListedColormap(colors[:len(np.unique(y))])
+
+    # create a mesh to plot in
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, resolution),
+                         np.arange(y_min, y_max, resolution))
+    Z = clf.predict(np.array([xx.ravel(), yy.ravel()]).T)
+    Z = Z.reshape(xx.shape)
+    
+    plt.title("Decision surface of multi-class")
+    plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap)
+    plt.xlim(xx.min(), xx.max())
+    plt.ylim(yy.min(), yy.max())
+
+    for idx, cl in enumerate(np.unique(y)):
+        plt.scatter(x=X[y == cl, 0], y=X[y == cl, 1], alpha=0.8, c=colors[idx],
+                    marker=markers[idx], label=cl, s=50,
+                    edgecolor='black')
+
+    if test_idx is None:
+        return
+    
+    # plot all samples with cycles
+    X_test = X[test_idx, :]
+    plt.scatter(X_test[:, 0], X_test[:, 1], c='', edgecolor='black',
+                alpha=1.0, linewidth=1, marker='o', s=50, 
+                label='test dataset')
+
+def test_plot_decision_regions():
+    import dbload
+    from sklearn.linear_model import Perceptron
+    from sklearn.metrics import accuracy_score
+    
+    X_train, X_test, y_train, y_test = dbload.load_iris_mclass()
+    ppn = Perceptron(max_iter=100, eta0=0.01, random_state=1)
+    ppn.fit(X_train, y_train)
+    predict = ppn.predict(X_test)
+    print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
+           accuracy_score(y_test, predict)*100))
+
+    X_all = np.vstack((X_train, X_test))
+    y_all = np.hstack((y_train, y_test))
+    print(y_all[0:20])
+    plot_decision_regions(X_all, y_all, clf=ppn, 
+                          test_idx=range(X_train.shape[0], X_all.shape[0]))
+    plt.xlabel('petal length [standardized]')
+    plt.ylabel('petal width [standardized]')
+    plt.legend(loc='upper left')
+
+    plt.tight_layout()
+    plt.show()
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+def plot_sigmoid():
+    z = np.arange(-8, 8.1, 0.1)
+    y = sigmoid(z)
+    
+    plt.plot(z, y)
+    plt.title("Sigmoid Function")
+    plt.axvline(0.0, color='k')
+    plt.ylim(0, 1)
+    plt.xlim(np.min(z), np.max(z))
+    plt.xlabel('z')
+    plt.ylabel('sigmoid(z)')
+    
+    # y axis ticks and gridline
+    plt.yticks([0.0, 0.5, 1.0])
+    plt.plot((-8, 8), (0.5, 0.5), lw=1, c='gray')
+    
+    plt.tight_layout()
+    plt.show()
+
+def plot_sigmoid_with_odd():
+    z = np.arange(-8, 8.1, 0.1)
+    y = sigmoid(z)
+    
+    plt.title("Sigmoid Function")
+    plt.plot(z, y)
+    
+    xm = 2 # plot vertical line to show p and 1-p relationship
+    plt.plot([xm,xm],[0,sigmoid(xm)], color ='blue', linewidth=1.5, linestyle="--")
+    plt.text(xm+0.1, (sigmoid(xm) / 2), r'$p=sigmoid(z)$')
+    
+    plt.plot([xm,xm],[sigmoid(xm),1], color ='orange', linewidth=1.5, linestyle="--")
+    plt.text(xm+0.1, ((1 + sigmoid(xm)) / 2), r'$1-p$')
+    
+    xm = -2
+    plt.plot([xm,xm],[0,sigmoid(xm)], color ='orange', linewidth=1.5, linestyle="--")
+    plt.text(xm+0.1, (sigmoid(xm) / 2), r'$1-p$')
+    
+    plt.plot([xm,xm],[sigmoid(xm),1], color ='blue', linewidth=1.5, linestyle="--")
+    plt.text(xm-4, ((1 + sigmoid(xm)) / 2), r'$p=1-sigmoid(z)$')
+    
+    plt.axvline(0.0, color='k')
+    plt.ylim(0, 1)
+    plt.xlim(np.min(z), np.max(z))
+    plt.xlabel('z')
+    plt.ylabel('sigmoid(z)')
+    
+    # y axis ticks and gridline
+    plt.yticks([0.0, 0.5, 1.0])
+    plt.plot((-8, 8), (0.5, 0.5), lw=1, c='gray')
+    
+    plt.tight_layout()
+    plt.show()
+
+def plot_sigmoid_cost():
+    def cost_1(z):
+        return - np.log(sigmoid(z))
+
+    def cost_0(z):
+        return - np.log(1 - sigmoid(z))
+
+    z = np.arange(-10, 10, 0.1)
+    phi_z = sigmoid(z)
+    
+    c1 = [cost_1(x) for x in z]
+    plt.plot(phi_z, c1, label='j(w) if y=1', c='blue')
+    
+    c0 = [cost_0(x) for x in z]
+    plt.plot(phi_z, c0, linestyle='--', label='j(w) if y=0', c='orange')
+    
+    plt.ylim(0.0, 5.1)
+    plt.xlim([0, 1])
+    plt.xlabel('$\phi$(z)')
+    plt.ylabel('j(w)')
+    plt.legend(loc='best')
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    plot_sigmoid_cost()

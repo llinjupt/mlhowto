@@ -6,6 +6,7 @@ Created on Thu Feb 14 16:10:34 2018
 """
 
 import numpy as np
+import dbload
 import matplotlib.pyplot as plt
 
 class AdalineGD(object):
@@ -235,7 +236,7 @@ class AdalineGD(object):
         c = str((1 - step/(steps + 1)) * 0.90)
         self.draw_line(plt, self.wsteps_[step], x1, x2, step + 1, c)
 
-    def draw_points(self, X, labels, title='', figsize=(4,4)):
+    def draw_points(self, X, labels, title='', figsize=(4,4), coordinate=False):
         if np.shape(self.w_)[0] != 3:
             print("can't draw the hyperplane with D%d", np.shape(self.w_)[0])
             return # can't draw the hyperplane
@@ -261,10 +262,11 @@ class AdalineGD(object):
         max,min = self.positive,self.negtive
         plt.scatter(x1[labels == max], x2[labels == max], c='black', marker='o')
         plt.scatter(x1[labels == min], x2[labels == min], c='black', marker='s')
-
-        for index, x, y in zip(range(len(labels)), x1, x2):
-            plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
-                     textcoords = 'offset pixels', ha='left', va='bottom')
+        
+        if coordinate:
+            for index, x, y in zip(range(len(labels)), x1, x2):
+                plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
+                         textcoords = 'offset pixels', ha='left', va='bottom')
         
         return plt
     
@@ -433,7 +435,7 @@ class AdalineSGD(object):
                 deltaws.append(deltaw)
                 if (self.complex % self.steps_ == 0):
                     errors, diffs = self.errors(X, y)
-            
+
             '''
             if np.max(np.abs(np.array(deltaws))) < 0.0001:
                 print("deltaw is less than 0.0001")
@@ -803,14 +805,14 @@ def normal_distribute_trainset(positive=100, negtive=100, type='normal'):
 
 import scaler
 def normal_distribute_test():
-    positive_num = 20
-    negtive_num = 20
+    positive_num = 60
+    negtive_num = 10
     X,y = normal_distribute_trainset(positive_num, negtive_num)
    
     X = scaler.standard(X)
     X,y = scaler.shuffle(X, y)
-    ND = AdalineSGD(0.0001, 20000)
-    ND.fit_sgd(X, y)
+    ND = AdalineSGD(0.0001, 4000)
+    ND.fit_mbgd(X, y)
 
     print('Weights: %s' % ND.w_)
     print('Errors: %s' % ND.errors_[-1])
@@ -821,32 +823,8 @@ def normal_distribute_test():
     #ND.draw_costs()
     #BoolOr.draw_converge_lines(X,y)
 
-normal_distribute_test()
-
-def iris_dataset_prepare(ratio=0.3, random_state=0):
-    import pandas as pd
-    import crossvalid,scaler
-    
-    df = pd.read_csv('db/iris/iris.data', header=0)
-    
-    # get the classifications
-    y = df.iloc[0:100, 4].values
-    y = np.where(y == 'Iris-setosa', 1, -1)
-    
-    # get samples' features 2(sepal width) and 4(petal width)
-    X = df.iloc[0:100, [1,3]].values
-    
-    X_train, X_test, y_train, y_test = crossvalid.data_split(X, y, ratio=ratio, 
-                                                             random_state=random_state)
-
-    ds = scaler.DataScaler(X_train)
-    X_train = ds.sklearn_standard(X_train)
-    X_test = ds.sklearn_standard(X_test)
-    
-    return X_train, X_test, y_train, y_test
-
 def irisTrainSGD(type=0):
-    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+    X_train, X_test, y_train, y_test = dbload.load_iris_dataset()
 
     if type == 1:
         irisPerceptron = AdalineSGD(0.001, 40, 1)
@@ -884,7 +862,7 @@ def sklearn_perceptron_test():
     from sklearn.linear_model import Perceptron
     from sklearn.metrics import accuracy_score
     import time
-    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+    X_train, X_test, y_train, y_test = dbload.load_iris_dataset()
     
     clf = Perceptron(max_iter=50, n_jobs=1, eta0=0.01, random_state=0)
     #clf = SGDClassifier(loss="squared_loss", eta0=0.01, max_iter=1000, learning_rate="constant", penalty=None, random_state=1)
@@ -900,7 +878,7 @@ def sklearn_adaline_test():
     from sklearn.linear_model import SGDClassifier
     from sklearn.metrics import accuracy_score
     import time
-    X_train, X_test, y_train, y_test = iris_dataset_prepare()
+    X_train, X_test, y_train, y_test = dbload.load_iris_dataset()
     
     clf = SGDClassifier(loss='squared_loss', max_iter=50, eta0=0.01, 
                        random_state=0, learning_rate="optimal", penalty=None, shuffle=False)
@@ -911,4 +889,5 @@ def sklearn_adaline_test():
     predict = clf.predict(X_test)
     print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
                                                           accuracy_score(y_test, predict)*100))
-
+if __name__ == "__main__":
+    normal_distribute_test()

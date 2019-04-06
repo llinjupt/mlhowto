@@ -1560,6 +1560,95 @@ sklearn 中的预处理 preprocessing 软件包中包含了 MinMaxScaler 和 Sta
 
   如果对训练集进行了归一化或者标准化处理，那么一定要对校验数据集，测试数据集和实际应用中的数据进行相同处理。
 
+分类数据的可视化
+~~~~~~~~~~~~~~~~~
+
+在验证一些分类算法效果时，通过可视化可以以更直观的方式观察分类效果，以及算法的特性，所以提供一个绘制分类算法的通用函数是必要的。
+
+sklearn 官方文档中提供了很多类似源码，它是一个不折不扣的宝库，这里参考 sklearn 的实现。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # drawutils.py
+  # resolution is step size in the mesh
+  def plot_decision_regions(X, y, clf, test_idx=None, resolution=0.02):
+      from matplotlib.colors import ListedColormap
+      # setup marker generator and color map
+      markers = ('s', 'x', '^', 'v')
+      colors = ('red', 'blue', 'lightgreen', 'cyan')
+      cmap = ListedColormap(colors[:len(np.unique(y))])
+  
+      # create a mesh to plot in
+      x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+      y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+      xx, yy = np.meshgrid(np.arange(x_min, x_max, resolution),
+                           np.arange(y_min, y_max, resolution))
+      Z = clf.predict(np.array([xx.ravel(), yy.ravel()]).T)
+      Z = Z.reshape(xx.shape)
+      
+      plt.title("Decision surface of multi-class")
+      plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap)
+      plt.xlim(xx.min(), xx.max())
+      plt.ylim(yy.min(), yy.max())
+  
+      for idx, cl in enumerate(np.unique(y)):
+          plt.scatter(x=X[y == cl, 0], y=X[y == cl, 1], alpha=0.8, c=colors[idx],
+                      marker=markers[idx], label=cl, s=50,
+                      edgecolor='black')
+  
+      if test_idx is None:
+          return
+      
+      # plot all samples with cycles
+      X_test = X[test_idx, :]
+      plt.scatter(X_test[:, 0], X_test[:, 1], c='', edgecolor='black',
+                  alpha=1.0, linewidth=1, marker='o', s=50, 
+                  label='test dataset')
+
+其中 X,y 表示绘制分割区域图形的数据，clf 是分类器，test_idx 是一个 range 类型，包含测试数据的索引，用于在图中标记训练集，resolution 是生成网格的精度。
+这里使用鸢尾花数据集进行多分类的绘图：
+  
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def test_plot_decision_regions():
+      import dbload
+      from sklearn.linear_model import Perceptron
+      from sklearn.metrics import accuracy_score
+      
+      X_train, X_test, y_train, y_test = dbload.load_iris_mclass()
+      
+      ppn = Perceptron(max_iter=100, eta0=0.01, random_state=1)
+      ppn.fit(X_train, y_train)
+      predict = ppn.predict(X_test)
+      print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
+             accuracy_score(y_test, predict)*100))
+  
+      X_all = np.vstack((X_train, X_test))
+      y_all = np.hstack((y_train, y_test))
+      print(y_all[0:20])
+      plot_decision_regions(X_all, y_all, clf=ppn, 
+                            test_idx=range(X_train.shape[0], X_all.shape[0]))
+      plt.xlabel('petal length [standardized]')
+      plt.ylabel('petal width [standardized]')
+      plt.legend(loc='upper left')
+  
+      plt.tight_layout()
+      plt.show()
+  
+  if __name__ == "__main__":
+      test_plot_decision_regions()
+
+.. figure:: imgs/practice/split.png
+  :scale: 100%
+  :align: center
+  :alt: standard
+
+  鸢尾花数据集分类图示
+
 卷积
 ------------
 
@@ -2234,9 +2323,9 @@ Adaline 感知器
 
   \Delta w = -\eta \nabla J(w)
 
-众所周知梯度方形是变化最快的方向，所以反方向就是学习速率最快的方向。
+众所周知梯度方形是函数增长最快的方向，所以反方向就是学习速率最快的方向。
 
-注意权重的更新是基于训练集中所有样本完成的（而不是每次一个样本渐进更新权重，理解这一点非常重要，注意代价函数中的求和符号，否则梯度下降就不成立了），这也是此方法被称作“批量”梯度下降的原因。
+注意权重的更新是基于训练集中所有样本完成的（而不是每次一个样本渐进更新权重，理解这一点非常重要，注意代价函数中的求和符号，否则就不是批量梯度下降了），这也是此方法被称作“批量”梯度下降的原因。
 
 Adaline 感知器实战
 ~~~~~~~~~~~~~~~~~~~
@@ -2706,7 +2795,7 @@ Adaline 显然对异常样本点具有很好的过滤作用，而不会像感知
 
   2个样本点的分离平面
 
-Adaline 模型表面上是寻找一组参数使得预测值与标签值最接近，实际上还可以在数学层面揭示更深刻的本质。
+Adaline 模型表面上是寻找一组参数使得预测值与标签值最接近（实际是差的绝对值的平方最小，不过平方值和绝对值在整个实数域上拥有相同的极值点和增长趋势，直接以绝对值讨论不失准确性），实际上还可以在数学层面揭示更深刻的本质。
 
 为了理解 Adaline 模型的 SSE 梯度下降的本质，首先画出 2 个样本点的情况，此时梯度下降很容易找到最优点，且代价函数为 0，显然就是经过两点连线间的中垂线，此时两点距离分割直线有着最大距离。我们把正负样本点分别扩大到 20 个点，会发生什么？
 
@@ -2759,6 +2848,15 @@ Adaline 模型表面上是寻找一组参数使得预测值与标签值最接近
   Adaline 模型模拟 SVM 
 
 此时只要是线性可分的样本点就一定会找到全部正确分类的平面，但是却存在过拟合可能。这里的灰色直线靠近分离直线，是因为靠近分离直线的样本点权重更大了（也即实际的平均值向分离平面靠近了，由于正负样本靠近分离平面的点数不同，距离不同，平均值的移动大小也就不同了，看起来分离平面向某一分类的样本点靠拢了）。
+
+同样如果正负样本点数量不是均衡的，而是有着较大的悬殊，那么较小样本点对权重的调整机会占比就会变小，从而误差增大，例如在一个正负样本6:1的分类情况如图所示：
+
+.. figure:: imgs/practice/61.png
+  :scale: 100%
+  :align: center
+  :alt: lsvm
+
+  Adaline 模型样本比例失衡对分类的影响
 
 数据标准化和梯度下降
 ~~~~~~~~~~~~~~~~~~~~~
@@ -2971,7 +3069,6 @@ Adaline模型被实现在 SGDClassifier 中，只要指定代价函数类型为 
   :lineno-start: 0
   
   from sklearn.linear_model import SGDClassifier
-  
   clf = SGDClassifier(loss='squared_loss', max_iter=50, eta0=0.01, 
                      random_state=0, learning_rate="optimal", penalty=None, shuffle=False)
 
@@ -2983,4 +3080,350 @@ Adaline模型被实现在 SGDClassifier 中，只要指定代价函数类型为 
 之所以要亦步亦趋地实现逻辑回归代码，是为了深度理解逻辑回归为何会导致欠拟合，以及在神经网络中为何有梯度消失问题。并且在 Adaline 感知器的基础上，实现逻辑回归的改动很小。
 
 逻辑回归也被称为逻辑斯谛回归（logistic regression），或者对数几率回归。大部分教科书都会强调它是一个分类模型，而不是回归模型（用于预测连续值的模型）。
+
+逻辑回归模型原理
+~~~~~~~~~~~~~~~~
+
+一个事件发生的可能性被称为概率，记作 p，则它不发生的可能性就是 1-p，那么 p/(1-p) 被称为几率比（odd ratio），它指的是特定事件发生的几率。几率看起来比概率理解起来要困难，实际上它只不过是使用不发生的概率来放大发生的概率：
+
+- 如果发生的概率为 0.9，显然发生几率就是 0.9/0.1 = 9，当然发生概率越大，几率就越大，并趋于无穷，所以当一个事件是必然事件时，那么几率就是无穷大。
+- 如果发生的概率为 0.1，显然发生几率就是 0.1/0.9 = 0.11，显然此时的放大倍数就很小，随着发生概率减小，几率越来越小，直至当发生概率为 0 时，几率就是 0。
+
+那么既然有了概率，为何还要进入几率？几率本身的用途并不大，用途大的是它的对数函数（log-odds，对数几率）以及反函数 sigmoid函数（逻辑回归函数）：
+
+.. math::
+  
+  \ logit(p)=\frac{p}{1-p}
+
+logit函数的输入值是事件发生的概率，所以范围总是介于区间[0,1]，它能将[0,1]输入转换到整个实数范围内。显然它的反函数可以把实数空间压缩到 [0,1] 区间：
+
+.. math::
+  
+  \phi (z) = sigmoid(z)=\frac{1}{1+e^{-z}}
+
+再观察 Adaline 模型中的线性表达式 :raw-latex:`\(z=w^{T}x\)`，对于不同的权重参数 w， z 的取值是整个实数空间，通过sigmoid 函数可以把它压缩到[0,1] 区间。这将 z 的取值和预测事件的准确性发生了关联:
+
+- 如果样本标签为 1，而 z 的值很大，那么 sigmoid(z) 就会趋近于 1（几乎确信预测为1是正确的）.
+- 如果样本标签值为 -1，而 z 的值很小，那么 sigmoid(z) 就会趋近与0（几乎确认预测为-1是正确的）。
+
+ sigmoid 函数曲线如下所示：
+
+.. figure:: imgs/practice/sigmoid.png
+  :scale: 80%
+  :align: center
+  :alt: sigmoid
+
+  sigmoid 对数回归函数曲线图  
+
+所以这里的激活函数就变成了 sigmoid 函数，所以量化器不再使用 >=0 预测为正样本，< 0 时预测为负样本，而是 >=0.5 时为正样本，< 0.5 时为负样本。在正负样本上预测正确的概率 p 和输入 z 的关系图：
+
+.. figure:: imgs/practice/sp.png
+  :scale: 80%
+  :align: center
+  :alt: sigmoid
+
+  正确预测的概率 p
+
+此时 z >= 0 时值就是预测为正样本的几率，z < 0 时它的绝对值就是预测为负样本的几率。图中的 p 表示当 z 等于 2 时，预测 x 为正样本的概率（似然概率）。负样本亦然，只不过是符号不同。
+
+在 Adaline 中我们使用误差平方和 SSE 作为代价函数，然后使用梯度下降法寻找最优参数值。那么在逻辑回归中，是否可以继续采用 SSE 作为代价函数呢？
+
+.. math::
+  
+  J(w) = \frac{1}{2}\sum_{i}{(y^{i}- \phi (z^i))}^2
+
+这个代价函数有着不太好的特性，对它求导是一件很麻烦的情，实际上它根本不是一个严格凸函数（无法使用梯度下降法找寻最优值）。在 Adaline 模型中，我们的目标是找寻一组权重参数，使得正样本与它的点乘接近1，负样本接近 -1，直觉上，如果正样本的点乘值能够远远大于 1， 负样本的值能够远远小于 -1，那么对于量化函数似乎能够获得更好的效果。
+
+在统计学上有个名词叫做似然（Likelihood），实际上它与概率的意思接近，只是专门用来称呼在给定的权重参数 w 时，对样本 x 预测为标签 y 的概率，显然它是一个条件概率，记作 :raw-latex:`\(P(y|x;w)\)`，其中的分号表示在给定权重参数 w 的限制下。
+
+显然如果对于任一样本，如果都能使得这个概率很高（接近1），那么最终预测的结果的正确性整体上就会很高。这种算法就被称为极大似然估计（Maximum Likelihood Estimation，MLE，也被称为最大似然估计）。对于二分类问题，这里的正负样本标签要表示为 1 和 0，而不是 1 和 -1，我们很快就能看到为何要如此表示。
+
+每一样本的似然概率可以表示为：
+
+.. math::
+    
+  P(y^i|x^i;w) = \left\{ \begin{array}{ll}
+                  \phi (z^i) & \textrm{($y^i=1$)}\\
+                  1 - \phi (z^i) & \textrm{($y^i=0$)}\\
+                  \end{array} \right.
+
+由于这里的正负标签被表示为 1 和 0，上式可以表示为一个表达式：
+
+.. math::
+    
+  P(y^i|x^i;w) = {\phi (z^i)}^{y^i}\cdot {(1-\phi (z^i))}^{1-y^i}
+
+以上公式我们特地显示出中间的乘法小圆点，至此可以领略到正负样本标签表示为 1 和 0 的用意了。显然上式只是一个样本的似然概率，所有样本的似然概率就是每个样本似然概率相乘，我们称之为似然函数L：
+
+.. math::
+    
+  L(w) = \prod_{i=1}^{n}P(y^i|x^i;w) = \prod_{i=1}^{n}{\phi (z^i)}^{y^i}\cdot {(1-\phi (z^i))}^{1-y^i}
+
+由于连乘操作容易造成下溢出，通常对似然函数 L(w) 取自然底数 e 的对数，得到对数似然函数（Log-Likelihood）l(w)：
+
+.. math::
+    
+  l(w) = \ln(L(w)) = \sum_{i=1}^{n}y^i\ln {(\phi (z^i))}+(1-y^i)\ln {(1-\phi (z^i))}
+
+使用对数似然函数不仅解决了下溢出问题，还将复杂的乘法转换为了加法，可以更容易地对该函数求导（实际上该函数是严格凸函数）。该函数值最大化，就是最大似然估计，通常我们求代价函数的最小值，所以只要在在函数前加上负号就得到了最终的代价函数。
+
+.. math::
+    
+  J(w) = \sum_{i=1}^{n}-y^i\ln {(\phi (z^i))}-(1-y^i)\ln {(1-\phi (z^i))}
+
+为了更好地理解这一代价函数本质，可以从单个样本的预测代价入手：
+
+.. math::
+
+  j(w) = -y^i\ln {(\phi (z^i))}-(1-y^i)\ln {(1-\phi (z^i))}
+
+通过观察不难发现上式可以分解为两部分：
+
+.. math::
+
+  j(w) = \left\{ \begin{array}{ll}
+                  -\ln{(\phi (z^i))} & \textrm{($y^i=1$)}\\
+                  \ln{(1 - \phi (z^i)))} & \textrm{($y^i=0$)}\\
+                  \end{array} \right.
+
+.. figure:: imgs/practice/sigcost.png
+  :scale: 80%
+  :align: center
+  :alt: sigcost
+
+  单个样本关于权重的代价曲线
+
+不要忘记其中 :raw-latex:`\(\phi (z^i)=sigmoid(z^i)\)`，而对数回归函数有个很好的特性：
+
+.. math::
+
+  sigmoid(x)' = sigmoid(x)(1-sigmoid(x))
+  
+同样以 e 为底的对数函数也具有类似的导数特性，也即导数是函数的倒数：
+
+.. math::
+
+  ln(x)' = \frac {1}{ln(x)}
+  
+有了以上的理论基础，梯度下降中的 :raw-latex:`\(\Delta w\)` 就很容易通过链式求导法则求出了：
+
+.. math::
+
+  \Delta w = -\eta \nabla J(w) =
+   -\eta \frac {\partial {J(w)}}{\partial {\phi (z^i)}}
+  \frac {\partial {\phi (z^i)}}{\partial {(z^i)}}
+  \frac {\partial {(z^i)}}{\partial {(w)}}
+
+其中：
+
+.. math::
+
+  \begin{eqnarray}
+  \frac {\partial {J(w)}}{\partial {\phi (z^i)}} & = & \sum_{i=1}^{n} -\frac {y^i}{\phi (z^i)} + \frac {1-y^i}{1- \phi (z^i)}\\
+  \frac {\partial {\phi (z^i)}}{\partial {(z^i)}} & = & \phi (z^i)(1-\phi (z^i)) \\
+  \frac {\partial {(z^i)}}{\partial {(w)}} & = & x^i
+  \end{eqnarray}
+
+可以得出：
+
+.. math::
+  
+  \nabla J(w) = \phi (z^i) - y^i
+
+这一计算量要远小于 Adaline 模型的 SSE 代价函数。下面是 Adaline 模型和逻辑回归模型的对比图：
+
+.. figure:: imgs/practice/advslogit.png
+  :scale: 30%
+  :align: center
+  :alt: sigcost
+
+  Adaline 模型和逻辑回归模型对比图（来自 Python Machine Learning）
+
+逻辑回归实战
+~~~~~~~~~~~~~~
+
+与 Adaline 模型的 AdalineGD 类极为相似，一些注意点在于：
+
+- 激活函数使用 sigmoid，而不是直接采用 z
+- 激活阈值不同，Adaline 模型激活阈值为 >=0，而 LogRegression 模型为 >=0.5
+- LogRegression 模型可以提供每一预测类别的似然概率，所以增加一个名为 predict_proba() 的类方法
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  #logregress.py
+  class LogRegressGD(object):
+      def __init__(self, eta=0.001, n_iter=1000):
+          self.eta = eta
+          self.n_iter = n_iter
+          self.complex = 0 # Statistic algorithm complexity
+     
+      def errors(self, X, y):
+          '''Statistic all errors into self.errors_'''
+          predicts = self.appendedX_.dot(self.w_)
+          diffs = np.where(predicts >= 0.0, self.positive, self.negtive) - y
+          errors = np.count_nonzero(diffs)
+          self.errors_.append(errors)
+          return errors, diffs
+      
+      def update_labels(self, y):
+          # for ploting and predict
+          self.positive = np.max(y)
+          self.negtive = np.min(y)
+          self.positive_num = np.count_nonzero(y == self.positive)
+          self.negtive_num = np.count_nonzero(y == self.negtive)
+
+      def fit(self, X, y):
+          samples = X.shape[0]
+          x_features = X.shape[1]
+          self.w_ = 1.0 * np.zeros(1 + x_features)
+          self.update_labels(y)
+  
+          self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+          self.errors_ = []
+          self.costs_ = []
+  
+          # record every w during whole iterations
+          self.wsteps_ = []
+          self.steps_ = 1  # every steps_ descent steps statistic one cose and error sample
+          
+          while(1):
+              self.complex += 1
+              
+              # minmium cost function with partial derivative wi
+              output = self.sigmoid(self.net_input(X))
+              deltaw = (y - output) # J(W) 对 wi 的偏导数，并取负号
+              deltaw = self.eta * deltaw.dot(self.appendedX_)
+  
+              if np.max(np.abs(deltaw)) < 0.00001:
+                  print("deltaw is less than 0.00001")
+                  return self
+  
+              self.w_ += deltaw
+              
+              if(self.complex > self.n_iter):
+                  print("Loops beyond n_iter %d" % self.n_iter)
+                  return self
+  
+              if (self.complex % self.steps_ == 0):
+                  errors, diffs = self.errors(X, y)
+                  self.wsteps_.append(self.w_.copy())
+                  
+                  # compute the cost of logistic  
+                  cost = -y.dot(np.log(output)) - ((1 - y).dot(np.log(1 - output)))
+                  self.costs_.append(cost)
+  
+          return self
+      
+      # X is a vector including features of a sample 
+      def net_input(self, X):
+          '''Calculate net input'''
+          return np.dot(X, self.w_[1:]) + self.w_[0] * 1
+      
+      # 激活函数
+      def sigmoid(self, z):
+          """Compute logistic sigmoid activation"""
+          return 1.0 / (1.0 + np.exp(-np.clip(z, -250, 250)))
+  
+      def predict(self, X):
+          """Return class label after unit step"""
+          return np.where(self.sigmoid(self.net_input(X)) >= 0.5, 1, 0)
+  
+      # 预测每种分类的概率，也即 sigmoid 函数的输出
+      def predict_proba(self, x):
+          p = self.sigmoid(self.net_input(x))
+          return np.array([p, 1-p])
+
+我们使用鸢尾花数据集来进行逻辑回归分类的测试：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def irisLogRegressGD():
+      import dbload
+      
+      # 加载鸢尾花数据集，负类标签设置为 0
+      X_train, X_test, y_train, y_test = dbload.load_iris_dataset(negtive=0)
+      
+      irisPerceptron = LogRegressGD(0.01, 100)
+      irisPerceptron.fit(X_train, y_train)
+      
+      predict = irisPerceptron.predict(X_test)
+      errnum = (predict != y_test).sum()
+      print("Misclassified number {}, Accuracy {:.2f}%".format(errnum, \
+            (X_test.shape[0] - errnum)/ X_test.shape[0] * 100))
+  
+      print("LastCost: %f" % irisPerceptron.costs_[-1])
+      print('Weights: %s' % irisPerceptron.w_)
+
+  irisLogRegressGD()
+  
+  >>>
+  LastCost: 1.336864
+  Weights: [ 0.67409685  1.32281698 -3.79640448]
+
+.. figure:: imgs/practice/lgd.png
+  :scale: 80%
+  :align: center
+  :alt: lgd
+
+  逻辑回归模型代价函数下降曲线
+
+由于在逻辑回归中使用了批量梯度下降，整个代价函数的下降曲线非常平滑。
+
+.. figure:: imgs/practice/lg.png
+  :scale: 100%
+  :align: center
+  :alt: lg
+
+  逻辑回归模型分割鸢尾花数据
+
+这里的逻辑回归模型只能进行二分类，而 sklearn 中的线性分类模型均支持多分类。我们直接使用 sklearn 中的逻辑回归模型，来查看多分类的效果。
+
+sklearn 逻辑回归模型
+~~~~~~~~~~~~~~~~~~~~~
+
+sklearn 中的逻辑回归模型位于线性分类模块中，这里使用它对鸢尾花数据进行多分类，并画图，其中 lbfgs 是一种梯度下降的优化方式：拟牛顿法的一种。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  import drawutils
+  def test_plot_decision_regions():
+      import dbload
+      from sklearn.linear_model import LogisticRegression 
+      from sklearn.metrics import accuracy_score
+      
+      X_train, X_test, y_train, y_test = dbload.load_iris_mclass()
+      lr = LogisticRegression(solver='lbfgs', random_state=0, multi_class='auto')
+      lr.fit(X_train, y_train)
+      predict = lr.predict(X_test)
+      print("Misclassified number {}, Accuracy {:.2f}%".format((predict != y_test).sum(), 
+             accuracy_score(y_test, predict)*100))
+  
+      X_all = np.vstack((X_train, X_test))
+      y_all = np.hstack((y_train, y_test))
+      drawutils.plot_decision_regions(X_all, y_all, clf=lr, 
+                                      test_idx=range(X_train.shape[0], X_all.shape[0]))
+      plt.xlabel('petal length [standardized]')
+      plt.ylabel('petal width [standardized]')
+      plt.legend(loc='upper left')
+  
+      plt.tight_layout()
+      plt.show()
+
+  test_plot_decision_regions()
+  
+  >>>
+  Misclassified number 3, Accuracy 93.33%
+
+.. figure:: imgs/practice/msplit.png
+  :scale: 100%
+  :align: center
+  :alt: lg
+
+  逻辑回归模型分类鸢尾花
 

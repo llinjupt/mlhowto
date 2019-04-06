@@ -8,6 +8,7 @@ Created on Tue Mar 19 10:44:46 2018
 import numpy as np
 import struct
 import os
+import crossvalid,scaler
 
 def __load_mnist(path, kind='train', count=0, dtype=np.uint8):
     ''' Load MNIST From idx File
@@ -131,6 +132,41 @@ def load_kaggele_mnist_test(fname, count=0):
         data = g_kaggle_images_test[0:count]
     
     return data
+
+def load_iris_dataset(ratio=0.3, random_state=0, negtive=-1):
+    import pandas as pd
+    df = pd.read_csv('db/iris/iris.data', header=0)
+    
+    # get the classifications
+    y = df.iloc[:100, 4].values
+    y = np.where(y == 'Iris-setosa', 1, negtive)
+     
+    # get samples' features 2(sepal width) and 4(petal width)
+    X = df.iloc[:100, [1,3]].values
+    X,y = scaler.shuffle(X, y)
+    X_train, X_test, y_train, y_test = crossvalid.data_split(X, y, ratio=ratio, 
+                                                             random_state=random_state)
+    ds = scaler.DataScaler(X_train)
+    X_train = ds.sklearn_standard(X_train)
+    X_test = ds.sklearn_standard(X_test)
+    
+    return X_train, X_test, y_train, y_test
+
+def load_iris_mclass(ratio=0.3, random_state=0):
+    from sklearn import datasets
+
+    iris = datasets.load_iris()
+    X = iris.data[:, [1,3]]
+    y = iris.target
+    X,y = scaler.shuffle(X, y)
+    
+    X_train, X_test, y_train, y_test = crossvalid.data_split(X, y, ratio=ratio, 
+                                                             random_state=random_state)    
+    ds = scaler.DataScaler(X_train)
+    X_train = ds.sklearn_standard(X_train)
+    X_test = ds.sklearn_standard(X_test)
+    
+    return X_train, X_test, y_train, y_test
 
 def test():
     images, labels = load_mnist(r"./db/mnist", kind='train', count=10)
