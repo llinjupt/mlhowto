@@ -22,5 +22,6 @@
   sympy
   opencv
   practice
+  neuron
   deeplearn
   appendix

@@ -10,9 +10,12 @@
 
 机器学习相关
 --------------
+- `Deep Learning Book by Ian GoodFellow <http://www.deeplearningbook.org/>`_
 - `Neural Networks and Deep Learning (Michael Nielsen) <http://neuralnetworksanddeeplearning.com/index.html>`_
 - `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
+- `cs229 Notes <http://cs229.stanford.edu/notes/>`_
+- `ml-cheatsheet <https://ml-cheatsheet.readthedocs.io/en/latest/activation_functions.html>`_
 - `莫烦PYTHON <https://morvanzhou.github.io>`_
 - `scikit-learn和tensorflow的区别 <https://www.jianshu.com/p/0837b7c6ce10>`_
 - `主流机器学习框架对比 <https://www.leiphone.com/news/201702/T5e31Y2ZpeG1ZtaN.html>`_
@@ -21,6 +24,7 @@
 - `机器学习 <https://thepythonguru.com/top-5-machine-learning-libraries-in-python/#more-1948>`_
 - `标准化和归一化详解 <https://www.jianshu.com/p/95a8f035c86c>`_
 - `Artificial Intelligence, Deep Learning, and NLP <http://www.wildml.com/>`_
+- `常用代价函数 <https://stats.stackexchange.com/questions/154879/a-list-of-cost-functions-used-in-neural-networks-alongside-applications>`_
 
 Python相关
 -----------
@@ -90,6 +94,20 @@ LaTeX数学表达式
 .. role:: raw-latex(raw)
     :format: latex html
 
+.. math::
+
+  w^{T}x + w0 = 0  \qquad (0)\\
+  w^{T}x + w0 = 1  \qquad (1)\\
+  w^{T}x + w0 = -1 \qquad (2)
+
+# 分段函数
+.. math::
+    
+  P(y^i|x^i;w) = \left\{ \begin{array}{ll}
+                  \phi (z^i) & \textrm{$y^i=1$}\\
+                  1 - \phi (z^i) & \textrm{$y^i=0$}\\
+                  \end{array} \right.
+  
 This: :raw-latex:`\((x+a)^3\)`
 This: :raw-latex:`\((x+a)_3\)`
 
@@ -99,7 +117,29 @@ this: :raw-latex:`\(W = \int_{a}^{b}{f(x) dx}\)`
 
 :raw-latex:`\(\sqrt{x}\)`，不好处理
 
+inline :math:`\frac{ \sum_{t=0}^{N}f(t,k) }{N}` inline
+
 and this:
+
+.. math::
+
+  |x| = \left\{
+      	\begin{array}{ll}
+      		x  & \mbox{if } x \geq 0 \\
+      		-x & \mbox{if } x < 0
+      	\end{array}
+      \right.
+
+# 多公式对齐，&号相当于表格分隔符，\\\\ 用于换行
+
+.. math::
+
+  \begin{eqnarray}
+  f(x) & = & \cos x \\
+  f’(x) & = & -\sin x \\
+  \int_{0}^{x} f(y)dy &
+  = & \sin x
+  \end{eqnarray}
 
 .. raw:: latex html
 
