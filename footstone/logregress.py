@@ -8,6 +8,7 @@ Created on Thu Feb 14 16:10:34 2018
 import numpy as np
 import dbload
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 
 class LogRegressGD(object):
     """Logistic Regression Classifier with gradient descent.
@@ -65,7 +66,7 @@ class LogRegressGD(object):
         '''
         samples = X.shape[0]
         x_features = X.shape[1]
-        self.w_ = 1.0 * np.zeros(1 + x_features)
+        self.w_ = 1.0 * np.zeros(1 + x_features) 
         self.update_labels(y)
 
         self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
@@ -83,11 +84,13 @@ class LogRegressGD(object):
             output = self.sigmoid(self.net_input(X))
             deltaw = (y - output)
             deltaw = self.eta * deltaw.dot(self.appendedX_)
-
+            
+            '''
             if np.max(np.abs(deltaw)) < 0.00001:
                 print("deltaw is less than 0.00001")
                 return self
-
+            '''
+            
             self.w_ += deltaw
             
             if(self.complex > self.n_iter):
@@ -99,14 +102,16 @@ class LogRegressGD(object):
                 self.wsteps_.append(self.w_.copy())
                 
                 # compute the cost of logistic  
-                cost = -y.dot(np.log(output)) - ((1 - y).dot(np.log(1 - output)))
+                diff = 1.0 - output
+                diff[diff <= 0] = 1e-10
+                cost = -y.dot(np.log(output)) - ((1 - y).dot(np.log(diff)))
                 self.costs_.append(cost)
 
         return self
 
     def fit_sgd(self, X, y):
         ''' Fit Training data with adaptive model
-        
+
             Parameters:
             -------------
             X: {array-like}, shape = (n_samples, n_features)
@@ -121,18 +126,18 @@ class LogRegressGD(object):
         '''
         samples = X.shape[0]
         x_features = X.shape[1]
-        self.w_ = 1.0 * np.zeros(1 + x_features) 
+        self.w_ = 1.0 * np.zeros(1 + x_features)
         self.w_initialized = True
         self.update_labels(y)
-        
+
         self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
         self.errors_ = []
         self.costs_ = []
-        
+
         # record every w during whole iterations
         self.wsteps_ = []
         self.steps_ = 1  # every steps_ descent steps statistic one cose and error sample
-        
+
         while(1):
             deltaws = []
             for xi, target in zip(X, y):
@@ -144,9 +149,11 @@ class LogRegressGD(object):
 
                     # compute the cost of logistic  
                     output = self.sigmoid(self.net_input(X))
-                    cost = -y.dot(np.log(output)) - ((1 - y).dot(np.log(1 - output)))
+                    diff = 1.0 - output
+                    diff[diff <= 0] = 1e-10
+                    cost = -y.dot(np.log(output)) - ((1 - y).dot(np.log(diff)))
                     self.costs_.append(cost)
-        
+
                     if(self.complex > self.n_iter):
                         print("Loops beyond n_iter %d" % self.n_iter)
                         return self
@@ -156,12 +163,11 @@ class LogRegressGD(object):
                 print("deltaw is less than 0.0001")
                 self.wsteps_.append(self.w_.copy()) # record last w
                 return self
-            
-            
-            if self.shuffle_flag:
-                X, y = self.shuffle(X, y)
-                self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
             '''
+            import scaler
+            X, y = scaler.shuffle(X, y)
+            self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
+
         return self
 
     def update_weights(self, xi, target):
@@ -190,7 +196,65 @@ class LogRegressGD(object):
     def predict_proba(self, x):
         p = self.sigmoid(self.net_input(x))
         return np.array([p, 1-p])
-    
+
+    def loglikelihood_cost(self, X, y, w):
+        z = np.dot(X, w[1:]) + w[0] * 1
+        output = self.sigmoid(z)
+        diff = 1.0 - output
+        diff[diff <= 0] = 1e-15
+        return -y.dot(np.log(output)) - ((1 - y).dot(np.log(diff)))
+
+    def sse_cost(self, X, y, w):
+        z = np.dot(X, w[1:]) + w[0] * 1
+        sg = self.sigmoid(z)
+        return np.sum((sg - y)**2) / 2
+
+    #  MSE (Mean squared error)
+    def quadratic_cost(self, X, y, w):
+        #y[y == 0] = -1 # arbitray set -1 from 0 for negtive labels
+        z = np.dot(X, w[1:]) + w[0] * 1
+        return np.sum((y - z)**2) / X.shape[0] / 2
+
+    def draw_quad_cost_surface(self, X, y):
+        self.draw_cost_surface(X, y, cost='quad')
+        
+    def draw_sse_cost_surface(self, X, y):
+        self.draw_cost_surface(X, y, cost='sse')
+
+    def draw_llh_cost_surface(self, X, y):
+        self.draw_cost_surface(X, y, cost='llh')
+
+    def draw_cost_surface(self, X, y, cost='sse'):
+        x1 = np.linspace(-40, 40, 90, endpoint=True)
+        x2 = np.linspace(-40, 40, 90, endpoint=True)
+        
+        if cost == 'llh':
+            cost_func = self.loglikelihood_cost
+            title = 'Log-likelihood Cost Function Surface and Contour'
+        elif cost=='quad':
+            cost_func = self.quadratic_cost
+            title = 'Quadratic Cost Function Surface and Contour'
+        else:
+            cost_func = self.sse_cost
+            title = 'SSE Cost Function Surface and Contour'
+        
+        w1, w2 = np.meshgrid(x1, x2)
+        costs = np.zeros(w1.shape)
+        for i in range(w1.shape[0]):
+            for j in range(w1.shape[1]):
+                costs[i,j] = cost_func(X, y, np.array([0, w1[i,j], w2[i,j]]))
+
+        plt.figure(figsize=(6, 6))
+        ax = plt.axes(projection='3d')
+        ax.plot_surface(w1, w2, costs, rstride=1, cstride=1, cmap='hot', edgecolor='none')
+        ax.set_title(title)
+        ax.set_xlabel("w1")
+        ax.set_ylabel("w2")
+
+        ax0 = plt.axes([0.1, 0.5, 0.3, 0.3])
+        ax0.contour(w1, w2, costs, 30, cmap='hot')
+        plt.show()
+
     def draw_errors(self):
         '''Draw errors info with matplotlib'''
         import matplotlib.pyplot as plt
@@ -335,7 +399,7 @@ class LogRegressGD(object):
             for index, x, y in zip(range(len(labels)), x1, x2):
                 plt.annotate('(%.2f,%.2f)'%(x,y), xy=(x,y), xytext=(-20,-20), 
                          textcoords = 'offset pixels', ha='left', va='bottom')
-        
+
         return plt
     
     def draw_separate_line(self, X, y, title='', figsize=(4,4)):
@@ -350,7 +414,8 @@ class LogRegressGD(object):
         x1 = X[:, 0]
         x2 = X[:, 1]
         
-        self.draw_line(plt, self.w_, x1, x2, 0, c='black')        
+        self.draw_line(plt, self.w_, x1, x2, 0, c='black') 
+        self.draw_foot_point(X,y)
         plt.show()
 
     def draw_converge_lines(self, X, y):
@@ -369,7 +434,21 @@ class LogRegressGD(object):
             self.draw_w_line(plt, X, i)
 
         plt.show()
+
+    def draw_foot_point(self, X, y):
+        import drawutils
+        xaverage = X[y==self.positive].sum(axis=0) / self.positive_num
+        yaverage = X[y==self.negtive].sum(axis=0) / self.negtive_num
+       
+        fx1, fx2 = drawutils.get_footpoint(xaverage[0], xaverage[1], self.w_)
+        plt.plot([xaverage[0], fx1], [xaverage[1], fx2], c='red')
         
+        plt.scatter(xaverage[0], xaverage[1], c='red', marker='p')
+        plt.scatter(yaverage[0], yaverage[1], c='red', marker='p')
+        
+        fx1, fx2 = drawutils.get_footpoint(yaverage[0], yaverage[1], self.w_)
+        plt.plot([yaverage[0], fx1], [yaverage[1], fx2], c='red')
+  
 def boolOrTrain():
     # Bool or Train         x11 x12 y1
     BoolOrTrain = np.array([[0, 0, -1],
@@ -407,53 +486,24 @@ def draw_normal_distribution(points=100):
     plt.scatter(Bx[points // 2:], By[points // 2:], s=5, c='black', marker='o')
     plt.show()
 
-# generate noraml distribution train set
-def normal_distribute_trainset(positive=100, negtive=100, type='normal'):
-    np.random.seed(3)
-    
-    if type == 'normal':
-        numA = np.random.normal(3, 2, (2, positive))
-        numB = np.random.normal(-3, 2, (2, negtive))
-    elif type == 'ones':
-        numA = np.ones((2, positive)) - 3
-        numB = np.ones((2, negtive)) + 5
-    else:
-        numA = np.zeros((2, positive)) - 3
-        numB = np.zeros((2, negtive)) + 5
-
-    Ax, Ay = numA[0] * 0.6, numA[1]
-    Bx, By = numB[0] * 1.5, numB[1]
-    
-    labels = np.zeros((negtive + positive, 1))
-    trainset = np.zeros((negtive + positive, 2))
-    trainset[0:positive,0] = Ax[:]
-    trainset[0:positive,1] = Ay[:]
-    labels[0:positive] = 1
-    
-    trainset[positive:,0] = Bx[:]
-    trainset[positive:,1] = By[:]
-    labels[positive:] = 0
-
-    return trainset, labels.reshape(positive + negtive,)
-
 import scaler
 def normal_distribute_test():
-    positive_num = 50
-    negtive_num = 50
-    X,y = normal_distribute_trainset(positive_num, negtive_num)
+    positive_num = 30
+    negtive_num = 30
+    X,y = dbload.load_nd_dataset(positive_num, negtive_num)
 
     X = scaler.standard(X)
     X,y = scaler.shuffle(X, y)
-    ND = LogRegressGD(0.1, 100)
-    ND.fit(X, y)
+    ND = LogRegressGD(0.5, 1000)
+    ND.fit_sgd(X, y)
 
     print('Weights: %s' % ND.w_)
-    print('Errors: %s' % ND.errors_[-1])
+    #print('Errors: %s' % ND.errors_[-1])
     print("LastCost: %f" % ND.costs_[-1])
     ND.draw_separate_line(X, y,'Normal Distribute')
-
+    ND.draw_sse_cost_surface(X, y)
     #ND.draw_vectors()
-    ND.draw_costs()
+    #ND.draw_costs()
     #ND.draw_converge_lines(X,y)
 
 def irisLogRegressGD(type=0):
@@ -461,7 +511,7 @@ def irisLogRegressGD(type=0):
     
     irisPerceptron = LogRegressGD(0.1, 1000)
     irisPerceptron.fit(X_train, y_train)
-    
+
     predict = irisPerceptron.predict(X_test)
     errnum = (predict != y_test).sum()
     print("Misclassified number {}, Accuracy {:.2f}%".format(errnum, \
@@ -473,13 +523,13 @@ def irisLogRegressGD(type=0):
     irisPerceptron.draw_costs()
     print("LastCost: %f" % irisPerceptron.costs_[-1])
     print('Weights: %s' % irisPerceptron.w_)
-    
+
 import drawutils
 def test_plot_decision_regions():
     import dbload
     from sklearn.linear_model import LogisticRegression 
     from sklearn.metrics import accuracy_score
-    
+
     X_train, X_test, y_train, y_test = dbload.load_iris_mclass()
     lr = LogisticRegression(solver='lbfgs', random_state=0, multi_class='auto')
     lr.fit(X_train, y_train)
@@ -499,6 +549,5 @@ def test_plot_decision_regions():
     plt.show()
 
 if __name__ == "__main__":    
-    test_plot_decision_regions()
-    
+    normal_distribute_test()
     

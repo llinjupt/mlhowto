@@ -125,7 +125,7 @@
   
   # nn.py
   class NN(object):
-      def __init__(self, sizes, eta=0.001, epochs=1000):
+      def __init__(self, sizes, eta=0.001, epochs=1000, tol=None):
           '''
           Parameters
           ------------
@@ -140,17 +140,19 @@
           self.epochs = epochs
           self.num_layers = len(sizes)
           self.sizes = sizes
-          
-          self.biases = [np.random.randn(l, 1) * 0 for l in sizes[1:]]
-          self.weights = [np.random.randn(l, x) * 0 for x, l in zip(sizes[:-1], sizes[1:])]
+          self.tol = tol
+
+          self.biases = [np.random.randn(l, 1) for l in sizes[1:]]
+          self.weights = [np.random.randn(l, x) for x, l in zip(sizes[:-1], sizes[1:])]
 
 这里定义一个 NN 神经网络类，并定义初始化函数，完成以下工作：
 
 - sizes 参数是一个层数列表，例如 [2,3] 表示神经网络有 2 层，每层节点数分别为 2 和 3。
 - biases 成员记录了每一层的偏置单元的权重值，由于前一层偏置的权重个数等于后一层接受输出的节点数，所以这里取 sizes[1:]。
 - weights 成员是权重列表，每一个元素都是一个 2 维的 ndarray，由于列表索引从 1 开始，所以 weights[0] 表示的是层 1->2 的权重矩阵。如果 1 层节点数为 2，2 层节点数为 3，则 weights[0] 就是一个 3*2 的二维矩阵。
+- tol 停止条件的容忍度，当代价函数小于该值时，退出循环。
 
-注意：理解 weights 的构造形式非常重要。为了逻辑更清晰，这里将偏置从权重矩阵中分离出来，同时为了方便观察权重变化，初始值均置为了 0。
+注意：理解 weights 的构造形式非常重要。为了逻辑更清晰，这里将偏置从权重矩阵中分离出来，同时初始化为 0-1 之间的随机正态分布数值。
     
 .. code-block:: python
   :linenos:
@@ -363,6 +365,21 @@ sigmoid 为激活函数，sigmoid_derivative 对应它的导数，它被用于�
   \frac {\partial {J(w)}} {\partial {w^{(2)}_{ij}}} & = {a^{(2)}_j} \delta^{(3)}_i \qquad (1.1)
   \end{eqnarray}
 
+观察上式中的下标关系，可以写成矩阵的乘法形式：
+
+.. math::
+
+  \begin{eqnarray}
+  \frac {\partial {J(w)}} {\partial {w^{(2)}}} =
+  \left( \begin{array}{ccc}
+  \delta^{(3)}_1 \\
+  \delta^{(3)}_2
+  \end{array} \right)
+  \left( \begin{array}{ccc}
+  a^{(2)}_1 & a^{(2)}_2
+  \end{array} \right)
+  \end{eqnarray}=\delta^{(3)} {a^{(2)}}^T
+
 尽管已经发现了代价函数对权重的偏导规律：输入和信号误差相乘。但是假如每一层的信号误差都要使用链式法则重新计算（特别是层数很多时），那么计算量无疑是巨大的，观察链式法则，我们会发现对第 1 层求偏导的计算链要基于第 2 层的信号误差，同理第 2 层的信号误差要基于第 3 层的信号误差，直至输出层。
 
 这里继续对第 1 层中权重 :raw-latex:`\(w^{(1)}_{11}\)` 求偏导，来说明以上的规律。
@@ -498,23 +515,23 @@ sigmoid 为激活函数，sigmoid_derivative 对应它的导数，它被用于�
 
 .. math::
 
-  \delta^{(l)} = {{\mathbf{W}}^{(L)}}^T \delta^{(l+1)} \odot \frac {\partial {\phi (z^{(l)})}} {\partial {z^{(l)}}} \qquad (0)
+  \delta^{(l)} = {{\mathbf{W}}^{(l)}}^T \delta^{(l+1)} \odot \frac {\partial {\phi (z^{(l)})}} {\partial {z^{(l)}}} \qquad (0)
 
 注意当计算到第 2 层的信号误差时，第 1 层的权重调整系数就已经得到了，所以式子中的 l >= 2，并且当 l 为输出层时，无需激活函数的偏导部分，l 的取值范围为 [L,2]。有了每层的误差，就可以基于它计算每个权重的调整系数了，它是对式 (1.1) 的扩展：
 
 .. math::
 
   \begin{eqnarray}
-  \frac {\partial {J(w)}} {\partial {w^{(l)}_{ij}}} & = {a^{(l)}_j} \delta^{(l+1)}_i \qquad (1)
+  \frac {\partial {J(w)}} {\partial {w^{(l-1)}_{ij}}} & = {a^{(l-1)}_j} \delta^{(l)}_i \qquad (1)
   \end{eqnarray}
 
-显然这里的 l 的取值范围为 [1, L-1]。对于偏置项，由于输入总是 1， 所以调整系数就是输出节点的信号误差。
+显然这里使用 l-1 是为了公式 (1) 中 l 的取值范围和公式 (2) 保持一致。对于偏置项，由于输入总是 1， 所以调整系数就是输出节点的信号误差。
 
 尽管这里只计算了 2 层权重的偏导来推导反向传播公式，显然它基于链式法则，可以推广到任意层，整个反向传播的计算流程描述如下：
 
 - 随机初始化所有权重
 - 使用一个样本进行正向传播，得到输出层的信号误差
-- 复制一份权重和偏置，所有系数调整在该拷贝上进行
+- 复制一份权重和偏置，并初始化为 0，所有系数调整在该拷贝上进行
 - 基于输出层的信号误差反向计算上一层的信号误差，使用信号误差计算出调整系数
 - 对拷贝权重和偏置进行调整，直至计算到第 2 的信号误差并调整完第一层 1 的权重和偏置
 - 更新拷贝项替到原权重和偏置
@@ -565,5 +582,287 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
 
 .. math::
     
-  J(w) = \sum_{i=1}^{n}\sum_{k=1}^{K}({\hat y}^i_k - {y^i_k})^2
+  J(w) = \frac{1}{2n}\sum_{i=1}^{n}\sum_{k=1}^{K}({\hat y}^i_k - {y^i_k})^2
+
+.. figure:: imgs/practice/bp.png
+  :scale: 100%
+  :align: center
+  :alt: bp
+
+  反向传播MSE代价函数求偏导
+
+上面已经指出如果要替换代价函数，那么只要调整最后一层信号误差计算方式。这里使用 MSE 代价函数对上图中的  :raw-latex:`\(z^{(3)}_1\)` 求偏导数，在考虑一个样本情况时可忽略常数 1/n：
+
+.. math::
+
+  \frac {\partial {J(w)}} {\partial {z^{(3)}_{1}}} = 
+  \frac {\partial {J(w)}} {\partial a^{(3)}_{1}} 
+  \frac {\partial a^{(3)}_{1}} {\partial z^{(3)}_{1}}=
+  \frac {\partial {J(w)}} {\partial {\phi (z^{(3)}_1)}}
+  \frac {\partial {\phi (z^{(3)}_1)}} {\partial z^{(3)}_{1}}=
+  ({\hat y}^i_1 - {y^i_1})\frac {\partial {\phi (z^{(3)}_1)}} {\partial z^{(3)}_{1}}
+  = (a^{(3)}_1 - {y^i_1})\frac {\partial {\phi (z^{(3)}_1)}} {\partial z^{(3)}_{1}}
+
+
+得到最后一层的信号误差 :raw-latex:`\(\delta^{(3)}\)`：
+ 
+.. math::
+
+  \begin{eqnarray}
+  \mathbf{\delta^{(3)}} =
+  \left( \begin{array}{ccc}
+  (a^{(3)}_1 - y^i_1)\frac {\partial {\phi (z^{(3)}_1)}} {\partial z^{(3)}_{1}} \\
+  (a^{(3)}_2 - y^i_2)\frac {\partial {\phi (z^{(3)}_2)}} {\partial z^{(3)}_{2}} 
+  \end{array} \right)
+  \end{eqnarray}\qquad (MSE)
+
+对比最大对数似然估计，可以看到这里只是多了激活函数对节点输入的偏导数项。显然 MSE 在反向计算每一层信号误差时都需要加入该项，则 MLE 在计算最后一层信号误差时无需考虑（因为代价函数求导时约去了该项）。
+
+.. math::
+
+  \begin{eqnarray}
+  \mathbf{\delta^{(3)}} =
+  \left( \begin{array}{ccc}
+  a^{(3)}_1 - y^i_1 \\
+  a^{(3)}_2 - y^i_2 
+  \end{array} \right)
+  \end{eqnarray}\qquad (MLE)
+
+基于以上理论，实现反向传播不再困难，我们尝试在一个样本上实现反向传播算法，并在测试验证正确后再尝试优化。
+
+实现反向传播
+````````````````
+
+定义名为 backprop 的类函数，x 是一个样本，为 1*n 的特征矩阵。y 是标签值，它是一个 K 维向量，K 为输出层的节点数。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def backprop(self, x, y): 
+        # 初始化新的偏置和权重系数矩阵
+        delta_b = [np.zeros(b.shape) for b in self.biases]
+        delta_w = [np.zeros(w.shape) for w in self.weights]
+
+        # 转置样本特征矩阵，以便于权重矩阵左乘
+        x = x.reshape(x.shape[0], 1)
+        y = y.reshape(y.shape[0], 1)
+        activation = x
+        
+        # 记录每一层每一节点的激活函数输出，用于在反向传播时计算激活函数的偏导 a(1-a)
+        # 第一层就是 x 自身
+        acts = [x]
+        
+        # zs 记录每一层每一节点的权重输入
+        zs = []
+        
+        # 进行前向传播，以得到每层每个节点的权重输入，激活函数值和最终输出层的信号误差
+        for b, W in zip(self.biases, self.weights):
+            z = W.dot(activation) + b
+            zs.append(z)
+            activation = self.sigmoid(z)
+            acts.append(activation)
+
+        # 反向传播，这里使用 MSE 代价函数，所以 L-1 层信号误差计算需乘以激活函数的导数
+        delta = (acts[-1] - y) * self.sigmoid_derivative(zs[-1])
+        delta_b[-1] = delta   # 偏置的输入总是 1， 所以就是信号误差
+        delta_w[-1] = np.dot(delta, acts[-2].transpose()) 
+        for l in range(2, self.num_layers):
+            sp = self.sigmoid_derivative(zs[-l])
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            delta_b[-l] = delta
+            delta_w[-l] = np.dot(delta, acts[-l-1].transpose())
+        
+        # 更新偏置和权重
+        self.biases = [b-(self.eta) * nb / X.shape[0]
+                        for b, nb in zip(self.biases, delta_b)]
+        self.weights = [w-(self.eta) * nw / X.shape[0]
+                        for w, nw in zip(self.weights, delta_w)]
+
+结合理论分析，再理解上面的代码实现并不困难。注意以上函数一次只使用一个样本进行权重调整，这在实际中运行中效率很慢，我们可以使用矩阵来实现批量样本的权重更新。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    # X is an array with n * m, n samples and m features every sample
+    def mbatch_backprop(self, X, y):
+        delta_b = [np.zeros(b.shape) for b in self.biases]
+        delta_w = [np.zeros(w.shape) for w in self.weights]
+
+        # feedforward
+        if X.ndim == 1:
+            X = X.reshape(1, X.ndim)
+        if y.ndim == 1:
+            y = y.reshape(1, y.ndim)
+        
+        activation = X.T
+        acts = [activation] 
+        zs = []             
+        for b, W in zip(self.biases, self.weights):
+            z = W.dot(activation) + b
+            zs.append(z)
+            activation = self.sigmoid(z)
+            acts.append(activation)
+
+        # 这里的注意点在于偏置的更新，需要进行列求和
+        delta = (acts[-1] - y.T) * self.sigmoid_derivative(zs[-1])
+        delta_b[-1] = np.sum(delta, axis=1, keepdims=True)
+        delta_w[-1] = np.dot(delta, acts[-2].transpose())
+        for l in range(2, self.num_layers):
+            sp = self.sigmoid_derivative(zs[-l])
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            delta_b[-l] = np.sum(delta, axis=1, keepdims=True)
+            delta_w[-l] = np.dot(delta, acts[-l-1].transpose())
+
+        self.biases = [b-(self.eta) * nb
+                        for b, nb in zip(self.biases, delta_b)]
+        self.weights = [w-(self.eta) * nw 
+                        for w, nw in zip(self.weights, delta_w)]
+
+训练函数支持批量训练，这里默认批处理样本数为 8。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+    # MSE 代价函数，用于统计观察下降情况
+    def quadratic_cost(self, X, y):
+        return np.sum((self.feedforward(X) - y.T)**2) / self.sizes[-1] / 2 
+        
+    def fit_mbgd(self, X, y, batchn=8, verbose=False):
+        '''mini-batch stochastic gradient descent.'''
+        self.errors_ = []
+        self.costs_ = []
+        self.steps_ = 100  # every steps_ descent steps statistic cost and error sample
+        
+        if batchn > X.shape[0]:
+            batchn = 1
+        
+        for loop in range(self.epochs):
+            X, y = scaler.shuffle(X, y) # 每周期对样本随机处理
+            if verbose: print("Epoch: {}/{}".format(self.epochs, loop+1), flush=True)
+            
+            x_subs = np.array_split(X, batchn, axis=0)
+            y_subs = np.array_split(y, batchn, axis=0)
+            for batchX, batchy in zip(x_subs, y_subs):
+                self.mbatch_backprop(batchX, batchy)
+            
+            # 使用正向传播获取误差值，计算代价函数值，观察收敛情况
+            if self.complex % self.steps_ == 0:
+                cost = self.quadratic_cost(X,y)
+                self.costs_.append(cost)
+
+                # 平均最后5次的下降值，如果下降很慢，停止循环，很可能落入了局部极小值
+                if len(self.costs_) > 5:
+                    if sum(self.costs_[-5:]) / 5 - self.costs_[-1] < 1e-5:
+                        print("cost reduce very tiny, just quit!")
+                        return
+
+                print("costs {}".format(cost))
+                # 如果代价值已经很低，说明找到了较优点，退出循环
+                if self.tol is not None and cost < self.tol:
+                    print("Quit from loop for less than tol {}".format(self.tol))
+                    return
+            self.complex += 1
+
+注意，如果下降很慢，则停止循环，很可能落入了局部极小值，此时应该重新训练网络以尝试其他权重值。
+
+分割异或问题
+`````````````
+
+我们尝试用最简单的 [2,2,1] 神经网络来解决 XOR 异或分割问题。众所周知，异或问题不是线性可分的，那么神经是怎么通过非线性函数实现异或分割的呢？
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def boolXorTrain():
+      # Bool xor Train         x11 x12 y1
+      BoolXorTrain = np.array([[1, 0,  1],
+                               [0, 0,  0],
+                               [0, 1,  1],
+                               [1, 1,  0]])
+      X = BoolXorTrain[:, 0:2]
+      y = BoolXorTrain[:, 2]
+      if y.ndim == 1: # vector to 2D array
+          y = y.reshape(y.shape[0], 1)
+  
+      nn = NN([2,2,1], eta=0.5, epochs=10000, tol=1e-4)
+      nn.fit_mbgd(X,y)
+      pred = nn.predict(X)
+      print(nn.weights)
+      print(pred)
+
+如果我们尝试将权重和偏置的初始值均置为 0，将会诧异地发现根本无法收敛。这预示着 0 点处是一个局部极小点，实际使用中如果发现跌入局部极小点而无法收敛到 0 附近，那么就要重新随机初始化权重，然后重新训练。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  >>> python nn.py
+  ......
+  costs 0.00024994697604848544
+  cost reduce very tiny, just quit!
+  weights: [array([[-5.55203673,  5.34505725],
+         [-6.10271765,  6.20215693]]), array([[ 9.2106689 , -8.70927677]])]
+  biases: [array([[-2.89311115],
+         [ 3.10518764]]), array([[ 4.06794821]])]
+  [[1 0 1 0]]
+
+实际观察，在学习率为 0.5 时，大约需要 7000 个迭代周期（实际上由于样本很少，等同于批量周期下降）才会收敛到比较满意的值。当然我们可以增加 tol 来成倍降低迭代周期，当然我们最关心的不仅仅是计算量的大小，还有分类的实际效果。
+
+首先看下代价下降曲线图，首先很庆幸我们随机的一组权重参数在一开始就给出了较小的代价值，也即我们选择的点邻近一个局部最优点，在迭代大约 2000次之后，就已经下降到接近于 0。
+
+.. figure:: imgs/practice/nncost.png
+  :scale: 80%
+  :align: center
+  :alt: nncost
+
+  神经网络在 XOR 问题上的代价函数下降曲线
+
+现在回归最根本的问题，尽管预测值和实际的标签已经完全一致，也即正确率 100%，那么神经网络是如何做到的呢？根据以往的线性分割模型无法分割 XOR 的点，直觉上可以想到，它可能进行了某种非线性分割，比如用一个椭圆（这里指高维曲面）把其中两个标签为 1 的点圈起来，外部则为 0 的点。但是如何验证推测呢？一个需要点发散思维的方式是绘图，这样就需要把图像限制在 3D 空间，也即特征变量最多有 2 个，XOR 训练集正好满足了这一特征，剩下的就是使用已经训练好的这组权重和偏置来对更多的假想特征值进行预测，来获取代价值的曲面。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def draw_perdict_surface(self, X, y):
+        from mpl_toolkits import mplot3d
+        # XOR 特征值范围为 0-1，所以在 -2-2 区间作图足够反应整个预测平面
+        x1 = np.linspace(-2, 2, 80, endpoint=True)
+        x2 = np.linspace(-2, 2, 80, endpoint=True)
+    
+        title = 'Perdict Surface and Contour'
+        # 生成网格化坐标
+        x1, x2 = np.meshgrid(x1, x2)
+        acts = np.zeros(x1.shape)
+        for i in range(x1.shape[0]):
+            for j in range(x1.shape[1]): # 计算输出层激活值
+                acts[i,j] = self.feedforward(np.array([x1[i,j], x2[i,j]]).reshape(1,2))
+
+        plt.figure(figsize=(6, 6))
+        ax = plt.axes(projection='3d')   # 绘制输出层激活值曲面图，透明度设置为 0.8 以便于观察样本点
+        ax.plot_surface(x1, x2, acts, rstride=1, cstride=1, cmap='hot', edgecolor='none', alpha=0.8)
+        
+        # 绘制样本点的输出层的激活值（蓝色）和标签值（红色）
+        z = self.feedforward(X)
+        ax.scatter3D(X[:,0], X[:,1], z, c='blue')
+        ax.scatter3D(X[:,0], X[:,1], y[:,0], c='red')
+        ax.set_title(title)
+        ax.set_xlabel("x1")
+        ax.set_ylabel("x2")
+        # 绘制 3D 曲面的等高线
+        ax0 = plt.axes([0.1, 0.5, 0.3, 0.3])
+        ax0.contour(x1, x2, acts, 30, cmap='hot')
+        plt.show()
+
+实际上这里有些前提，例如输出层只有一个节点，我们可以直接使用输出值作为曲面的第三维，想象输出层有多个节点，那么其中一个节点的输出所能绘制的曲面就是高高低低，而低洼的地方对应样本点在该节点输出为 1 的特征坐标，高凸的地方对应输出 1 的特征坐标。
+
+.. figure:: imgs/practice/nnxor.png
+  :scale: 100%
+  :align: center
+  :alt: nnxor
+
+  神经网络在 XOR 问题上的预测曲面
 

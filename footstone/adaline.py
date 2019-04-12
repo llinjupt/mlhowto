@@ -366,8 +366,8 @@ class AdalineSGD(object):
         
     def update_weights(self, xi, target):
         '''Apply Adaline learning rule to update the weights'''
-
-        '''        
+        
+        '''
         # emulate svm
         if target > 0 and self.net_input(xi) > target:
             return 0
@@ -377,7 +377,7 @@ class AdalineSGD(object):
         deltaw = self.eta * (target - self.net_input(xi))
         self.w_[1:] += xi.dot(deltaw)
         self.w_[0] += deltaw * 1
-        
+
         return deltaw
 
     def partial_fit(self, X, y):
@@ -480,7 +480,7 @@ class AdalineSGD(object):
         
         # record every w during whole iterations
         self.wsteps_ = []
-        self.steps_ = 1  # every steps_ descent steps statistic one cose and error sample
+        self.steps_ = 1  # every steps_ descent steps statistic cost and error sample
         
         if samples <= batchn:
             batchn = samples
@@ -510,7 +510,7 @@ class AdalineSGD(object):
                     self.wsteps_.append(self.w_.copy()) # record last w
                     return self
                 '''
-                
+
                 self.w_ -= deltaw
                 if (self.complex % self.steps_ == 0):
                     errors, diffs = self.errors(X, y)
@@ -518,14 +518,14 @@ class AdalineSGD(object):
             # must do shuffle, otherwise may lose samples at tail
             X, y = self.shuffle(X, y)
             self.appendedX_ = np.hstack((np.ones(samples).reshape(samples, 1), X))
-                
+ 
         return self
-    
+
     # X is a vector including features of a sample 
     def net_input(self, X):
         '''Calculate net input'''
         return np.dot(X, self.w_[1:]) + self.w_[0] * 1
-    
+
     # X is a vector including features of a sample 
     def sign(self, X):
         '''Sign function'''

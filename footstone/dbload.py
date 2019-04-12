@@ -168,6 +168,35 @@ def load_iris_mclass(ratio=0.3, random_state=0):
     
     return X_train, X_test, y_train, y_test
 
+# generate noraml distribution train set
+def load_nd_dataset(positive=100, negtive=100, type='normal'):
+    np.random.seed(3)
+
+    if type == 'normal':
+        numA = np.random.normal(4, 2, (2, positive))
+        numB = np.random.normal(-4, 2, (2, negtive))
+    elif type == 'ones':
+        numA = np.ones((2, positive)) - 3
+        numB = np.ones((2, negtive)) + 5
+    else:
+        numA = np.zeros((2, positive)) - 3
+        numB = np.zeros((2, negtive)) + 5
+
+    Ax, Ay = numA[0] * 0.6, numA[1]
+    Bx, By = numB[0] * 1.5, numB[1]
+    
+    labels = np.zeros((negtive + positive, 1))
+    trainset = np.zeros((negtive + positive, 2))
+    trainset[0:positive,0] = Ax[:]
+    trainset[0:positive,1] = Ay[:]
+    labels[0:positive] = 1
+    
+    trainset[positive:,0] = Bx[:]
+    trainset[positive:,1] = By[:]
+    labels[positive:] = 0
+
+    return trainset, labels.reshape(positive + negtive,)
+
 def test():
     images, labels = load_mnist(r"./db/mnist", kind='train', count=10)
     print(images.shape)
