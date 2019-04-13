@@ -72,6 +72,21 @@ def load_mnist(path, kind='train', count=-1):
         
         return g_minst_test_images, g_minst_test_labels
 
+def load_mnist_vector(count=100, test=100):
+    X_train, X_labels = load_mnist(r"./db/mnist", kind='train', count=count)
+    X_train = X_train.reshape(X_train.shape[0], X_train.shape[1] ** 2)
+
+    ds = scaler.DataScaler(X_train)
+    X_train = ds.sklearn_standard(X_train)
+
+    y_train, y_labels = load_mnist(r"./db/mnist", kind='t10k', count=test)
+    y_train = y_train.reshape(y_train.shape[0], y_train.shape[1] ** 2)
+
+    ds = scaler.DataScaler(y_train)
+    y_train = ds.sklearn_standard(y_train)
+    
+    return X_train, X_labels, y_train, y_labels
+
 def __load_kaggele_mnist(fname, labeled=True, count=-1):
     ''' Load Kaggle Mnist From csv file
     
@@ -159,7 +174,7 @@ def load_iris_mclass(ratio=0.3, random_state=0):
     X = iris.data[:, [1,3]]
     y = iris.target
     X,y = scaler.shuffle(X, y)
-    
+
     X_train, X_test, y_train, y_test = crossvalid.data_split(X, y, ratio=ratio, 
                                                              random_state=random_state)    
     ds = scaler.DataScaler(X_train)
