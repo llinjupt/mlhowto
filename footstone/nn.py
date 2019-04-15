@@ -27,7 +27,7 @@ class NN(object):
     
     """
     
-    def __init__(self, sizes, eta=0.001, epochs=1000, tol=None):
+    def __init__(self, sizes, eta=0.001, epochs=1000, tol=None, alpha=0):
         '''
         Parameters
         ------------
@@ -44,10 +44,12 @@ class NN(object):
         self.sizes = sizes
         self.complex = 0
         self.tol = tol
+        self.alpha = alpha # for regulization
         
+        np.random.seed(None)
         self.biases = [np.random.randn(l, 1) for l in sizes[1:]]
         self.weights = [np.random.randn(l, x) for x, l in zip(sizes[:-1], sizes[1:])]
-        
+
     def feedforward(self, X):
         out = X.T
         for b, W in zip(self.biases, self.weights):
@@ -98,7 +100,7 @@ class NN(object):
                         for w, nw in zip(self.weights, delta_w_all)]
     
     # X is an array with n * m, n samples and m features every sample
-    def mbatch_backprop(self, X, y):
+    def mbatch_backprop(self, X, y, type='llh', total=None):
         delta_b = [np.zeros(b.shape) for b in self.biases]
         delta_w = [np.zeros(w.shape) for w in self.weights]
 
@@ -116,9 +118,13 @@ class NN(object):
             zs.append(z)
             activation = self.sigmoid(z)
             acts.append(activation)
-
+            
         # backpropagation
-        delta = (acts[-1] - y.T) * self.sigmoid_derivative(zs[-1])
+        samples = X.shape[0]
+        if type == 'llh':
+            delta = (acts[-1] - y.T)
+        else:
+            delta = (acts[-1] - y.T) * self.sigmoid_derivative(zs[-1])
         delta_b[-1] = np.sum(delta, axis=1, keepdims=True)
         delta_w[-1] = np.dot(delta, acts[-2].transpose())
         for l in range(2, self.num_layers):
@@ -126,48 +132,81 @@ class NN(object):
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             delta_b[-l] = np.sum(delta, axis=1, keepdims=True)
             delta_w[-l] = np.dot(delta, acts[-l-1].transpose())
-
-        self.biases = [b-(self.eta) * nb
+        
+        self.biases = [b-(self.eta) * nb / samples
                         for b, nb in zip(self.biases, delta_b)]
-        self.weights = [w-(self.eta) * nw 
+
+        self.weights = [(1-self.eta*(self.alpha/total))*w - self.eta * nw / samples
                         for w, nw in zip(self.weights, delta_w)]
-    
-    def fit_mbgd(self, X, y, batchn=8, verbose=False):
+        '''
+        self.weights = [w-(self.eta) * nw / samples
+                        for w, nw in zip(self.weights, delta_w)]
+        '''
+    def evaluate(self, x_train, x_labels, y_test, y_labels):
+        pred = self.predict(x_train)
+        error = pred - x_labels
+        error_entries = np.count_nonzero(error != 0)
+
+        test_entries = x_labels.shape[0]
+        self.trains_.append((test_entries - error_entries) / test_entries * 100)
+        print("Accuracy rate {:.02f}% on trainset {}".format(
+              self.trains_[-1], test_entries), flush=True)
+        
+        pred = self.predict(y_test)
+        error = pred - y_labels
+        error_entries = np.count_nonzero(error != 0)
+        test_entries = y_labels.shape[0]
+        self.tests_.append((test_entries - error_entries) / test_entries * 100)
+        print("Accuracy rate {:.02f}% on testset {}".format(
+              self.tests_[-1], test_entries), flush=True)
+
+    def fit_mbgd(self, X_train, y_train, batchn=8, verbose=False, costtype='llh', 
+                 x_labels=None, y_test=None, y_labels=None):
         '''mini-batch stochastic gradient descent.'''
+        self.trains_ = []
+        self.tests_ = []
         self.errors_ = []
         self.costs_ = []
-        self.steps_ = 100  # every steps_ descent steps statistic cost and error sample
-        
-        if batchn > X.shape[0]:
+        self.steps_ = 1  # every steps_ descent steps statistic cost and error sample
+        total = X_train.shape[0]
+        if batchn > total:
             batchn = 1
         
         for loop in range(self.epochs):
-            X, y = scaler.shuffle(X, y)
-            if verbose: print("Epoch: {}/{}".format(self.epochs, loop+1), flush=True)
-            
+            X, y = scaler.shuffle(X_train, y_train)
+            if verbose:print("Epoch: {}/{}".format(self.epochs, loop+1), flush=True)
+
             x_subs = np.array_split(X, batchn, axis=0)
             y_subs = np.array_split(y, batchn, axis=0)
             for batchX, batchy in zip(x_subs, y_subs):
-                self.mbatch_backprop(batchX, batchy)
+                self.mbatch_backprop(batchX, batchy, type=costtype, total=total)
 
             if self.complex % self.steps_ == 0:
-                cost = self.quadratic_cost(X,y)
+                if costtype == 'llh':
+                    cost = self.loglikelihood_cost(X,y)
+                else:
+                    cost = self.quadratic_cost(X,y)
+                
                 self.costs_.append(cost)
-                if len(self.costs_) > 5:
-                    if sum(self.costs_[-5:]) / 5 - self.costs_[-1] < 1e-5:
-                        print("cost reduce very tiny, just quit!")
+                if self.tol is not None and len(self.costs_) > 5:
+                    if abs(sum(self.costs_[-5:]) / 5 - self.costs_[-1]) < self.tol * self.steps_:
+                        print("cost reduce very tiny less than tol, just quit!")
                         return
 
                 print("costs {}".format(cost))
-                if self.tol is not None and cost < self.tol:
-                    print("Quit from loop for less than tol {}".format(self.tol))
-                    return
+                if y_test is not None:
+                    self.evaluate(X_train,x_labels,y_test,y_labels)
+                    if len(self.tests_) > 3:
+                        if abs(sum(self.tests_[-3:]) / 3 - self.tests_[-1]) < 1e-3:
+                            print("test evalution reduce very tiny, just quit!")
+                            return
+                        
             self.complex += 1
-    
+
     # Activate function
     def sigmoid(self, z):
         """Compute logistic sigmoid activation"""
-        return 1.0 / (1.0 + np.exp(-z))
+        return 1.0 / (1.0 + np.exp(-np.clip(z, -250, 250)))
 
     def sigmoid_derivative(self, z):
         sg = self.sigmoid(z)
@@ -184,15 +223,26 @@ class NN(object):
         p = self.sigmoid(self.net_input(x))
         return np.array([p, 1-p])
 
+    def regulization_cost(self, X, y):
+        return 0.5 * (self.alpha / y.shape[0]) * \
+               sum(np.linalg.norm(w)**2 for w in self.weights)
+
     def quadratic_cost(self, X, y):
-        return np.sum((self.feedforward(X) - y.T)**2) / self.sizes[-1] / 2 
+        cost = np.sum((self.feedforward(X) - y.T)**2) / y.shape[0] / 2 
+        if self.alpha:
+            cost += self.regulization_cost(X,y)
+        return cost
     
     def loglikelihood_cost(self, X, y):
         output = self.feedforward(X)
 
         diff = 1.0 - output
         diff[diff <= 0] = 1e-15
-        return np.sum(-y.T * np.log(output) - ((1 - y.T) * np.log(diff)))       
+        cost = np.sum(-y.T * np.log(output) - ((1 - y.T) * np.log(diff))) / y.shape[0]
+        
+        if self.alpha:
+            cost += self.regulization_cost(X,y)
+        return cost
 
     def draw_quad_cost_surface(self, X, y):
         self.draw_cost_surface(X, y, cost='quad')
@@ -241,8 +291,8 @@ class NN(object):
     def draw_perdict_surface(self, X, y):
         from mpl_toolkits import mplot3d
         
-        x1 = np.linspace(-2, 2, 80, endpoint=True)
-        x2 = np.linspace(-2, 2, 80, endpoint=True)
+        x1 = np.linspace(-4, 4, 80, endpoint=True)
+        x2 = np.linspace(-4, 4, 80, endpoint=True)
     
         title = 'Perdict Surface and Contour'
     
@@ -264,6 +314,15 @@ class NN(object):
         ax.set_ylabel("x2")
 
         ax0 = plt.axes([0.1, 0.5, 0.3, 0.3])
+        
+        markers = ('x', 'o', 's', 'v')
+        colors = ('black', 'red', 'cyan', 'blue')
+        y = y.ravel()
+        for idx, cl in enumerate(np.unique(y)):
+            ax0.scatter(X[y == cl, 0], X[y == cl, 1], alpha=0.8, c=colors[idx],
+                        marker=markers[idx], label=cl, s=5)
+        
+        #ax0.scatter(X[:,0], X[:,1], c='black', s=5)
         ax0.contour(x1, x2, acts, 30, cmap='hot')
         plt.show()
 
@@ -289,46 +348,176 @@ class NN(object):
         plt.scatter(x, self.costs_, c='black')
         plt.show()
 
+    def draw_evaluate(self):
+        '''Draw evaluate curve matplotlib'''
+        import matplotlib.pyplot as plt
+
+        if len(self.trains_) <= 1:
+            print("can't plot trains without data")
+            return
+        
+        plt.figure()
+        plt.title("Trainset and Validation set evaluation state")  
+        plt.xlabel("Iterations")                            
+        plt.ylabel("Accuracy Percent (%)")  
+        
+        plt.xlim(1 * self.steps_, len(self.trains_) * self.steps_) 
+        plt.ylim(max(min(self.tests_) - 10, 0), max(self.trains_) + 1)
+        
+        x = np.arange(1, 1 + len(self.trains_), 1) * self.steps_
+        plt.plot(x, self.trains_, c='blue', label='Train set')
+        plt.scatter(x, self.trains_, c='blue')
+
+        plt.plot(x, self.tests_, c='red', label='Validation set')
+        plt.scatter(x, self.tests_, c='red')
+        plt.legend(loc='upper left')
+        plt.show()
+        
 def boolXorTrain():
     # Bool xor Train         x11 x12 y1
-    BoolXorTrain = np.array([[1, 0,  1],
+    BoolXorTrain = np.array([[-1, -1, 1],
+                             [-2, -2, 0],
+                             [1, 0,  1],
                              [0, 0,  0],
                              [0, 1,  1],
-                             [1, 1,  0]])
+                             [1, 1,  0],
+                             [2, 2,  1],
+                             [3, 3,  0]])
     X = BoolXorTrain[:, 0:2]
     y = BoolXorTrain[:, 2]
     if y.ndim == 1:
         y = y.reshape(y.shape[0], 1)
 
-    nn = NN([2,2,1], eta=0.5, epochs=10000, tol=1e-4)
-    nn.fit_mbgd(X, y)
+    nn = NN([2,10,1], eta=1, epochs=100000, tol=1e-4)
+
+    nn.fit_mbgd(X, y, costtype='llh')
     pred = nn.predict(X)
     print("weights:", nn.weights)
     print("biases:", nn.biases)
     print(pred)
     
-    nn.draw_costs()
-    if nn.costs_[-1] < 1e-3:
+    #nn.draw_costs()
+    if nn.costs_[-1] < 1e-2:
         nn.draw_perdict_surface(X,y)
+        #nn.draw_llh_cost_surface(X,y)
+        #nn.draw_quad_cost_surface(X,y)
 
+def irisTrain():
+    X_train, X_test, y_train, y_test = dbload.load_iris_dataset(negtive=0) 
+    if y_train.ndim == 1:
+        y_train = y_train.reshape(y_train.shape[0], 1)
+    
+    nn = NN([2,4,1], eta=1, epochs=100000, tol=1e-4)
+    nn.fit_mbgd(X_train, y_train, costtype='llh')
+
+    print("weights:", nn.weights)
+    print("biases:", nn.biases)
+
+    pred = nn.predict(X_test)
+    print(pred)
+    error = pred - y_test
+    error_entries = np.count_nonzero(error != 0)
+
+    test_entries = y_test.shape[0]
+    print("Accuracy rate {:.02f}% on trainset {}".format(
+          (test_entries - error_entries) / test_entries * 100,
+          test_entries), flush=True)
+
+    nn.draw_costs()
+    if nn.costs_[-1] < 1e-2:
+        nn.draw_perdict_surface(X_train, y_train)
+        nn.draw_perdict_surface(X_test, y_test.reshape(y_test.shape[0], 1))
+
+def heldout_score(clf, X_test, y_test):
+    """compute deviance scores on ``X_test`` and ``y_test``. """
+    pred = clf.predict(X_test)
+    error = pred - y_test
+    error_entries = np.count_nonzero(error != 0)
+
+    test_entries = y_test.shape[0]
+    return (test_entries - error_entries) / test_entries * 100
+
+def kfold_estimate(k=10, type='scv'):
+    from sklearn.model_selection import KFold
+    from sklearn.model_selection import StratifiedKFold
+    images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+
+    scores_train = []
+    scores_validate = []
+    scores_test = []
+    if type == 'cv':
+        cv = KFold(n_splits=k, random_state=1)
+    else:
+        cv = StratifiedKFold(n_splits=k, random_state=1)
+
+    for train, test in cv.split(images, labels):
+        X_images, X_labels = images[train], labels[train]
+        y = np.zeros((X_labels.shape[0], 10))
+        for i, j in enumerate(X_labels):
+            y[i,j] = 1
+
+        nn = NN([X_images.shape[1], 50, 10], eta=9, epochs=100, tol=0.01)
+        nn.fit_mbgd(X_images, y, costtype='llh', batchn=64)
+        
+        score = heldout_score(nn, X_images, X_labels)        
+        test_entries = X_labels.shape[0]
+        print("Accuracy rate {:.02f}% on trainset {}".format(
+              score, test_entries), flush=True)
+        scores_train.append(score)
+        
+        score = heldout_score(nn, images[test], labels[test])        
+        test_entries = labels[test].shape[0]
+        print("Accuracy rate {:.02f}% on vcset {}".format(
+              score, test_entries), flush=True)
+        scores_validate.append(score)
+        
+        score = heldout_score(nn, y_test, y_labels)        
+        test_entries = y_test.shape[0]
+        print("Accuracy rate {:.02f}% on testset {}".format(
+              score, test_entries), flush=True)
+        scores_test.append(score)
+
+    print(scores_train, "%.3f +/- %.3f" %(np.mean(scores_train), np.std(scores_train)))
+    print(scores_validate,"%.3f +/- %.3f" %(np.mean(scores_validate), np.std(scores_validate)))
+    print(scores_test, "%.3f +/- %.3f" %(np.mean(scores_test), np.std(scores_test)))
+
+def MNISTTrain():
+    import crossvalid
+    images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+    X_images, validate, X_labels, validate_labels = \
+        crossvalid.data_split(images, labels, ratio=0.1, random_state=None)
+
+    y = np.zeros((X_labels.shape[0], 10))
+    for i, j in enumerate(X_labels):
+        y[i,j] = 1
+
+    nn = NN([X_images.shape[1], 80, 10], eta=1, epochs=100000, tol=0, alpha=15)
+    nn.fit_mbgd(X_images, y, costtype='llh', batchn=256, x_labels=X_labels, 
+                y_test=validate, y_labels=validate_labels)
+
+    pred = nn.predict(y_test)
+    error = pred - y_labels
+    error_entries = np.count_nonzero(error != 0)
+
+    test_entries = y_test.shape[0]
+    print("Accuracy rate {:.02f}% on trainset {}".format(
+          (test_entries - error_entries) / test_entries * 100,
+          test_entries), flush=True)
+    nn.draw_evaluate()
+    nn.draw_costs()
+    
 def sklearn_nn_test():
     from sklearn.neural_network import MLPClassifier
-
-    BoolXorTrain = np.array([[0, 0,  0],
-                             [1, 0,  1],
-                             [0, 1,  1],
-                             [1, 1,  1]])
-    X_train = BoolXorTrain[:, 0:-1]
-    y_train = BoolXorTrain[:, -1]
-
-    mlp = MLPClassifier(hidden_layer_sizes=(2,), max_iter=10000, alpha=1e-3, activation='logistic',
-                        solver='adam', early_stopping=False, verbose=10, tol=1e-3, shuffle=True,
-                        learning_rate_init=0.5)
-    mlp.fit(X_train, y_train)
-    print("Training set score: %f" % mlp.score(X_train, y_train))
-    print("Test set score: %f" % mlp.score(X_train, y_train))
-    print('predictions:', mlp.predict(X_train)) 
-    print(mlp.predict_proba(X_train))
+    images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+   
+    mlp = MLPClassifier(hidden_layer_sizes=(100,), max_iter=10000, activation='logistic',
+                        solver='sgd', early_stopping=True, verbose=10, tol=1e-4, shuffle=True,
+                        learning_rate_init=0.1)
+    mlp.fit(images, labels)
+    print("Training set score: %f" % mlp.score(images, labels))
+    print("Test set score: %f" % mlp.score(y_test, y_labels))
+    #print('predictions:', mlp.predict(X_train)) 
+    #print(mlp.predict_proba(X_train))
     
 if __name__ == "__main__":
-    boolXorTrain()
+    MNISTTrain()

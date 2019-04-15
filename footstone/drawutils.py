@@ -184,4 +184,4 @@ def plot_sigmoid_cost():
     plt.show()
 
 if __name__ == "__main__":
-    plot_sigmoid_cost()
+    plot_sigmoid()
