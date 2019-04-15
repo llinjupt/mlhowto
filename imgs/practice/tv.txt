@@ -1,0 +1,4 @@
+Accuracy rate 97.95% on trainset 32000
+Accuracy rate 95.75% on testset 8000
+test evalution reduce very tiny, just quit!
+Accuracy rate 95.70% on trainset 10000

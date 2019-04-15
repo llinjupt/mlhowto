@@ -522,7 +522,8 @@ sigmoid 为激活函数，sigmoid_derivative 对应它的导数，它被用于�
 .. math::
 
   \begin{eqnarray}
-  \frac {\partial {J(w)}} {\partial {w^{(l-1)}_{ij}}} & = {a^{(l-1)}_j} \delta^{(l)}_i \qquad (1)
+  \frac {\partial {J(w)}} {\partial {w^{(l-1)}_{ij}}} & = {a^{(l-1)}_j} \delta^{(l)}_i 
+  = \delta^{(l)} {a^{(l-1)}}^T \qquad (1)
   \end{eqnarray}
 
 显然这里使用 l-1 是为了公式 (1) 中 l 的取值范围和公式 (2) 保持一致。对于偏置项，由于输入总是 1， 所以调整系数就是输出节点的信号误差。
@@ -715,9 +716,9 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
             delta_b[-l] = np.sum(delta, axis=1, keepdims=True)
             delta_w[-l] = np.dot(delta, acts[-l-1].transpose())
 
-        self.biases = [b-(self.eta) * nb
+        self.biases = [b-(self.eta) * nb / X.shape[0]
                         for b, nb in zip(self.biases, delta_b)]
-        self.weights = [w-(self.eta) * nw 
+        self.weights = [w-(self.eta) * nw / X.shape[0]
                         for w, nw in zip(self.weights, delta_w)]
 
 训练函数支持批量训练，这里默认批处理样本数为 8。
@@ -755,15 +756,11 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
 
                 # 平均最后5次的下降值，如果下降很慢，停止循环，很可能落入了局部极小值
                 if len(self.costs_) > 5:
-                    if sum(self.costs_[-5:]) / 5 - self.costs_[-1] < 1e-5:
-                        print("cost reduce very tiny, just quit!")
+                    if sum(self.costs_[-5:]) / 5 - self.costs_[-1] < self.tol:
+                        print("cost reduce very tiny less than tol, just quit!")
                         return
 
                 print("costs {}".format(cost))
-                # 如果代价值已经很低，说明找到了较优点，退出循环
-                if self.tol is not None and cost < self.tol:
-                    print("Quit from loop for less than tol {}".format(self.tol))
-                    return
             self.complex += 1
 
 注意，如果下降很慢，则停止循环，很可能落入了局部极小值，此时应该重新训练网络以尝试其他权重值。
@@ -838,12 +835,13 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
         x1, x2 = np.meshgrid(x1, x2)
         acts = np.zeros(x1.shape)
         for i in range(x1.shape[0]):
-            for j in range(x1.shape[1]): # 计算输出层激活值
+            for j in range(x1.shape[1]):# 计算输出层激活值
                 acts[i,j] = self.feedforward(np.array([x1[i,j], x2[i,j]]).reshape(1,2))
 
         plt.figure(figsize=(6, 6))
-        ax = plt.axes(projection='3d')   # 绘制输出层激活值曲面图，透明度设置为 0.8 以便于观察样本点
-        ax.plot_surface(x1, x2, acts, rstride=1, cstride=1, cmap='hot', edgecolor='none', alpha=0.8)
+        ax = plt.axes(projection='3d') # 绘制输出层激活值曲面图，透明度设置为 0.8 以便于观察样本点
+        ax.plot_surface(x1, x2, acts, rstride=1, cstride=1, cmap='hot', 
+                        edgecolor='none', alpha=0.8)
         
         # 绘制样本点的输出层的激活值（蓝色）和标签值（红色）
         z = self.feedforward(X)
@@ -864,5 +862,984 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
   :align: center
   :alt: nnxor
 
-  神经网络在 XOR 问题上的预测曲面
+  神经网络在 XOR 问题上的预测曲面（1）
+
+通过预测曲面图清楚地看到神经网络的强大之处，它非常聪明地生成了一对“翅膀”，靠近脊柱的地方凹陷，两侧翅膀高凸，观察样本点，预测值为1的样本点均落在了两侧翅膀上，预测值为 0 的样本点均落在了脊柱上。那么自然可以想到，另一种分割方法是预测值为1的样本点能落在脊柱上，而0的样本点落在翅膀上，此时脊柱隆起，而翅膀向下扇动：
+
+.. figure:: imgs/practice/nnxor1.png
+  :scale: 100%
+  :align: center
+  :alt: nnxor
+
+  神经网络在 XOR 问题上的预测曲面（2）
+
+梯度下降和交叉熵函数
+``````````````````````
+
+在逻辑回归中，我们指出数据的标准化和权重的初始值异常重要，否则将导致求和函数的输出很大，继而使得 sigmoid 函数的输出接近 1 或者 -1，尽管正确的标签应该是 0 和 1（此时错误非常严重，预测和实际完全相反），此时的斜率非常小（曲线接近平行于 x 轴，导数很小），也就导致梯度下降在开始时非常缓慢。
+
+神经网络也有如此问题，可以尝试将所有权重初始化为 3，偏置为 0，可以得到如下的下降曲线图，此时“学习效率”在初期非常低：
+
+.. figure:: imgs/practice/slow.png
+  :scale: 100%
+  :align: center
+  :alt: nnxor
+
+  神经网络在权重比较大时初期下降速度变慢
+
+我们观察神经网络在使用 MSE 代价函数时的权重调整计算公式，以理解为何会出现这类现象：
+
+.. math::
+
+  \delta^{(l)} = {{\mathbf{W}}^{(l)}}^T \delta^{(l+1)} \odot \frac {\partial {\phi (z^{(l)})}} {\partial {z^{(l)}}} \qquad (0)
+
+.. math::
+
+  \begin{eqnarray}
+  \frac {\partial {J(w)}} {\partial {w^{(l-1)}_{ij}}} & = {a^{(l-1)}_j} \delta^{(l)}_i 
+  = \delta^{(l)} {a^{(l-1)}}^T \qquad (1)
+  \end{eqnarray}
+
+.. math::
+
+  \frac {\partial {\phi (z^{(l)})}} {\partial {z^{(l)}}} = a^{(l)}_1(1-a^{(l)})
+
+理论分析阶段已经指出，基于 MSE （二次代价函数）的代价函数时，公式(0) 的最后一层就需要乘以激活函数的导数部分（当权重较大时，斜率很小），这其实就是学习缓慢的原因所在。而交叉熵函数（最大对数似然函数）就不需要该项。可以想到如果去除该项，下降速度将加快，更改 mbatch_backprop 并不复杂：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+    # 增加类型 type 参数，可以在 MSE 和交叉熵函数之间选择代价函数
+    def mbatch_backprop(self, X, y, type='llh'):
+        delta_b = [np.zeros(b.shape) for b in self.biases]
+        delta_w = [np.zeros(w.shape) for w in self.weights]
+
+        # feedforward
+        if X.ndim == 1:
+            X = X.reshape(1, X.ndim)
+        if y.ndim == 1:
+            y = y.reshape(1, y.ndim)
+        
+        activation = X.T
+        acts = [activation] # list for all activations layer by layer
+        zs = []             # z vectors layer by layer
+        for b, W in zip(self.biases, self.weights):
+            z = W.dot(activation) + b
+            zs.append(z)
+            activation = self.sigmoid(z)
+            acts.append(activation)
+            
+        # 交叉熵函数时，第一项无需求乘以激活函数的导数，且无需取平均：样本数置为 1
+        samples = X.shape[0]
+        if type == 'llh':
+            samples = 1
+            delta = (acts[-1] - y.T) * self.sigmoid_derivative(zs[-1])
+        else:
+            delta = (acts[-1] - y.T) * self.sigmoid_derivative(zs[-1])
+        delta_b[-1] = np.sum(delta, axis=1, keepdims=True)
+        delta_w[-1] = np.dot(delta, acts[-2].transpose())
+        for l in range(2, self.num_layers):
+            sp = self.sigmoid_derivative(zs[-l])
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            delta_b[-l] = np.sum(delta, axis=1, keepdims=True)
+            delta_w[-l] = np.dot(delta, acts[-l-1].transpose())
+        
+        self.biases = [b-(self.eta) * nb / samples
+                        for b, nb in zip(self.biases, delta_b)]
+        self.weights = [w-(self.eta) * nw / samples
+                        for w, nw in zip(self.weights, delta_w)]
+
+在同样的权重初始化下，可以看到使用交叉熵函数作为代价函数时，下降速度提高了 40 倍，以极快的速度下降到了指定的 tol 之下：
+
+.. figure:: imgs/practice/quick.png
+  :scale: 100%
+  :align: center
+  :alt: quick
+
+  神经网络在使用交叉熵代价函数时下降速度加快
+
+总结：使用 MSE 代价函数时，在神经元犯错严重的时候反而学习速率更慢。使用交叉熵代价函数时则神经元犯错严重时速度更快（最后一层的信号误差不再乘以激活函数的导数，只保留预测值和标签值差值，因为犯错严重，几乎相反，所以差值在最大值 1 或者 -1 附近）。特别指出，当使用次代价函数时，当神经元在接近正确的输出前只在少量样本犯了严重错误时，学习变得异常缓慢，使用交叉熵代价函数就可以缓解这种情况。
+
+当然，如果我们把权重初始化得异常大，那么就会犯逻辑回归中的错误，误差值被钳制在了 1 和 -1 上，更大的错误并不能继续提高下降速度，所以对数据标准化以及权重随机初始在 0-1 之间是至关重要的。
+
+另外要注意到我们这里只考虑了最后一层信号误差大小对梯度下降的影响，实际分析整个链式求导法则，可以发现每一层的误差都在不停减小，也即越靠近输入层，权重调整值越小，这是神经网络的另一大问题：梯度消失。
+
+下面的数据源于随机初始化偏置，而权重调整为 0 时，进行一些周期的梯度下降后的权重和偏置值，明显发现后层的权重更大，前层权重更小：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  weights: [array([[ 0.00099128,  0.00099128],
+         [ 0.00130966,  0.00130966]]), array([[-0.14912941, -0.13739083]])]
+  biases: [array([[ 0.00759751],
+         [-0.15077827]]), array([[ 0.13845597]])]
+
+神经网络的强大表现力
+``````````````````````
+
+我们已经看到在 XOR 问题上神经网络预测曲面，它以非常具有弹性的方式扭曲，以适应不同样本所在的空间，并把它们包围或者分割开来。如果尝试在 XOR 数据的基础上，在 y = x 方向增加一些样本点，并且设置标签值互相交替，感性地看一下神经网络表现能力：
+
+.. figure:: imgs/practice/exor.png
+  :scale: 100%
+  :align: center
+  :alt: exor
+
+  神经网络在交替数据上的强大表现能力
+
+通过实践可以发现数据的分类交织越复杂，就要使用更多的隐藏节点，否则很难训练出有效的模型。这里使用 [2,10,1] 网络结构来训练样本，并观察上图中的等高线，负样本被一一限制在像蜂房一样的格子里，格子外则是正样本的领域。再观察 3D 图形，曲面在负样本聚集处快速下陷，形成一个蜂巢（或者抽屉）从而能把正负样本分离出来。
+
+不要寄希望于每次训练都能得到这一组权重，让预测平面看起来如此完美无瑕，实际上 [2,10,1] 的网络权重已经达到了 2*10 + 10*1 = 30 个，它能张成的空间早已超出人脑所能想象之外，上图只不过是数亿亿分之一的一个解决方案，大部分在训练集上的预测曲面可能是这样的：
+它们长得奇形怪状，但是确实能够完美的分割训练集，但是对于未知数据的泛化能力就要大打问号了。
+
+.. figure:: imgs/practice/exore.png
+  :scale: 100%
+  :align: center
+  :alt: exor
+
+  神经网络在交替数据上的一种不太好的分割
+
+实际上上图已经出现了过拟合现象，神经网络如此强劲的表达能力能够将每一个样本点单独圈在一个蜂巢里，而让我们误以为它在训练集上正确率达到了百分之百，而实际上它的泛化能力可能差到了极致。实际上在多样本多特征值的超级复杂网络上，我们根本不可能如此直观地观察预测平面，这就要使用各种方式避免过拟合。
+
+MNIST数据分类
+```````````````
+
+这里使用 MNIST 数据集进行手写数字分类的测试，作为参照，使用 sklearn 的多层感知器 MLP 分类模型作为基准。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def sklearn_nn_test():
+      from sklearn.neural_network import MLPClassifier
+      images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+     
+      mlp = MLPClassifier(hidden_layer_sizes=(100,), max_iter=10000, activation='logistic',
+                          solver='sgd', early_stopping=True, verbose=10, tol=1e-4, shuffle=True,
+                          learning_rate_init=0.01)
+      mlp.fit(images, labels)
+      print("Training set score: %f" % mlp.score(images, labels))
+      print("Test set score: %f" % mlp.score(y_test, y_labels))
+  
+该算法在迭代大约 30 次之后可以达到 96.5% 的测试集识别率，效果还是很好的：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  Training set score: 0.999700
+  Test set score: 0.965000
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def MNISTTrain():
+      images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+   
+      y = np.zeros((labels.shape[0], 10))
+      for i, j in enumerate(labels):
+          y[i,j] = 1
+  
+      nn = NN([images.shape[1], 100, 10], eta=5, epochs=100000, tol=1e-4)
+      nn.fit_mbgd(images, y, costtype='llh', batchn=256, x_labels=labels, 
+                  Y_test=y_test, y_labels=y_labels)
+
+这里对 fit_mbgd 函数增加一些用于在训练过程中用到的评估参数，并新增了评估函数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def evaluate(self, x_train, x_labels, y_test, y_labels):
+        pred = self.predict(x_train)
+        error = pred - x_labels
+        error_entries = np.count_nonzero(error != 0)
+
+        test_entries = x_labels.shape[0]
+        print("Accuracy rate {:.02f}% on trainset {}".format(
+              (test_entries - error_entries) / test_entries * 100,
+              test_entries), flush=True)
+    
+        pred = self.predict(y_test)
+        error = pred - y_labels
+        error_entries = np.count_nonzero(error != 0)
+    
+        test_entries = y_labels.shape[0]
+        print("Accuracy rate {:.02f}% on testset {}".format(
+              (test_entries - error_entries) / test_entries * 100,
+              test_entries), flush=True)
+
+在 fit_mbgd 中每次统计代价函数时，均对训练集和测试集进行评估，以观察神经网络的学习进度。注意这里的学习率 5 是经过多次实验验证的，它是训练时间和良好的结果的权衡的结果，较大的学习率有助于跳出局部最小值。在迭代大约 10 多次后，测试集的正确率达到了 94%，之后尽管训练集的正确率还在上升，但是测试集的准确率基本不动了。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+    
+  Accuracy rate 99.72% on trainset 40000
+  Accuracy rate 94.60% on testset 10000
+
+.. figure:: imgs/practice/te.png
+  :scale: 100%
+  :align: center
+  :alt: te
+
+  MNIST 训练集和测试集分类准确率曲线图
+
+实际上神经网络在 8 个迭代期后的学习已经基本无效了，它无法泛化到测试数据上。所以这不是有效的学习。神经网络在这个迭代期后就过度拟合（overfitting）或者过度训练（overtraining）了。
+
+检测过度拟合的明显方法就是跟踪测试数据集合上的准确率随训练变化情况。如果测试数据上的准确率不再提升，那么就应该停止训练。要么换一组随机权重参数，要么调整学习率或者其他超参数。所以通常把训练数据集分成两部分：训练数据集和校验数据集，校验数据集用于预防过度拟合。
+
+交叉验证
+``````````````
+
+现实中，在实际解决问题时，人们总是要进行各种权衡，也即没有一击必中的解决方案。所以是选用几种不同的算法来训练模型，并比较它们的性能，从中选择最优的一个是惯常的做法。但是评估不同模型的性能优劣，需要确定一些衡量标准。常用的标准之一就是分类的准确率，也即被正确分类的样例所占的比例。这种方法被称为交叉验证：将训练数据集划分为训练集和校验集，从而对模型的泛化能力进行评估。
+
+交叉验证（CV，Cross Validation）法又分为两种：Holdout 交叉验证（Holdout cross-validation）和 K 折交叉验证（K-fold cross-validation）。
+
+Holdout 留出法，MNIST 分类示例中将初始数据集（initial dataset）分为训练集（training dataset）和测试集（test dataset）两部分，就是一种 Holdout 方法。训练集用于模型的训练，测试集进行性能的评价。然而从上述训练过程可以看到，在实际操作中，常常需要反复调试和比较不同的参数以提高模型在新数据集上的预测性能。这一调参优化的过程就被称为模型的选择（model selection），这是在给定分类问题上调整参数以寻求最优值（也称为超参，hyperparameter，通常指权重系数之外的参数，例如学习率）的过程。
+
+在这一过程中如果重复使用同样的测试集，测试集等于成了训练集的一部分，此时模型容易发生过拟合，也即模型最终将能很好的泛化到训练集和测试集，但是在新数据上表现糟糕。
+
+所以改进的 Holdout 方法将数据集分成 3 部分：
+
+- 训练集（training set），训练集用于不同算法模型的训练。
+- 验证集（validation set），模型在验证集上的性能表现作为模型选择的标准。
+- 测试集（test set）用于评估模型应用于新数据上的泛化能力。
+
+使用模型训练及模型选择阶段不曾使用的新数据作为测试集的优势在于：评估模型应用于新数据上能够获得较小偏差（防止过拟合）。
+
+.. figure:: imgs/practice/vt.png
+  :scale: 100%
+  :align: center
+  :alt: te
+
+  Holdout 交叉验证模型（图来自 Python Machine Learning）
+
+Holdout 方法的缺点在于性能的评估对训练集和验证集分割方法（例如分割比例）是敏感的。
+
+我们必须确定训练退出的标准，而这是非常困难的，最简单的方式就是评估验证集的分类准确度的变化，如果最近几个迭代周期的准确度变化很微弱，那么就可以停止训练了。
+
+实际上我们很快就会发现，分类准确率和训练集和验证集分割比例呈正相关，也即训练集越大，验证集准确率越高，与此同时训练集的准确率也越高，也即扩大训练数据集可以防止模型的过拟合，但是实际中收集更多数据是非常昂贵的，甚至是不现实的。
+
+Holdout 方法提供了一种观察算法拟合情况的视窗，它揭示出数据集的独立同分布特征，如果算法能够很好地学习到真实数据的特征，那么它在这三个数据集上的得分就应该是基本一致的，而不是在训练集上很高，而在其他测试集上效果很一般。
+
+Holdout 常用于寻找理想的超参数，以取得三个数据集上的平衡（既不欠拟合也不过拟合）。K 折交叉验证是对Holdout 方法的扩展，它具有更实际的应用意义。
+
+K 折交叉验证
+``````````````
+
+K-折交叉验证（K-fold Cross Validation，K-CV） 随机将训练数据集划分（通常为均为划分）为 K 个子集，其中 K-1 个用于模型的训练，剩余的 1 个用于测试。依次使用第 1 到 K 个子集用于测试，重复此过程 K 次，就得到了 K 个模型及对模型性能的评价。
+
+K-CV方法的优势在于（每次迭代过程中）每个样本点只有一次被划入训练数据集或测试数据集的机会，与 Holdout方法相比，这将使得模型性能的评估具有较小的方差（防止了过拟合）。
+
+K 的标准值为 10，这对大多数应用来说都是合理的。但是，如果训练数据集相对较小，那就有必要加大 K 的值。如果增大 K 的值，在每次迭代中将会有更多的数据用于模型的训练，这样通过计算各性能评估结果的平均值对模型的泛化性能进行评价时，可以得到较小的偏差（防止了欠拟合）。当然 K 值取得较大，处理时间也随之增加。
+
+通常情况下，我们将K-CV 方法用于模型的调优，也就是找到使得模型泛化性能最优的超参值。一旦找到了满意的超参值，就在全部的训练集上重新训练模型，并使用独立的测试数据集对模型性能做出最终评价。
+
+sklearn 实现了 KFold 算法，示例代码如下：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def kfold_estimate(k=10):
+      from sklearn.model_selection import KFold
+      images, labels, y_test, y_labels = dbload.load_mnist_vector(count=500, test=100)
+      
+      scores_train = []
+      scores_validate = []
+      scores_test = []
+      cv = KFold(n_splits=k, random_state=1)
+      for train, test in cv.split(images, labels):
+          X_images, X_labels = images[train], labels[train]
+          y = np.zeros((X_labels.shape[0], 10))
+          for i, j in enumerate(X_labels):
+              y[i,j] = 1
+  
+          nn = NN([X_images.shape[1], 100, 10], eta=1, epochs=10000, tol=1e-2)
+          nn.fit_mbgd(X_images, y, costtype='llh', batchn=64)
+          
+          # 分别在训练集，交叉验证集和测试集上验证第 k 次的得分
+          score = heldout_score(nn, X_images, X_labels)        
+          test_entries = X_labels.shape[0]
+          print("Accuracy rate {:.02f}% on trainset {}".format(
+                score, test_entries), flush=True)
+          scores_train.append(score)
+          
+          score = heldout_score(nn, images[test], labels[test])        
+          test_entries = labels[test].shape[0]
+          print("Accuracy rate {:.02f}% on vcset {}".format(
+                score, test_entries), flush=True)
+          scores_validate.append(score)
+          
+          score = heldout_score(nn, y_test, y_labels)        
+          test_entries = y_test.shape[0]
+          print("Accuracy rate {:.02f}% on testset {}".format(
+                score, test_entries), flush=True)
+          scores_test.append(score)
+  
+      print(scores_train)
+      print(scores_validate)
+      print(scores_test)
+
+如果测试样本的分类是不均衡的，就应该使用分层 K 折交叉验证，它对标准 K 折交叉验证做了稍许改进，可以获得偏差和方差都较低的评估结果，特别是类别比例相差较大时。在分层交叉验证中，类别比例在每个分块中得以保持，这使得每个分块中的类别比例与训练数据集的整体比例一致。对应的实现为 sklearn 中的 StratifiedKFold 类：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 初始化分层 K 折交叉验证类对象
+  from sklearn.model_selection import StratifiedKFold
+  cv = StratifiedKFold(n_splits=k, random_state=1)
+
+实际上 MNIST 训练数据集的分类就不是均分的：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+  
+  unique = np.unique(labels)
+  for i in unique:
+      print(i, ':\t', np.sum(labels==i))
+
+  >>>  
+  0 :      3924
+  1 :      4563
+  2 :      3943
+  3 :      4081
+  4 :      3909
+  5 :      3604
+  6 :      3975
+  7 :      4125
+  8 :      3860
+  9 :      4016
+
+K 折交叉验证的一个特例是留一（Leave-one-out，LOO-CV）交叉验证法。如果设原始数据有 N 个样本，那么LOO-CV 就是 N-CV，即每个样本单独作为验证集，其余的 N-1 个样本作为训练集，所以 LOO-CV 会得到 N 个学习模型，用这 N 个模型最终的验证集的分类准确率的平均数作为此 LOO-CV 分类器的性能指标。相比于前面的 K-CV，LOO-CV有两个明显的优点：
+
+- 每一回合中几乎所有的样本皆用于训练模型，因此最接近原始样本的分布，这样评估所得的结果比较可靠。
+- 实验过程中没有随机因素会影响实验数据，确保实验过程是可以被复制的。
+
+但 LOO-CV 的缺点是计算成本高，需要建立的模型数量与原始数据样本数量相同，当原始数据样本数量相当多时，LOO-CV 在实作上便有困难，除非每次训练分类器得到模型的速度很快，或是可以用并行化计算减少计算所需的时间。
+
+使用不同的分类模型进行 K 折交叉验证，如果平均得分比较高，方差比较低，那么这个模型的泛化能力就较强，且性能稳定。
+
+回归拟合和正则化
+~~~~~~~~~~~~~~~~~~
+
+分类模型用于离散量的预测，而回归模型（regression model）可用于连续型变量。比如某种物品的价格波动，销售量，某地区不同时间的降水，气温变化等等。
+
+线性回归
+``````````````
+
+众所周知，连续函数在坐标系中表示出各类直线或者曲线，所谓线性回归，就是使用线性回归函数（也称为回归方程，Linear Regression Equations）来拟合所有的样本点，以使得代价最小，并能有效预测未知数据。用于拟合训练数据的回归函数被称为假设函数（Hypothesis Function）。
+
+我们有这样一组数据，假设样本只有一个样本特征值 x1，你可以把它想象成某种物品的品质（纯度，精度等等），而 y 是这种物品的单位价格。我们有了以上训练样本，如何在给定新的品质特征值时，来预测它的价格 y 呢？
+
+.. figure:: imgs/lg/data.png
+  :scale: 100%
+  :align: center
+  :alt: slowsgd
+
+  线性回归模拟数据
+
+显然可以使用一条直线来预测新数据，关键是我们如何找到这条直线的截距（直线方程的常量）和 x1 的参数（也即权重系数）。显然 x1 是变量，而预测值 y 是因变量，这里只有一个变量，所以也被称为单变量线性回归(Linear Regression with One Variable)。
+
+.. math::
+
+  y = w_1*x_1 + b
+
+上式是单变量（一元）直线方程，对于训练集来说，一个样本就对应上图中的 1 个点，所以一个 x1 也就对应一个 y，在已知一组 x1（训练样本） 和一组对应的 y（目标值）时，如何反推出参数 w1 和 b 呢？线性回归问题就是在一组训练集和寻找最佳拟合参数的过程。所以假设函数是在参数 w1 和 b 条件下的关于 x1 的函数：
+
+.. math::
+
+  h_{(w_1,b)}(x_1) = b + w_1*x_1
+
+我们的目标是寻找一组参数 w1 和 b 使得每个样本的预测值与其对应的标签值误差和最小。
+
+.. figure:: imgs/lg/vertical.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  拟合直线与训练集的误差
+
+图中的蓝色线段对应预测值和真实值（回归问题中也被称为目标值 ，Target Value；分类问题中被称为标签值，显然它是离散的 ）的误差，显然由于误差有正有负，直接相加会相互抵消，取绝对值相加是一个好办法，不过绝对值函数有不好的特性，不是连续可导的，无法利用梯度下降令代价函数最小。通常取差的平方和（SSE），当它最小时，那么预测值就和目标值最接近。
+
+.. math::
+
+  J(w_1,b) = \frac{1}{2n} \sum_{i=1}^{n}(h_{(w_1,b)}(x^i) - y^i)^2
+
+代价函数（Cost Function）也被称作平方误差函数。之所以要求出误差的平方和，是因为误差平方代价函数，对于大多数问题，特别是回归问题，都是一个合理的选择。实际上这里对平方误差和（SSE）取了平均（除以了n），所以实际上描述的是均方差（MSE），对于一个训练集来说 n 是一个不变的常数，所以 SSE 和 MSE 最优结果是一致的。另外注意到式中的 1/2，这只是为了方便求导数，它在求导数时被约掉了。
+
+依据数学理论，可以看到代价函数是一个凹陷的曲面，实际上它是一个严格的凸函数，可以取到极小值，我们可以通过求导数，然后令导数表达式为 0 直接使用代数法求解参数，也可以利用梯度下降法，在大规模问题上，直接求解需要求系数的逆矩阵（有时候逆矩阵不存在），耗时费力，并且很难观察中间结果，通常梯度下降是个好办法。
+
+实现线性回归
+`````````````
+
+这里从最简的单变量线性回归入手，它在讨论梯度下降上既简单（利于图形化），又不失一般性。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # linearegress.py
+  class LRegress():
+    def __init__(self, b=None, w1=None, eta=0.001, tol=0.001):
+        self.eta = eta
+        self.tol = tol
+        
+        np.random.seed(None)
+        self.b = b
+        if self.b is None:
+            self.b = np.random.randn(1)[0]
+        
+        self.w1 = w1
+        if self.b is None:
+            self.w1 = np.random.randn(1)[0]
+
+    # both w and b is verctor, and X is 2D array 
+    def hypothesis(self, X):
+        return self.b + self.w1 * X[:,0]
+
+    def predict(self, X):
+        return self.hypothesis(X)
+    
+    # MSE/LSE Least square method
+    def cost(self, X, y):
+        return np.sum((self.hypothesis(X) - y)**2) / X.shape[0] / 2
+
+    def delta_b(self, X, y):
+        return np.sum(self.b + self.w1*X[:,0] - y) / X.shape[0]
+
+    def delta_w(self, X, y):
+        derective = (self.b + self.w1*X[:,0] - y) * X[:,0]
+        return np.sum(derective) / X.shape[0]
+
+定义 LRegress 类，初始化函数中参数 eta 和 tol 分别对应学习率和最小下降值，如果已经接近最优值并小于 tol 则退出迭代。
+
+- 参数 b 和 w1 通常选择 0 附近的随机值，特别是在数据标准化之后，这有助于加快梯度下降速度。
+- hypothesis 是假设函数，通过它计算预测值
+- cost 在当前参数 (w1 和 b) 上计算代价，也即 MSE。
+- delta_b 和 delta_w 用于计算梯度下降时，b 和 w1 的下降系数。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def bgd(self, X, y, max_iter=1000):
+        # for drawing Gradient Decent Path
+        self.costs_ = [] 
+        self.bs_ = []
+        self.w1s_ = []
+        
+        self.steps_ = 1
+        self.complex = 0
+        
+        for loop in range(max_iter):
+            cost = self.cost(X, y)
+            if(cost < self.tol):
+                print("cost reduce very tiny less than tol, just quit!")
+                return
+            
+            # cache to store delta
+            delta_b  = self.eta * self.delta_b(X, y)
+            delta_w1 = self.eta * self.delta_w(X, y)
+            
+            if self.complex % self.steps_ == 0:
+                self.bs_.append(self.b)
+                self.w1s_.append(self.w1)
+                cost = self.cost(X,y)
+                self.costs_.append(cost)
+            
+            # update w1 and b together
+            self.b -= delta_b
+            self.w1 -= delta_w1
+            self.complex += 1
+
+类的核心部分就是上面的梯度下降函数 bgd，由于我们基于所有数据进行梯度下降，所以是批量梯度下降（BGD），下降曲线非常平滑。注意更新参数时需要同时更新 b 和 w1，否则如果先更新了 self.b，那么在计算 delta_w1 时就会使用新的 self.b，这和数学理论是不一致的。 
+
+- costs\_，bs\_，w1s\_ 用于统计梯度下降过程中的代价值，b 和 w1 的权重变化，用于绘制下降曲线。
+- steps\_ 则指定了统计周期的步长，越小统计采样越密集。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def load_linear_dataset(random_state=None, features=1, points=50):
+      rng = np.random.RandomState(random_state)
+     
+      # Generate sample data
+      x = 20 * rng.rand(points, features) + 2
+      y = 0.5 * (x[:,0] - rng.rand(1, points)).ravel() - 1
+  
+      return x, y
+
+load_linear_dataset 使用 numpy 的正态分布函数生成模拟数据，我们可以调整生成点数，也可以生成多特征的样本，这里 features 指定为 1。
+
+线性回归和梯度下降
+````````````````````
+
+测试函数非常简单，首先生成随机数据，为了能够重复实验结果，random_state 设置为 0。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def LRTest():
+      samples = 50
+      X, y = load_linear_dataset(random_state=0, features=1, points=samples)
+  
+      lr = LRegress(b=5, w1=5, eta=0.005, tol=0.001)
+      lr.bgd(X, y, max_iter=100)
+    
+为了观察梯度下降的过程，我们把 b 和 w1 初始化为较大的值 5，以学习率 0.005 进行 100 次梯度下降。
+
+.. figure:: imgs/lg/se.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  线性回归拟合直线
+
+在进行 100 次梯度下降后，得到的拟合直线并不完美，准确说相当糟糕。是迭代次数不够吗？
+
+.. figure:: imgs/lg/cost.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  线性回归下降曲线
+
+继续观察下降曲线，几乎所有的下降都在第一次完成，接下来的下降速度非常缓慢，显然简单增加迭代次数绝不是个好办法。
+
+.. figure:: imgs/lg/cs.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  线性回归代价函数曲面
+
+接着观察 3D 代价函数的曲面图，可以发现第一次下降几乎就到了谷底，接着从此点到最优点的下降速度非常慢？为何会出现这种现象？
+
+代价函数曲面在某个方向上的波动程度和在该方向上的偏导数相关，也即梯度越大，上升越快，反之则平缓。
+
+.. math::
+
+  \begin{eqnarray}
+  \frac {\partial {J(w_1,b)}}{\partial {b}} & = & \frac{1}{n} \sum_{i=1}^{n} (h_{(w_1,b)}(x^i) - y^i)\\
+  \frac {\partial {J(w_1,b)}}{\partial {w_1}} & = & \frac{1}{n} \sum_{i=1}^{n} (h_{(w_1,b)}(x^i) - y^i)x^i\\
+  \Delta b &=& \eta \frac {\partial {J(w_1,b)}}{\partial {b}}\\
+  \Delta w_1 &=& \eta \frac {\partial {J(w_1,b)}}{\partial {w_1}}
+  \end{eqnarray}
+
+对比 b 和 w1 参数的偏导数只是相差变量 xi，显然如果 xi 整体上大于 1，那么相当于放大了 w1 方向的梯度，否则相当于压缩了 w1 方向的梯度。
+
+我们观察 x1 和 y 样本点分布图，x1 的坐标分布在 0 - 20 之间，显然整体上可以认为近似放大了 10 倍，这样使得整个下降曲面在 w1  方向非常陡峭，而在 b 方向非常平缓。所以第一次下降之所以取得非常大的下降效果，基本上就在于 w1 方向上下降的贡献。
+
+此时的代价函数输出为 1.26891864292，还处在远大于 0 的地方，这里尝试将迭代次数增大到 5000 次，可以获得比较满意的效果。
+
+.. figure:: imgs/lg/gd.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  迭代 5000 次的拟合直线
+
+我们已经指出通过简单增加迭代次数不是个好办法，因为 b 方向的梯度非常平缓，那么是否可以增加学习率呢？
+
+学习率导致的震荡
+`````````````````
+
+这里尝试将学习增加一倍：从 0.005 调整为 0.01，迭代次 100 的结果为还是很不理想，代价函数最终输出为 1.99786346573，结果似乎更差了。
+
+.. figure:: imgs/lg/eta05.png
+  :scale: 100%
+  :align: center
+  :alt: eta05
+
+  学习率从 0.005 调整为 0.01 下降曲线
+
+在学习率增加后，下降曲线反而平缓了，上例中第一次迭代就从 2000 下降到了 2 以下，这次反而在迭代 100 次之后才刚刚下降到 2 。到底发生了什么？ 
+
+.. figure:: imgs/lg/eta05cs.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  学习率从 0.005 调整为 0.01 代价函数曲面
+
+从代价函数的曲面图中可以看出原因，由于 w1 方向非常陡峭，过大的学习率使得每次调整参数总是跳过最优点，而在 w1 方向产生了震荡，庆幸的是每次震荡到对侧还是下降的，最终还是能够收敛最优值，但是显然我们浪费了很多次迭代。
+
+那么如何解决这种问题呢？暂时先放在一边，如果我们继续增大学习率会发生什么呢？直觉上会向上方震荡发现，而根本不能收敛。实际上为了画出比较理想的图形，需要异常小心得选择 eta，否则发散速度非常快，以至于无法作图，这里将 eta 设置为 0.011，并且迭代次数调整为 8。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  lr = LRegress(b=5, w1=5, eta=0.011, tol=0.001)
+  lr.bgd(X, y, max_iter=8)
+
+显然较大的学习率容易导致代价函数无法收敛，并且以极快的速度发散（由于取均方差，所以是以平方的形式发散）。
+
+.. figure:: imgs/lg/diverge.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  学习率从 0.005 调整为 0.011 代价函数下降曲线
+
+在代价函数曲面图上，下降根本没有发生，而是从谷底发散开来。
+
+.. figure:: imgs/lg/divergecs.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  学习率从 0.005 调整为 0.011 代价函数曲面
+
+当然这里的初始参数均为 5，如果我们很幸运地一开始就初始化在了谷底，显然较大的学习率将能够加快 b 方向上的收敛速度，事实确实如此。然而再更多的变量情况下，我们根本不可能指望能够选择这样一组参数，幸运的可能性非常之低。
+
+难道只能依靠以较小的学习率和庞大的迭代次数来解决这种问题？当然不是。为何会出现在 w1 方向震荡的情况，我们已经知道代价曲面在 w1 方向上异常陡峭，而在 b 方向上却非常平缓，是否可以对数据做一些处理，令两个方向的梯度大体一致呢？答案就是数据标准化。
+
+数据标准化和梯度下降
+```````````````````````
+
+我们不能指望现实中的量纲都处在一个数量级，例如长度，密度，体积，重量，价值等等，它们具有不同的单位。房屋价格可能和面积，房间数均有关，但是它们的单位相差悬殊。数据标准化就是把不同量纲的特征值进行正态分布处理，处理后的数据在各个特征值上均值为 0 ，均方差（标准差）为 1。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  (trainData - mean(trainData)) / std(trainData)
+  (testData - mean(trainData)) / std(trainData)
+
+标准化处理公式如上所示，注意测试集和训练集一样均需使用 **训练集** 的均值和标准差统一处理，这一点非常重要。同样在实际预测时，特征值也需要同样的处理。
+
+由于在预测时也需要对数据进行标准化处理，所以需要记录训练集的均值和标准差，对 bgd 函数和预测函数进行更新。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    # 新增标准化处理函数，并记录训练集的均值和标准差
+    def standard(self, X):
+        self.mean = np.mean(X, axis=0)
+        self.std = np.std(X, axis=0)
+        assert(np.std(X, axis=0).any())
+        return (X - self.mean) / self.std
+    
+    # 更新预测函数
+    def predict(self, X):
+        try:
+            X = (X - self.mean) / self.std
+        finally:
+            return self.hypothesis(X)
+    
+    # 添加 standard 开关，是否对数据进行标准化
+    def bgd(self, X, y, max_iter=1000, standard=True):
+        # for drawing Gradient Decent Path
+        self.costs_ = [] 
+        self.bs_ = []
+        self.w1s_ = []
+        
+        self.steps_ = 1
+        self.complex = 0
+        
+        if standard: X = self.standard(X)
+        for loop in range(max_iter):
+            cost = self.cost(X, y)
+            if(cost < self.tol):
+                print("cost reduce very tiny less than tol, just quit!")
+                return X
+            
+            delta_b  = self.eta * self.delta_b(X, y)
+            delta_w1 = self.eta * self.delta_w(X, y)
+            
+            # update weights and b together
+            if self.complex % self.steps_ == 0:
+                self.bs_.append(self.b)
+                self.w1s_.append(self.w1)
+                cost = self.cost(X,y)
+                self.costs_.append(cost)
+
+            self.b -= delta_b
+            self.w1 -= delta_w1
+            self.complex += 1
+        
+        # 返回标准化数据
+        return X
+
+在数据标准化后，x1 被压缩到了 [-2, 2] 范围内。此时 x1 特征值基本分布在原点周围，且方差为 1，那么在 w1 方向上它对梯度的影响就很小了，代价曲面看起来就是一个在 w1 和 b 两方向梯度基本均等的曲面。
+
+.. figure:: imgs/lg/ssp.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  数据标准化后拟合直线
+
+我们可以使用非常高的学习率进行梯度下降，在迭代 100 次后就达到了非常低的代价值 0.0103701224044。所以上图中的拟合直线非常标准，几乎就是最优值。
+
+.. figure:: imgs/lg/ssc.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+  
+  数据标准化后代价函数下降曲线
+
+数据标准化后代价函数下降曲线非常平滑，不会出现有时候剧烈下降，有时又不动的情况，实际上在迭代 40 次以后就可以停止了，此时的误差也只有 0.011。
+
+.. figure:: imgs/lg/sscs.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+  
+  数据标准化后代价函数下降曲面
+
+观察代价函数的曲面图，它和直觉上的分析一致，在 b 和 w1 维度上比例保持一致，等高线成了标准的圆环。梯度下降的路径成了非常理想的弧线。最优值基本在 w1 靠近 0 附近，所以将参数初始化为 0 附近的随机值将会加快梯度下降速度。
+
+使用数据标准化要注意的是：要在预测时对数据采取同样的标准化处理。使用以上模型尝试对一些值进行预测，对照标准化之前的数据样本散点图，和实际是基本一致的。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  print(lr.predict(np.array([[5],[10],[15]])))
+  
+  >>>
+  [1.22770885  3.77016164  6.31261442]
+  
+线性回归和随机梯度下降
+`````````````````````````
+
+如果训练数据集非常庞大，比如数十万甚至百万级别，那么在整体数据上求得偏导数，然后计算每次下降的 delta 参数将非常耗时，甚至内存的限制也无法一次加载所有数据。这时候就需要使用随机梯度下降。
+
+随机梯度（SGD）下降基于大数定理，随机选取的子集的分布能够反映整体数据的分布，当在随机选取的子集上训练次数越来越多，最终就会接近批量梯度下降的效果。SGD每次选取一个样本进行权重调节，如果一次选取多个样本，则称为小批量梯度下降（MBGD）。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def sgd(self, X, y, max_iter=1000, standard=True):
+        # for drawing Gradient Decent Path
+        self.costs_ = [] 
+        self.bs_ = []
+        self.w1s_ = []
+        
+        self.steps_ = 1
+        self.complex = 0
+        
+        STDX = self.standard(X) if standard else X
+        import scaler
+        # 每次迭代进行乱序处理，以期找到较好拟合结果
+        X,y = scaler.shuffle(STDX, y)     
+        for loop in range(max_iter):
+            import scaler
+            X,y = scaler.shuffle(STDX, y) 
+            for Xi, yi in zip(X, y):
+                Xi = Xi.reshape(Xi.size, 1)
+                cost = self.cost(Xi, yi)
+                if(cost < self.tol):
+                    print("cost reduce very tiny less than tol, just quit!")
+                    return STDX
+
+                delta_b  = self.eta * self.delta_b(Xi, yi)
+                delta_w1 = self.eta * self.delta_w(Xi, yi)
+                
+                # update weights and b together
+                if self.complex % self.steps_ == 0:
+                    self.bs_.append(self.b)
+                    self.w1s_.append(self.w1)
+                    cost = self.cost(X,y)
+                    self.costs_.append(cost)
+
+                self.b -= delta_b
+                self.w1 -= delta_w1
+                self.complex += 1
+        return STDX
+
+测试代码进行一些调整，由于每次基于单个数据下降，那么 tol 应调小一些，b 和 w1 这里初始化为 15，以便观察到代价曲面中梯度下降的扭曲现象。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def LRTest():
+      samples = 50
+      X, y = load_linear_dataset(random_state=0, features=1, points=samples)
+      lr = LRegress(b=15, w1=15, eta=0.1, tol=1e-4)
+      X = lr.sgd(X, y, max_iter=100, standard=True)
+
+sgd 函数实现随机梯度下降，注意每次迭代前进行数据的乱序处理，显然随机梯度下降在小范围内可能出现逆调整，也即下降曲线比较粗糙，偶然上升，但是整体趋势在不断下降，并接近 BGD 的效果：
+
+.. figure:: imgs/lg/sgd.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+  
+  随机梯度下降代价函数曲线
+
+观察随机梯度下降代价函数曲面上的下降过程，路径弯弯曲曲，局部体现为随机漫步，整体在靠近等高线的圆心。
+
+.. figure:: imgs/lg/sgdcs.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+  
+  随机梯度下降代价函数曲面
+
+线性回归和非线性回归
+``````````````````````
+
+已经看到线性回归得到的拟合模型，似乎总是对应直线。实际上并非总是如此，线性回归的假设函数的标准形式（k表示每个样本的特征数）：
+
+.. math::
+
+  h_w(x) = w_0 + w_1*x_1 + w_2*x_2 + \cdots + w_k*x_k
+  
+式中的 :raw-latex:`\(w_i\)` 表示参数（Parameters，或者权重），:raw-latex:`\(x_i\)` 表示自变量（Independent variable）。每个参数只与其中的一个自变量相乘，然后叠加。这就是线性的本质：一个参数只以线性相乘的方式影响一个自变量。
+
+当然可以使用多项式的形式对上式进行扩充，例如：
+
+.. math::
+
+  h_w(x) = w_0 + w_1*x_1 + w_2*x_1^2 + w_3*x_2 + w_4*x_1*x_2 + w_5*x_2^2
+
+这里可以认为基于基本特征，扩展了新特征 x3，x4 和 x5。其中 x3 = x1*x1，x4 = x1*x2 等。这可以得到曲线形式的线性回归，当然可以扩充到任意次多项式，通常不会用到超过 3 次项形式。扩充特征的方式不仅仅是指数函数，还可以是倒数，或者以 e 为底的 x1 次方等等。 
+
+常见的非线性回归假设函数有参数的指数形式，以及参数的傅里叶形式，这里不做深入讨论。
+
+.. math::
+
+  \begin{eqnarray}
+  h_w(x) &=& w_0 * x_1^{w_1} \\
+  h_w(x) &=& w_0 + w_1\cos {(x_1 + w_2)} + w_3*\cos{(2x_1 + w_4)}
+  \end{eqnarray}
+
+
+多项式线性回归
+`````````````````
+
+这里使用一组身体质量指数 (BMI，体重(kg)/ 身高(m))，尝试通过 BMI 来预测肥胖率。BMI 数据实际上有四列，对应一组中学生的身高，体重，BMI指数以及肥胖程度。这里只用到了 BMI 和目标值。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def BMITest():
+      import scaler
+      # 梯度下降中会对数据进行标准化，在加载数据时无需做标准化处理
+      X,y = dbload.load_bmi_dataset(standard=False)
+      X = X[:,2].reshape(X.shape[0],1) # last column is BMI
+      lr = LRegress(b=5, w1=5, eta=0.1, tol=0.001)
+      
+      X = lr.bgd(X, y, max_iter=100, standard=True)
+
+这里使用批量梯度下降，迭代 100 次，采用较大的学习率 0.1，得到下降曲线。显然在迭代 40 次后基本达到最优值，但是此时的代价函数返回 6.46，实际上误差还是很大的。
+
+.. figure:: imgs/lg/bmic.png
+  :scale: 100%
+  :align: center
+  :alt: bmic
+  
+  BMI下降代价函数曲线
+
+从获得的拟合直线图上可以看出直线基本已经位于所有训练样本点的中心，更多的迭代无法使代价函数继续下降。
+
+.. figure:: imgs/lg/bmis.png
+  :scale: 100%
+  :align: center
+  :alt: bmis
+  
+  BMI 拟合直线
+
+从曲面图的等高线上也可以验证这一点，参数已经取到了最优值，这说明我们选择的假设函数并不能很好地拟合 BMI 数据。实际中可以使用交叉验证方式来评估模型的准确度。
+
+.. figure:: imgs/lg/bmics.png
+  :scale: 100%
+  :align: center
+  :alt: bmics
+  
+  BMI下降代价函数曲面图
+
+观察样本点的分布情况，肥胖率和BMI指数之间似乎不是严格线性的，而是一个弧形，也即是一个曲线。
+
+这里直接使用 sklearn 中的线性回归模型 LinearRegression，尝试使用多项式进行拟合。为了进行多项式拟合，首先定义特征扩展函数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  # extend style as [x1,x2] to [1, x1, x2, x2x1, x1^2, x2^2]
+  def poly_extend_feature(X,degree=2):
+      from sklearn.preprocessing import PolynomialFeatures
+      poly = PolynomialFeatures(degree=degree)
+      return poly.fit_transform(X)
+
+  X = np.array([[1],[2]])
+  extendX = poly_extend_feature(X)
+  print(extendX)
+
+  >>>
+  [[ 1.  1.  1.]
+   [ 1.  2.  4.]]
+
+这里验证特征扩展函数，由于我们只有一项特征值 BMI，所以这里使用 2 行 1 列的模拟数据来测试 poly_extend_feature。对于样本 1 它的 x1 就是 1，对应第一项为常数项 1，第二项为 x1 本身，第三项为平方项，观察第二行数据，处理方式相同。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def BMISklearnTest():
+      from sklearn.linear_model import LinearRegression
+      
+      # 加载数据
+      X,y = dbload.load_bmi_dataset(standard=False)
+      X = X[:,2].reshape(X.shape[0],1) # last column is BMI
+      
+      # y = b + w1x + w2* x** 2，扩展数据
+      extend_X = poly_extend_feature(X, degree=2)
+      
+      # 训练模型，fit_intercept 为 False 将同时训练常数项
+      lr = LinearRegression(fit_intercept=False)
+      lr.fit(extend_X, y)
+      print(lr.coef_) 
+      
+      # 计算代价函数的最终值
+      cost = np.sum((lr.predict(extend_X) - y)**2) / extend_X.shape[0] / 2
+      print("cost:\t%f" % cost)
+      
+      # 评估模型得分
+      print("score:\t%f" % lr.score(extend_X, y))
+      
+      plt.figure()
+      x1 = np.linspace(10, 40, 50, endpoint=True).reshape(50,1)
+      extend_x1 = poly_extend_feature(x1, degree=2)
+      plt.plot(x1, lr.predict(extend_x1), c='red')
+      plt.scatter(X, y, c='black', marker='o')
+      plt.xlabel("BMI")
+      plt.ylabel("Fat%")
+      plt.show()
+  
+  BMISklearnTest()
+  
+  >>>
+  [-23.18746064   3.28574267  -0.03998913]
+  cost:   6.040900
+  score:  0.760597
+
+打印结果第第一行分别对应 b (w0)，w1 和 w2，它存储在 coef_ 类成员中。由于 LinearRegression 没有提供计算代价值的函数，这里使用MSE方式实现，结果为 6.04，比我们的线性模型要好一些，score 则表示对模型的评估，也即预测准确率在 76%。
+
+.. figure:: imgs/lg/pbmi.png
+  :scale: 100%
+  :align: center
+  :alt: pbmi
+  
+  BMI 多项式拟合曲线
+
+当然可以使用更复杂的多项式，比如3次或者4次，但是观察数据分布，实际上我们无法再通过简单的 BMI 指数一个特征值来提高预测肥胖度的准确率了。
 
