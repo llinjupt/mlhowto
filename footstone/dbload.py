@@ -183,6 +183,21 @@ def load_iris_mclass(ratio=0.3, random_state=0):
     
     return X_train, X_test, y_train, y_test
 
+def load_bmi_dataset(random_state=None, standard=True):
+    import pandas as pd
+    df = pd.read_csv('db/bmi/BMI.csv', header=0)
+    
+    # get the last column %Fat
+    y = df.iloc[:, -1].values
+     
+    # Height M	Weight kg	BMI
+    X = df.iloc[:, [0,1,2]].values
+    if random_state is not None:
+        X,y = scaler.shuffle(X, y)
+    
+    if not standard: return X,y
+    else: return scaler.standard(X), scaler.standard(y)
+    
 # generate noraml distribution train set
 def load_nd_dataset(positive=100, negtive=100, type='normal'):
     np.random.seed(3)
