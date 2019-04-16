@@ -1804,7 +1804,8 @@ sgd 函数实现随机梯度下降，注意每次迭代前进行数据的乱序�
       # y = b + w1x + w2* x** 2，扩展数据
       extend_X = poly_extend_feature(X, degree=2)
       
-      # 训练模型，fit_intercept 为 False 将同时训练常数项
+      # 训练模型，fit_intercept 为 True 将同时训练常数项
+      # 由于数据扩展的第一列全为 1，所以就对应了常数项，可以设置为 False
       lr = LinearRegression(fit_intercept=False)
       lr.fit(extend_X, y)
       print(lr.coef_) 
@@ -1843,3 +1844,103 @@ sgd 函数实现随机梯度下降，注意每次迭代前进行数据的乱序�
 
 当然可以使用更复杂的多项式，比如3次或者4次，但是观察数据分布，实际上我们无法再通过简单的 BMI 指数一个特征值来提高预测肥胖度的准确率了。
 
+过拟合与正则化
+``````````````
+
+观察下图中的幂函数，指数取得越大，曲线变化率越大。所以多项式的次数取得越高，那么它的表达能力就越强，以至于可以穿过所有训练样本点，使得代价函数为 0 ，但是它的泛化能力却很差。
+
+.. figure:: imgs/lg/lines.png
+  :scale: 100%
+  :align: center
+  :alt: lines
+  
+  幂函数曲线图
+
+实际上这是一个平方曲线，进行了部分点的干扰，如果使用直线进行拟合，则会有较大的偏差，导致欠拟合，而这里使用6次多项式使得曲线几乎可以穿过所有训练集样本点，而使用它来预测效果并不好，例如取 0.3 和 3.1 进行预测，与真实值偏差很大，这就是典型的过拟合：过于强调拟合原始数据，而丢失了算法的本质：预测新数据。
+
+.. figure:: imgs/lg/overfit.png
+  :scale: 100%
+  :align: center
+  :alt: pbmi
+  
+  过拟合示例
+
+显然使用下图的二次多项式来拟合，效果会更好。但是实际应用中，我们无法这么直观地通过图像来观察拟合模型是否刚刚好，实际上2次多项式是6次多项式的子集，只需要其他高次项的参数接近 0，这样高次项对整条曲线的影响就很小了，曲线看起来就很平滑。使用正则化来降低过拟合的思想就来源于此。
+
+.. figure:: imgs/lg/ok.png
+  :scale: 100%
+  :align: center
+  :alt: ok
+  
+  2次多项式拟合曲线
+
+下图展示了不同参数的高次项对直线弯曲程度的影响，显然参数 0.1 的 5 次方项对直线 y = x 的弯曲程度影响最小：
+
+.. figure:: imgs/lg/linesfit.png
+  :scale: 100%
+  :align: center
+  :alt: lines
+  
+  不同参数的高次项对直线弯曲程度的影响
+
+L2 正则化和岭回归
+`````````````````
+
+如果我们知道哪些参数影响高次项，可以选择给与惩罚，使其对曲线影响很少，但是如果我们有非常多的特征，我们并不知道其中哪些特征对应的参数要进行惩罚，或者我们根本无法通过人工来区分，这样可以选择对所有的特征参数都进行惩罚，并且让代价函数最优化的程序自动选择惩罚程度。
+
+这样的结果是得到了一个较为简单的能防止过拟合问题的代价函数：
+
+.. math::
+
+  J(w) = \frac{1}{2n} (\sum_{i=1}^{n}(h_w(x^i) - y^i)^2 + \lambda \sum_{j=1}^{k}w_j^2)
+
+我们在 MSE 代价函数中加入了权重的平方和，它被称为 L2 惩罚项（L 为 Least 缩写），使用 L2 方式进行正则化的回归就是岭回归（Ridge Regression）。
+
+其中 λ 又称为正则化参数（Regularization Parameter）。根据惯例，不对常数项 b（也即 w0）项进行惩罚。
+
+为何增加了 L2 惩罚项，就可以缓解过拟合情况呢？为了使代价函数尽可能的小，所有的参数值 w（不包括w0）都会在一定程度上减小。如果 λ 的值取很大，那么 w 都会趋近于 0，这样我们得到的就近似一条平行于 x 轴的直线，就会造成欠拟合，相反，如果取得很小就会过拟合。
+
+对于正则化参数 λ，要取一个合理的的值，这样才能既不欠拟合也不过拟合。
+
+sklearn 中的线性模型提供了岭回归的算法实现。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def load_curve_dataset(random_state=None, features=1, points=50):
+      x = np.linspace(0.5, 3, points, endpoint=True).reshape(points,1)
+      y = x**2 - 1
+      y[1] = 0.4 # 向添加数据噪声
+      y[4] = 2
+      y[7] = 5
+      y[-1] = 6.5
+  
+      return x, y
+  
+  def RidegeTest():
+      from sklearn import linear_model
+  
+      X, y = load_curve_dataset(random_state=0, features=1, points=10)
+      extend_X = poly_extend_feature(X, degree=6)
+      
+      lr = linear_model.Ridge(fit_intercept=False, alpha=500)
+      lr.fit(extend_X, y)
+      print(lr.coef_) 
+  
+  RidegeTest()
+ 
+  >>>
+  [[ 0.00526983  0.01128546  0.02135532  0.03802435  0.0609829   0.07208664
+    -0.02267014]]
+  cost:   0.199519
+  score:  0.936215
+
+λ 正则化参数通过 alpha 设置，这里使用了非常高的正则化参数 500，最终的拟合曲线看起来平滑多了：
+
+.. figure:: imgs/lg/regu.png
+  :scale: 100%
+  :align: center
+  :alt: regu
+  
+  岭回归拟合曲线
