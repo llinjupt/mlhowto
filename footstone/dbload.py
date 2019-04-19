@@ -76,16 +76,19 @@ def load_mnist_vector(count=100, test=100):
     X_train, X_labels = load_mnist(r"./db/mnist", kind='train', count=count)
     X_train = X_train.reshape(X_train.shape[0], X_train.shape[1] ** 2)
 
+    mean = np.mean(X_train, axis=0)
+    std = np.std(X_train, axis=0)
+    std[std == 0] = 1e-25
+
     ds = scaler.DataScaler(X_train)
     X_train = ds.sklearn_standard(X_train)
 
-    y_train, y_labels = load_mnist(r"./db/mnist", kind='t10k', count=test)
-    y_train = y_train.reshape(y_train.shape[0], y_train.shape[1] ** 2)
-
-    ds = scaler.DataScaler(y_train)
-    y_train = ds.sklearn_standard(y_train)
+    y_test, y_labels = load_mnist(r"./db/mnist", kind='t10k', count=test)
+    y_test = y_test.reshape(y_test.shape[0], y_test.shape[1] ** 2)
+    # Note: must use X_train mean and std standard testset
+    y_test = (y_test - mean)/std 
     
-    return X_train, X_labels, y_train, y_labels
+    return X_train, X_labels, y_test, y_labels
 
 def __load_kaggele_mnist(fname, labeled=True, count=-1):
     ''' Load Kaggle Mnist From csv file
@@ -196,8 +199,8 @@ def load_bmi_dataset(random_state=None, standard=True):
         X,y = scaler.shuffle(X, y)
     
     if not standard: return X,y
-    else: return scaler.standard(X), scaler.standard(y)
-    
+    else: return scaler.standard(X), y
+
 # generate noraml distribution train set
 def load_nd_dataset(positive=100, negtive=100, type='normal'):
     np.random.seed(3)

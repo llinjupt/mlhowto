@@ -71,6 +71,13 @@ def data_split(X, y, ratio=0.3, random_state=0):
     # 'X_train, y_test, x_labels, y_labels = '
     return train_test_split(X, y, test_size=ratio, random_state=random_state)
 
+# extend style as [x1,x2] to [1, x1, x2, x2x1, x1^2, x2^2]
+def data_extend_feature(X, degree=2, interaction_only=False, bias=True):
+    from sklearn.preprocessing import PolynomialFeatures
+    poly = PolynomialFeatures(degree=degree, interaction_only=interaction_only,
+                              include_bias=bias)
+    return poly.fit_transform(X)
+
 if __name__ == "__main__":
     X,y = normal_dis_trainset(3, 3)
     
