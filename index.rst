@@ -23,5 +23,6 @@
   opencv
   practice
   neuron
+  cnn
   deeplearn
   appendix

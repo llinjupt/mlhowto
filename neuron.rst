@@ -976,10 +976,153 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
   biases: [array([[ 0.00759751],
          [-0.15077827]]), array([[ 0.13845597]])]
 
+柔性最大值 softmax
+``````````````````````
+
+在二分类问题中输出层只有一个节点，使用 sigmoid 对数回归函数就可以很好地从概率上给与预测准确率的解释，但是在多分类问题上，各个节点激活值的和就完全可以大于 1，这样就无法满足概率解释的需求了。这里就引入了柔性最大值（softmax） 激活函数。后面的分析可以看到 softmax 激活函数：
+
+- 不仅可以很好地从概率上解释预测的准确率；
+- 同样它和 sigmoid 一样，可以解决使用交叉熵代价函数学习缓慢的问题。（显然我们不能为了解决一个问题而带来另一个问题，否则就不会引入 softmax了！） 
+
+柔性最大值只用于输出层，也即它为神经网络重新定义了输出层。在 softmax 激活值函数中，分母是经归一化处理的所有 K（输出层节点数）个线性函数之和，而分子为净输入 z，二者的比值即为特定样本属于第 j 个类别的概率：
+
+.. math::
+  
+  \phi {(z^L_j)} = a^L_j = \frac {e^{z^L_j}}{\sum_k e^{z^L_k}} \qquad (0)
+
+式中 L 表示输出层，j 表示输出层第 j 个节点，分母中的求和在所有的输出节点上进行，显然所有 K 个节点的激活输出的和总为 1，某个节点输出的增加将导致其他节点的输出降低，反之亦然。
+
+.. math::
+  
+  \sum_j {a^L_j} = \frac {\sum_j e^{z^L_j}}{\sum_k e^{z^L_k}} = 1 
+
+另外注意到由于指数函数是正的，所以每个节点的激活输出总是正的，又由于它们的和总为1，柔性最大值在第 j 个节点上的输出可以被看做预测为分类 j 的似然概率。softmax 的实现非常简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def softmax(self, z):
+        return np.exp(z) / np.sum(np.exp(z), axis=0)   
+
+那么在使用柔性最大值激活函数时，代价函数如何表示呢？显然对于一个样本输入 x，对应一个 K 维的向量，其中有一个标签为 1，其余均为 0，我们的目标是使得对应标签 1 的输出（似然概率）最大即可：
+
+.. math::
+
+  L(w) = \prod_{i=1}^{n}P(y^i|x^i;w) = \prod_{i=1}^{n} {a^L_j}^i
+
+其中 :raw-latex:`\({a^L_j}^i\)` 表示输入样本 i 时，标签为 1 的节点 j 的输出。显然它对应的对数似然函数如下：
+
+.. math::
+
+  l(w) = \ln {(L(w))} = \sum_{i=1}^{n} \ln {{a^L_j}^i}
+
+显然似然函数最大，则代价函数最小，加负号，并取平均，即可得到代价函数：
+
+.. math::
+
+  J(w) = -\frac {1}{n} \sum_{i=1}^{n} \ln {{a^L_j}^i}
+
+只考虑一个样本时的代价函数：
+
+.. math::
+
+  j(w) = -\ln {a^L_j}
+
+.. figure:: imgs/practice/bp1.png
+  :scale: 100%
+  :align: center
+  :alt: sigcost
+
+  反向传播示意图
+
+根据反向传播理论，一个权重的调整系数只与输入和输出信号误差有关，例如图中的 :raw-latex:`\(w^{(2)}_{11}\)` 的调整系数只与 :raw-latex:`\(a^{(2)}_{1}\)` 和  :raw-latex:`\(\delta^{(3)}_{1}\)` 有关，其中：
+
+.. math::
+
+  \delta^{(3)}_{1} = \frac {\partial j(w)}{\partial z^{3}_1}
+  
+更普遍地，根据链式求导法则有：
+
+.. math::
+
+  \frac {\partial j(w)}{\partial z^{L}_i} =
+  \frac {\partial j(w)}{\partial a^{L}_j} \frac {\partial a^{L}_j}{\partial z^{L}_i}
+
+上式第 1 部分容易求得：
+
+.. math::
+
+  \frac {\partial j(w)}{\partial a^{L}_j} = -\frac{1} {a^{L}_j}
+
+第 2 部分分为两种情况，当 i = j 时，表示当前节点的激活输出对当前节点的输入求偏导，i != j 时，表示对其他节点的输入求偏导，也即：
+
+.. math::
+
+  \frac {\partial a^{L}_j}{\partial z^{L}_i} = \left\{ \begin{array}{ll}
+                  a^{L}_j(1-a^{L}_j) & \textrm{$i=j$}\\
+                  -a^{L}_j a^{L}_j & \textrm{$i!=j$}\\
+                  \end{array} \right.
+
+将以上两部分合并后得到：
+
+.. math::
+
+  \frac {\partial j(w)}{\partial z^{L}_i} = \left\{ \begin{array}{ll}
+                  a^{L}_j - 1 & \textrm{$i=j$}\\
+                  a^{L}_j & \textrm{$i!=j$}\\
+                  \end{array} \right.
+
+观察上式，对于样本 i 的输入，由于 j 对应标签值为 1 的节点，其余节点标签值为 0，上式可以合并为：
+
+.. math::
+
+  \frac {\partial j(w)}{\partial z^{L}} = a^{L} - y^i
+
+这和使用 sigmoid 激活函数的偏导是一致的，也即无需对反向传播的核心部分进行更改。再仔细观察这里的代价函数，与逻辑回归代价比较，显然当逻辑回归代价函数中所有标签为 0 的项都消去，它们就成了一样的形式。所以代价函数代码也无需更改。
+
+这里只需要增加一个 softmax 开关，并更新前向传播的相关代码即可：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+    def __init__(self, sizes, eta=0.001, epochs=1000, tol=None, alpha=0, softmax=True):
+        ......
+        # 根基 softmax 开关来设置不同的输出层激活函数
+        self.outactive = self.sigmoid
+        if softmax: self.outactive = self.softmax
+        ......
+        
+    def feedforward(self, X):
+        out = X.T
+        for b, W in zip(self.biases[0:-1], self.weights[0:-1]):
+            out = self.sigmoid(W.dot(out) + b)
+        
+        # 更新最后一层的激活值计算方式
+        return self.outactive(self.weights[-1].dot(out) + self.biases[-1])
+
+    def mbatch_backprop(self, X, y, type='llh', total=1):
+        ......
+        layers = 0
+        for b, W in zip(self.biases, self.weights):
+            z = W.dot(activation) + b
+            zs.append(z)
+            # 更新最后一层的激活值计算方式
+            if layers == self.num_layers - 2:
+                activation = self.outactive(z)
+            else:
+                activation = self.sigmoid(z)
+
+            acts.append(activation)
+            layers += 1
+
+在 sklearn 中的 MLPClassifier 神经网络模块中，当遇到多分类情况时，输出层的激活函数默认设置为 softmax。本质上 softmax 不能带来任何性能的提升，只是方便从似然概率的角度对模型进行更好的解释。
+
 神经网络的强大表现力
 ``````````````````````
 
-我们已经看到在 XOR 问题上神经网络预测曲面，它以非常具有弹性的方式扭曲，以适应不同样本所在的空间，并把它们包围或者分割开来。如果尝试在 XOR 数据的基础上，在 y = x 方向增加一些样本点，并且设置标签值互相交替，感性地看一下神经网络表现能力：
+我们已经看到在 XOR 问题上神经网络预测曲面，它以非常具有弹性的方式扭曲，以适应不同样本所在的空间，并把它们包围或者分割开来。如果尝试在 XOR 数据的基础上，在 y = x 方向增加一些样本点，并且设置标签值互相交替，感性地看一下神经网络在“加强版” XOR 数据上的表现能力：
 
 .. figure:: imgs/practice/exor.png
   :scale: 100%
@@ -990,7 +1133,7 @@ MSE 代价函数很容易写出来，与 Adaline 模型不同的是，这里要�
 
 通过实践可以发现数据的分类交织越复杂，就要使用更多的隐藏节点，否则很难训练出有效的模型。这里使用 [2,10,1] 网络结构来训练样本，并观察上图中的等高线，负样本被一一限制在像蜂房一样的格子里，格子外则是正样本的领域。再观察 3D 图形，曲面在负样本聚集处快速下陷，形成一个蜂巢（或者抽屉）从而能把正负样本分离出来。
 
-不要寄希望于每次训练都能得到这一组权重，让预测平面看起来如此完美无瑕，实际上 [2,10,1] 的网络权重已经达到了 2*10 + 10*1 = 30 个，它能张成的空间早已超出人脑所能想象之外，上图只不过是数亿亿分之一的一个解决方案，大部分在训练集上的预测曲面可能是这样的：
+不要寄希望于每次训练都能得到这一组权重，让预测平面看起来如此完美无瑕，实际上 [2,10,1] 的网络参数已经达到了 (2*10 + 10) + (10*1 + 1) = 41 个（其中权重 2*10+10*1 =30 个，偏置 11 个），它能张成的空间早已超出人脑所能想象之外，上图只不过是数亿亿分之一的一个解决方案，大部分在训练集上的预测曲面可能是这样的：
 它们长得奇形怪状，但是确实能够完美的分割训练集，但是对于未知数据的泛化能力就要大打问号了。
 
 .. figure:: imgs/practice/exore.png
@@ -1499,9 +1642,11 @@ gradient problem）。实际上遇到梯度消失问题要远远大于梯度激�
 
 另外一种方法是中间层的激活函数使用 ReLU (修正线性单元)，也即 f(z)=max(0,z)，显然它的导数只有 0 和 1：
 
-- 提高 ReLU 的带权输不会导致其饱和，所以就不存在学习速度下降。
+- 提高 ReLU 的带权输入不会导致其饱和，所以就不存在梯度下降问题。
 - ReLU 的计算比 sigmoid 激活函数计算简单，没有指数运算，程序执行更快。
 - 但是，当带权输入是负数时，梯度就消失了，神经元就完全停止了学习。此时可以使用改良版的 ELU 或者 LReLU 来代替 ReLU。
+
+ReLU 在 0 点不可导，意味着它在0点有无数条切线，而梯度下降是沿着切线反方向进行的，所以只要取 [0, 1]直接的值均是可以的，通常取 0 值。
 
 .. figure:: imgs/practice/exor.png
   :scale: 100%
