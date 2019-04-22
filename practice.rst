@@ -198,6 +198,136 @@ conda 用于管理 Anaconda3 科学计算环境软件包。
   # ModuleNotFoundError: No module named 'PyQt5.QtWebKitWidgets'
   conda update -c conda-forge qt pyqt
 
+cuda
+~~~~~~~~~~~~
+
+一些深度神经网络可以使用 GPU 加速，例如 TensorFlow，它们底层会调用 NVIDA 的 cuda 计算库。
+
+在 `CUDA安装包归档 <https://developer.nvidia.com/cuda-toolkit-archive>`_ 可以找到所有版本，在 `CUDA使用文档 <https://docs.nvidia.com/cuda/index.html>_` 中查看CUDA的使用说明。
+`在Windows 上安装CUDA <https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#axzz410A2xbq6>_` 一文对安装环境要求和开发环境（Visual Studio）均进行了详细说明。
+
+安装步骤如下：
+
+- 在  `支持 CUDA 的 GPU列表 <https://developer.nvidia.com/cuda-gpus>_` 中查看所用机器的 GPU 是否支持 CUDA。
+- 在 `CUDA安装包归档 <https://developer.nvidia.com/cuda-toolkit-archive>`_ 可以找到所需 CUDA 版本
+- 根据操作系统类型和版本下载并安装 CUDA
+
+TensorFlow
+~~~~~~~~~~
+
+通常使用 Keras 作为前端，TensorFlow 作为后端。Keras 提供了统一封装的API，以快速建模并验证。
+
+tensorflow 分为 CPU 版本和 GPU 版本，这里以 Anaconda 环境安装 tensorflow-cpu 版本为例。
+
+首先查看硬件显卡版本，选择安装 `Cuda 版本 <https://developer.nvidia.com/cuda-toolkit-archive>`_。
+然后根据 `版本兼容性 <https://tensorflow.google.cn/install/source_windows>`_ 安装 CuDNN。笔者 Notebook 为 NVIDA 940MX，选择安装 Cuda 8.0 和 CuDNN 6.0，接着安装 tensorflow-gpu 1.4.0 版本：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  # 创建python=tf36版本的环境，取名叫tf36
+  conda create -n tf36 python=3.6
+  activate tf36
+  
+  # pip 安装 tensorflow，注意在WIN 环境不要使用 conda 命令安装，否则无法使用GPU加速
+  # 实际对应 tensorflow_gpu-1.4.0-cp36-cp36m-win_amd64.whl
+  pip install tensorflow-gpu==1.4.0
+  
+  # 不要使用 conda 安装，否则会覆盖 tensorflow-gpu 环境
+  # 实际对应 Keras-2.2.4-py2.py3-none-any.whl
+  pip install keras
+  
+  # 如果是已有环境，则需要列出 tensoflow 版本，进行 uninstall 卸载，然后使用 pip 重新安装
+  conda list tensorflow
+
+在 Linux 的 Anaconda 环境可以直接使用 conda 安装 tensorflow-gpu 和 keras-gpu，看来问题出在 Anaconda 官方没有适配 Windows 相关依赖。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def test_tf():    
+      import tensorflow as tf
+      with tf.device('/gpu:0'):
+          # Creates a graph. 
+          a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a') 
+          b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b') 
+      c = tf.matmul(a, b) 
+      # Creates a session with log_device_placement set to True. 
+      sess = tf.Session(config=tf.ConfigProto(log_device_placement=True)) 
+      # Runs the op. 
+      print(sess.run(c))
+  
+  if __name__ == "__main__":
+      test_tf()
+
+如果环境配置成功，应该会得到类似的输出：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  ......
+  Found device 0 with properties:
+  name: GeForce 940MX major: 5 minor: 0 memoryClockRate(GHz): 1.2415
+  pciBusID: 0000:02:00.0
+  totalMemory: 2.00GiB freeMemory: 1.66GiB
+  ......
+
+keras
+~~~~~~~~~~~
+
+结合 Cuda，通过安装 pip install keras 后，可能需要配置 keras，文件位于 ∼/.keras/keras.json：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  {
+      "floatx": "float32",
+      "epsilon": 1e-07,
+      "backend": "tensorflow",
+      "image_data_format": "channels_last"
+  }
+
+其中 backend 用于设置后端引擎，image_data_format 用于指定颜色通道顺序，对于 tensorflow 它就是 channels_last，而对于 Theano 则对应 channels_first。
+
+在 keras 结合 tensorflow 应用时可能会遇到如下错误错误，说明版本不兼容：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  TypeError: softmax() got an unexpected keyword argument 'axis'
+
+可以降低 keras 的版本:
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  pip install --upgrade keras==2.1.3
+
+或者更改代码为：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  import tensorflow as tf
+  # model.add(Activation("softmax"))
+  model.add(Activation(tf.nn.softmax))
+
+另一种比较 hacking 的做法是，直接修改 tensorflow_backend.py 代码，找到 softmax 函数 axis 参数改为 dim 参数： 
+  
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0  
+  
+  # return tf.nn.softmax(x, axis=axis)
+  return tf.nn.softmax(x, dim=axis)
+
 Numba
 ~~~~~~~~
 
@@ -219,7 +349,7 @@ Numba 的使用异常简单，只需要在需要优化的函数前添加函数�
   
   # 导入运行时优化装饰器 jit
   from numba import jit
-  
+
   @jit
   def test_numba(size=10000):
       total = 0.0
