@@ -424,7 +424,7 @@ CNN 三要素
 - Sobel 算子在 x，y 方向的导数将 0 切割成两个弧形
 - 浮雕处理后 0 在四个方向被平切
 
-有些变换得到的特征并不适用于人脑对数字的识别，例如浮雕处理后到底对数字识别有什么裨益，当然卷积核有成千上万种供选择，也不可能一一分析。但是人脑是够识别 0 在于它就是一个圈，也许这个圈不太圆，所以锐化操作和拉普拉斯变换就能清晰地反应这一事实，不难假想它们在卷积层对应的节点输入权重可能被调整得比较大，这有益于对手写数字的识别。
+有些变换得到的特征并不适用于人脑对数字的识别，例如浮雕处理后到底对数字识别有什么裨益，当然卷积核有成千上万种供选择，也不可能一一分析。但是人脑是够识别 0 在于它就是一个圈，也许这个圈不太圆，所以锐化操作和拉普拉斯变换就能清晰地反应这一事实，不难假想它们在卷积层对应的节点输入权重可能被调整得比较大，这有益于对手写数字的识别。当然实际上所有的卷积核都是动态学习到的，我们不能指望凑巧生成了一个拉普拉斯变换的卷积核，但是这种直觉理解是有益的。
 
 实际上，人脑还会结合上下文来进行识别，如果在一串数字中，那么圆形就被判定为数字 0，如果是在单词中，显然是字母 o。从这一观点出发机器学习显然具有非常大探索空间。
 
@@ -466,4 +466,450 @@ CNN 三要素
   :lineno-start: 0
   
   INPUT -> CONV(ReLU) -> POOLING -> FC(SOFTMAX) -> OUTPUT
+
+我们使用 Keras 来一步步构建 CNN 神经网络，Keras 对一些深度神经网络的学习库进行了统一接口封装，例如 TensorFlow, CNTK, 或者 Theano，它们被作为后端运行。Keras 支持快速建模和实验，能够以最小的时延把你的想法转换为实验结果。Keras 就是深度学习的“炼丹炉”，将深度学习的六大要素（网络层，损失函数，激活函数，正则化方法，梯度下降优化和参数初始化策略）以模块的方式组合起来，非常易于使用。 正如 Python 的 slogan “人生苦短，我用 Python”，同样适用于 Keras !
+
+这里使用 TensorFlow 作为后端，并借助 GPU 加速。这里依然使用 MNIST 数据集作为“炼丹”原料，感受一下卷积神经网络到底比传统的全连接神经网络优势在哪里。
+
+MNIST 数据集有 40000 个训练集，10000 个测试集，每幅图片是分辨率为 28*28 的灰度图，所以没有颜色通道，也即颜色通道是 1。当使用 TensorFlow 作为后端时，颜色通道在最后，所以我们的输入数据的 shape 为 (40000,28,28,1)，我们要根据通道设置来进行数据转换：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def cnn_load_mnist(ratio=1):
+      num_classes = 10
+      img_rows, img_cols = 28,28  
+
+      x_train, y_train = dbload.load_mnist(r"./db/mnist", kind='train', 
+                                           count=int(ratio*40000))
+      x_test, y_test = dbload.load_mnist(r"./db/mnist", kind='test', 
+                                         count=int(ratio*10000))
+      
+      # 对应 ∼/.keras/keras.json 中的 image_data_format 配置
+      if K.image_data_format() == 'channels_first':
+          x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
+          x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
+      else:
+          x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+          x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+      
+      # 归一化处理
+      x_train = x_train.astype('float32')
+      x_test = x_test.astype('float32')
+      x_train /= 255
+      x_test /= 255
+      
+      # 转化为对分类标签 
+      y_train = keras.utils.to_categorical(y_train, num_classes)
+      y_test = keras.utils.to_categorical(y_test, num_classes)
+          
+      return x_train, y_train, x_test, y_test
+
+'channels_first' 用于 Caffe 和 Theano，'channels_first' 用于 TensorFlow。另外要注意将类别标签转化为多分类标签，例如两个样本的标签为 [5, 0] 转换为二分类矩阵：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+
+  # 向量类别标签 shape 为 (2,)
+  [5 0]
+  
+  # 转化为二分类矩阵，shape 为 (2, 10)
+  [[ 0.  0.  0.  0.  0.  1.  0.  0.  0.  0.]
+   [ 1.  0.  0.  0.  0.  0.  0.  0.  0.  0.]]
+
+创建 CNN 序列模型，注意我们的模型没有使用池化层:
+
+- 卷积层：32 个 3*3 的卷积核，输入为图片的高和宽以及通道数，灰度图通道数为 1
+- padding 为 same 表示进行边缘插值处理，这样卷积后的特征图大小和输入的图像保持不变
+- 卷积层的激活函数设置为 relu
+- Flatten 进行一维化处理，以便与全连接层 Dense 对接
+- Dense 为全连接层，节点数就是分类数
+- Dense 节点的激活函数使用柔性最大值函数（softmax）。 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  from keras.models import Sequential
+  from keras.layers.convolutional import Conv2D
+  from keras.layers.core import Activation
+  from keras.layers.core import Flatten
+  from keras.layers.core import Dense
+  from keras.layers import Dropout
+  from keras.optimizers import SGD
+  from keras.layers import Conv2D
+  
+  def cnn_model_create(width, height, depth, classes):
+    model = Sequential()
+    input_shape = (height, width, depth)
+    if K.image_data_format() == "channels_first":
+        input_shape = (depth, height, width)
+    
+    # define the first (and only) CONV => RELU layer
+    model.add(Conv2D(32, (3, 3), padding="same", input_shape=input_shape))
+    model.add(Activation("relu"))
+
+    # softmax classifier
+    model.add(Flatten())
+    model.add(Dense(classes))
+    model.add(Activation("softmax"))
+    
+    return model
+
+model 在使用之前需要编译，其中参数：
+
+- loss 指定代价函数，这里为多分类交叉熵代价函数 "categorical_crossentropy"。
+- optimizer 指定梯度下降的优化器，这里使用最原始的 sgd，学习率 lr 设置为 0.001。
+- metrics 指定模型评估标准，这里使用准确率 "accuracy"。
+
+编译后使用 fit 训练模型：
+
+- validation_split 指定交叉验证集占训练集数据比例，注意这里不会对训练集进行乱序处理，也即选择最后的十分之一样本，如果样本不是随机的，要首先进行 shuffle 处理。
+- batch_size 指定训练批数据量大小，这里为 256
+- epochs 指定在数据上训练的轮次
+- verbose 0 不输出日志信息，1 为输出进度条记录，2 为每个 epoch 输出一行记录。
+- shuffle 为 True，则每一轮次进行乱序处理。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def cnn_mnist_test():
+      epochs = 10
+      x_train, y_train, x_test, y_test = cnn_load_mnist(1)
+
+      # # SGD(lr=0.005)
+      model = cnn_model_create(width=28, height=28, depth=1, classes=10)
+      model.compile(loss="categorical_crossentropy", optimizer=SGD(lr=0.001), 
+                    metrics=["accuracy"])
+      model.fit(x_train, y_train, validation_split=0.1, 
+                    batch_size=256, epochs=epochs, verbose=1,
+                    shuffle=True)       
+  
+      score = model.evaluate(x_test, y_test, verbose=1)
+      print('Test loss:', score[0])
+      print('Test accuracy:', score[1]) 
+
+在经过 10 轮的迭代训练后，得到如下结果，看来我们对 CNN 过度自信了。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  Test loss: 0.571357248878
+  Test accuracy: 0.8684
+
+尝试把优化参数从 SGD 更改为 keras.optimizers.Adadelta()，我们将会对 CNN 重获信心。但是记住没有进行更深入的比较是不公正的：
+
+- 与一个全连接浅层神经网络 NN [28*28,50,10] 作比较，它有 40,534 个权重系数
+- 而实际上这里的 CNN 的权重系数达到了 251,210 个，这样看 CNN 不仅没有降低计算量，实际上超过了全连接网络的 5 倍以上，CNN 的加速主要得益于 GPU 对卷积的高效处理。特征图转换为一维数据后与全连接层之间参数剧增。在不考虑池化技术的情况下，每个特征图都是一个28*28 的输入向量，多少个特征图，就增加了多少倍的参数。CNN 的优势在于对大分辨率图片（200以上）的处理上，此时的卷积核可以很大，池化窗口也可以很大，此时的性能将超越全连接神经网络。
+- CNN 网络的好处在于它考虑了区域 2D 特征，也即当图片轻微变形后（平移，旋转，扭曲），不会影响识别率，而 NN 则不具有这个特性，这里要强调这一点。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  model.compile(loss="categorical_crossentropy", 
+                optimizer=keras.optimizers.Adadelta(), 
+                metrics=["accuracy"])
+
+更新后的训练结果为：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  Test loss: 0.0667042454224
+  Test accuracy: 0.9797
+
+至此我们使用一个简单的 CNN 网络将准确度推向了新高度。
+
+CNN 的优势
+------------
+
+我们分析过 CNN 的优势在于大分辨率图片的快速学习，另外就是它考虑了 2D 图片特征，所以对于图片轻微的变形具有更强鲁棒性。为了进行这种对比，我们尝试对测试的数据进行平移扩展处理，也即上下左右各移动 offset_pixels 个像素，这样我们就在原来的 10000 个测试集上扩展为 40000 个测试集。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  expand_file = r"./db/mnist/mnist_testexp.pkl.gz"
+  def expand_mnist(count=0, offset_pixels=1):
+      import pickle,gzip
+      import scaler
+      
+      ef = expand_file + str(offset_pixels)
+      if os.path.exists(ef):
+          print("The expanded training set already exists.")
+          return
+      
+      x_train, y_train = __load_mnist("./db/mnist", kind='t10k', 
+                                      count=count, dtype=np.uint8)
+      
+      # move down 1 pixel
+      x_down = np.roll(x_train, offset_pixels, axis=1)
+      x_down[:, 0, :] = 0
+      
+      # move up 1 pixel
+      x_up = np.roll(x_train, -offset_pixels, axis=1)
+      x_up[:, -1, :] = 0
+      
+      # move right 1 pixel 
+      x_right = np.roll(x_train, offset_pixels, axis=2)
+      x_right[:, :, 0] = 0
+  
+      # move left 1 pixel 
+      x_left = np.roll(x_train, -offset_pixels, axis=2)
+      x_left[:, :, -1] = 0
+  
+      expand_x = np.vstack([x_down, x_up, x_right, x_left])
+      expand_x, expand_y = scaler.shuffle(expand_x, np.tile(y_train, 4))
+      print("Saving expanded data. This may take a few minutes.")
+      with gzip.open(ef, "w") as f:
+          pickle.dump((expand_x, expand_y), f)
+
+代码具有自解释性，count 指定加载训练集个数，0 表示加载所有，这样扩展后的数据就是 4\*count 个。offset_pixels 指定上下左右移动的像素个数。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  def load_expand_mnist(count=0, offset_pixels=1):
+      import pickle,gzip
+      
+      ef = expand_file + str(offset_pixels)
+      if not os.path.exists(ef):
+          print("The expanded test set not exists.")
+          return
+  
+      f = gzip.open(ef, 'rb')
+      expand_x, expand_y = pickle.load(f)
+      f.close()
+      
+      count = int(count)
+      if count <= 0:
+         return expand_x, expand_y
+      return expand_x[0:count], expand_y[0:count]
+
+load_expand_mnist 用于加载扩展数据集。我们这里尝试移动 1/3 个像素，比较 NN 和 CNN 的效果。
+
+======= =========== ============= =============
+模型     原数据     平移1像素     平移3像素
+======= =========== ============= =============
+NN       0.9624       0.9135       0.3726
+CNN      0.9797       0.9582       0.5918
+======= =========== ============= =============
+
+显然 NN 抗平移性能远远差于 CNN 网络，随着平移像素的增加，NN 的识别率急剧下降，另外注意到我们的 CNN 没有使用池化处理，否则优势将更明显。但是我们的验证也说明 CNN 网络并不能抵抗较大的变形，但是这对于人脑识别基本没有影响，显然 CNN 学习到的特征与背景严重相关，只要前景在背景上进行了移动，学习到的特征就开始失效。所以使用 CNN 前依然要对数据进行中心化等预处理。
+
+显然如果我们把扩展数据添加到训练集，测试集上的结果将会继续变好，实际上如果我们继续对图像进行倾斜，旋转，扭曲等处理，这一结果将更好，这给神经网络以 3D 的视角来理解输入的图像。即便只添加上下左右移动 1 像素的扩展数据集，我们在测试集上获得了如下正确率：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  Test loss: 0.0305156658327
+  Test accuracy: 0.9913
+
+现在我们可以尝试修改模型：增加池化层，以及随机失活（dropout，也称弃权）层，这里直接借用 Keras 示例模块 examples/mnist_cnn.py:
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def cnn_model_create2(width, height, depth, classes):
+      model = Sequential()
+      input_shape = (height, width, depth)
+      if K.image_data_format() == "channels_first":
+          input_shape = (depth, height, width)
+      
+      model = Sequential()
+      model.add(Conv2D(32, kernel_size=(3, 3),
+                       activation='relu',
+                       input_shape=input_shape))
+      model.add(Conv2D(64, (3, 3), activation='relu'))
+      model.add(MaxPooling2D(pool_size=(2, 2)))
+      model.add(Dropout(0.25))
+      model.add(Flatten())
+      model.add(Dense(128, activation='relu'))
+      model.add(Dropout(0.5))
+      model.add(Dense(classes, activation=tf.nn.softmax))
+      
+      return model
+
+该模型的上传者声称达到了 99.25% 的准确率，我们在扩展训练集上进行训练，得到惊人的结果，也即在 10000 张测试图片中，只有 11 张被分类错误，实际上这 11 张图片即便让人来辨识，也无法分清。
+ 
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  Test loss: 0.004121249028
+  Test accuracy: 0.9989
+
+.. figure:: imgs/cnn/good.png
+  :scale: 100%
+  :align: center
+  :alt: face
+
+  扩展数据上的学习曲线
+
+观察扩展数据上的学习曲线是一件很有意思的事情：与以往的学习曲线不同，校验集的准曲率竟然遥遥领先于训练集，也即在第一个训练周期，训练集上的准确率还在 85% 左右，而它在校验集上的泛化能力达到了惊人的 97%，另外在迭代 15 次之后，模型并没有饱和，而是在 99% 徘徊。或许我们继续增加迭代次数来获取 100% 的识别率，但是这已经无关紧要。
+
+显然 CNN 从我们提供的训练集上很快就学习到了手写数字的基本特征，而不是一些对分类无效的细枝末节，这似乎和人类观察事物有“点儿”相像了：只需要看一张黑色印刷的数字 0，然后再看一张红色印刷的数字 0，接着看一张缩写或者放大版的 0，并且告诉他这些全都是数字 0，那么人脑立即就能获取 0 和哪些特征是无关的（颜色，大小等），而能立即留下 0 的本质特征印象（一个抽象的数字符号），人脑表现出在小数据上的强劲的泛化能力（学习能力）。
+
+通过人为扩展训练集提高准确率是非常可行的，前提就是扩展后的数据必须反映数据的本质特征，而不能丢失这些特征，比如 0-9 手写数字，平移和旋转都不会丢失数字特征，而如果进行剪切和过分扭曲那么就会导致识别率降低了。
+
+模型保存和加载
+----------------
+
+显然当我们扩展训练数据时，并不希望每次都从 0 开始训练，而是期望从现有的基础上继续使用扩展数据训练，或者直接加载模型并进行预测。
+
+model.save 将 Keras 模型和权重保存在一个 HDF5 文件中，该文件将包含：
+
+- 模型的结构，以便重构该模型
+- 模型的权重
+- 训练配置（损失函数，优化器等）
+- 优化器的状态，以便于从上次训练中断的地方开始
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  from keras.models import load_model
+  model.save('mnist_model.h5')
+  
+  
+使用keras.models.load_model(filepath)来重新实例化模型，如果文件中存储了训练配置的话，该函数还会同时完成模型的编译
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  model = load_model('mnist_model.h5')  
+
+
+可视化工具
+--------------
+
+打印模型信息
+~~~~~~~~~~~~~~~~~
+
+keras.utils 提供一些有用的函数，print_summary 用于打印模型概况。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  from keras.utils import print_summary
+  print_summary(model)
+
+  >>>
+  Layer (type)                 Output Shape              Param #
+  =================================================================
+  conv2d_1 (Conv2D)            (None, 28, 28, 32)        320
+  _________________________________________________________________
+  activation_1 (Activation)    (None, 28, 28, 32)        0
+  _________________________________________________________________
+  flatten_1 (Flatten)          (None, 25088)             0
+  _________________________________________________________________
+  dense_1 (Dense)              (None, 10)                250890
+  _________________________________________________________________
+  activation_2 (Activation)    (None, 10)                0
+  =================================================================
+  Total params: 251,210
+  Trainable params: 251,210
+  Non-trainable params: 0
+
+概况中包括层数，每层的属性，总参数个数以及可训练参数个数。第一层 320 = 32\*(3\*3 + 1)，Flatten 处理后的参数个数 25088 = 28\*28\*32，
+全连接层 Dense 为输入加上偏置，也即 25088\*10 + 10 = 250890。
+
+plot_model 可以把上述信息图形化：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  from keras.utils import plot_model
+  plot_model(model, to_file='model.png', show_shapes=True)
+
+.. figure:: imgs/cnn/model.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  “最简” CNN 模型图
+
+模型训练曲线图
+~~~~~~~~~~~~~~~
+
+模型的 fit 函数会返回一个 History 对象。其 History.history 属性是连续 epoch 训练损失和评估值，以及验证集损失和评估值的记录（如果适用），可以使用这些数据绘制代价函数曲线和准确率曲线。 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  H = model.fit(x_train, y_train, validation_split=0.1, 
+                batch_size=256, epochs=epochs, verbose=1,
+                shuffle=True)       
+  ......
+
+  plt.figure()
+  
+  plt.subplot(2,1,1)
+  plt.title("Training Loss and Accuracy")
+  plt.plot(np.arange(0, epochs), H.history["acc"], c='black', label="Train")
+  plt.plot(np.arange(0, epochs), H.history["val_acc"], c='gray', label="Validation")
+  plt.ylabel("Accuracy")
+  plt.legend(loc='best')
+      
+  plt.subplot(2,1,2)
+  plt.plot(np.arange(0, epochs), H.history["loss"], c='black', label="Train")
+  plt.plot(np.arange(0, epochs), H.history["val_loss"], c='gray', label="Validation")
+  plt.xlabel("Epochs")
+  plt.ylabel("Loss")
+  plt.legend(loc='best')
+  plt.tight_layout()
+  plt.show()
+
+.. figure:: imgs/cnn/learn.png
+  :scale: 100%
+  :align: center
+  :alt: vertical
+
+  CNN 模型学习曲线
+
+通过学习曲线可以查看模型的拟合情况，图中可以看出在迭代 6 个周期后可以早停。
+
+Tensorboard 
+~~~~~~~~~~~~~~~~
+
+TensorBoard 是由 Tensorflow 提供的一个可视化工具。通过 keras.callbacks.TensorBoard 回调函数将训练时的日志写入固定目录，然后通过Tensorboard 命令可视化测试和训练的标准评估的动态图像，也可以可视化模型中不同层的激活值直方图。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  tensorboard --logdir=./logs
+
+在浏览器中  http://127.0.0.1:6006 查看动态图。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 在要检测的层添加名称 'features'
+  from keras.callbacks import TensorBoard
+  tensorboard = TensorBoard(log_dir='./logs',
+                            batch_size=256,
+                            embeddings_freq=1,                            
+                            embeddings_layer_names=['features'],
+                            embeddings_metadata='metadata.tsv',
+                            embeddings_data=x_test)
+
+  # 添加 callbacks 参数
+  H = model.fit(x_train, y_train, validation_split=0.1, 
+                batch_size=256, epochs=epochs, verbose=1,
+                shuffle=True, callbacks=[tensorboard])       
 

@@ -386,11 +386,8 @@ OpenCV 主要用C/C++语言编写，它的主要接口由 C++ 提供，但是依
 
 最新版本的 4.0 文档压缩后竟然还有 78MB，可见信息“熵”之大，兴不兴奋（头不头大）？
 
-环境安装
----------
-
 安装 opencv
-~~~~~~~~~~~
+-----------
 
 这里以 Anaconda 环境安装 opencv 为例。
 
@@ -435,19 +432,6 @@ OpenCV 主要用C/C++语言编写，它的主要接口由 C++ 提供，但是依
   4.0.1
 
 TUNA 镜像源还提供了一些 Anaconda 三方源，有兴趣可以移步 `Anaconda 清华镜像源 TUNA <https://mirrors.tuna.tsinghua.edu.cn/help/anaconda/>`_。
-
-安装 cuda
-~~~~~~~~~~~~
-
-在 `CUDA安装包归档 <https://developer.nvidia.com/cuda-toolkit-archive>`_ 可以找到所有版本，在 `CUDA使用文档 <https://docs.nvidia.com/cuda/index.html>_` 中查看CUDA的使用说明。
-`在Windows 上安装CUDA <https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#axzz410A2xbq6>_` 一文对安装环境要求和开发环境（Visual Studio）均进行了详细说明。
-
-安装步骤如下：
-
-- 在  `支持 CUDA 的 GPU列表 <https://developer.nvidia.com/cuda-gpus>_` 中查看所用机器的 GPU 是否支持 CUDA。
-- 在 `CUDA安装包归档 <https://developer.nvidia.com/cuda-toolkit-archive>`_ 可以找到所需 CUDA 版本
-- 根据操作系统类型和版本下载并安装 CUDA
-- 下载开发环境，对于 Windows 平台需要安装 Visual Studio
 
 基础操作
 -----------

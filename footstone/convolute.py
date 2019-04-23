@@ -138,35 +138,6 @@ def chessboard(square=10, size=15, color=(255, 0, 0)):
 
     return np.tile(canvas, (size, size, 1))
 
-def plt_showimgs(imgs, title=(),tight=True):
-    plt.figure(figsize=(8,8))
-    plt.title(title)
-    
-    count = len(imgs)
-    columns = rows = int(count ** 0.5)
-    if columns ** 2 < count:
-        columns += 1
-    
-    if columns * rows < count:
-        rows += 1
-    
-    index = 1
-    for i in imgs:
-        plt.subplot(rows, columns, index)
-        plt.xticks([])
-        plt.yticks([])
-        
-        if len(title) >= index:
-            plt.title(title[index - 1]) 
-        plt.imshow(i, cmap='gray', interpolation='none', vmin = 0, vmax = 255) 
-        plt.axis('off')
-        index += 1
-
-    plt.subplots_adjust(wspace=0, hspace=0)
-    if tight:
-        plt.tight_layout()
-    plt.show()
-
 def convolution_ignore_border(img, kernel):
     from skimage.exposure import rescale_intensity
     
@@ -231,30 +202,33 @@ def verify_convolution(size=8):
     newimg = convolution(matrix, kernel)
     print(np.all(newimg == cv2.filter2D(matrix, -1, kernel)))
 
+origin = np.ones((1, 1))
+smallblur = np.ones((7, 7), dtype=np.float64) * (1.0 / (7 * 7))
+largeblur = np.ones((21, 21), dtype=np.float64) * (1.0 / (15 * 15))  
+
+sharpen = np.array(([0, -1, 0],
+                    [-1, 5, -1],
+                    [0, -1, 0]), dtype=np.int32)
+
+laplacian = np.array(([0, 1, 0],
+                      [1, -4, 1],
+                      [0, 1, 0]), dtype=np.int32)
+sobelX = np.array(([-1, 0, 1],
+                   [-2, 0, 2],
+                   [-1, 0, 1]), dtype=np.int32)
+sobelY = np.array(([-1, -2, -1],
+                   [0, 0, 0],
+                   [1, 2, 1]), dtype=np.int32)
+
+emboss = np.array(([-2, -1, 0],
+                   [-1, 1, 1],
+                   [0, 1, 2]), dtype=np.int32)
+
+kernels = (origin, smallblur, largeblur, sharpen, laplacian, sobelX, sobelY, emboss)
+klabels = ('Origin', 'smallBlur', 'largeBlur', 'Sharpen', 'Laplacian', 'sobelX', 'sobelY', 'Emboss')
+
 def verify_kernels():
-    smallblur = np.ones((7, 7), dtype=np.float64) * (1.0 / (7 * 7))
-    largeblur = np.ones((21, 21), dtype=np.float64) * (1.0 / (15 * 15))  
-    
-    sharpen = np.array(([0, -1, 0],
-                        [-1, 5, -1],
-                        [0, -1, 0]), dtype=np.int32)
-    
-    laplacian = np.array(([0, 1, 0],
-                          [1, -4, 1],
-                          [0, 1, 0]), dtype=np.int32)
-    sobelX = np.array(([-1, 0, 1],
-                       [-2, 0, 2],
-                       [-1, 0, 1]), dtype=np.int32)
-    sobelY = np.array(([-1, -2, -1],
-                       [0, 0, 0],
-                       [1, 2, 1]), dtype=np.int32)
-    
-    emboss = np.array(([-2, -1, 0],
-                       [-1, 1, 1],
-                       [0, 1, 2]), dtype=np.int32)
-    
-    kernels = (smallblur, largeblur, sharpen, laplacian, sobelX, sobelY, emboss)
-    labels = ('smallBlur', 'largeBlur', 'Sharpen', 'Laplacian', 'sobelX', 'sobelY', 'Emboss')
+    import drawutils
     
     image = cv2.imread(arg_get("image"))
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -264,7 +238,28 @@ def verify_kernels():
         newimg = convolution(gray, kernel)
         imgs.append(newimg)
         
-    plt_showimgs(imgs, labels, tight=False)
+    drawutils.plot_showimgs(imgs, klabels, tight=False)
+
+def mnist_kernels():
+    import drawutils,dbload,scaler
+    x_train,y_train = dbload.load_mnist(r"./db/mnist", kind='train', count=40000)
+
+    x_train1, y_train1 = dbload.load_expand_mnist(offset_pixels=1)
+    x_train3, y_train3 = dbload.load_expand_mnist(offset_pixels=3)
+    
+    x_train = np.vstack([x_train, x_train1, x_train3])
+    y_train = np.hstack([y_train, y_train1, y_train3])
+    x_train, y_train = scaler.shuffle(x_train, y_train)
+
+    for digit in range(10):
+        numbers = x_train[y_train==digit]
+        real = np.sum(numbers, axis=0, keepdims=True) // numbers.shape[0]        
+        imgs = []
+        for kernel in kernels:
+            newimg = convolution(real.reshape(28,28).astype(np.uint8), kernel)
+            imgs.append(newimg)
+ 
+        drawutils.plot_showimgs(imgs, klabels, tight=True)
 
 def convolution_fast(img, kernel):
     yksize, xksize = kernel.shape
@@ -333,4 +328,7 @@ def convolute_speed_cmp(image=None, count=100, type=0):
         for i in range(0,count):
             convolution(gray + count, kernel)
         print("convolution cost walltime {:.02f}s with loop {}".format(time.time()-start, count))        
+
+if __name__ == "__main__":
+    mnist_kernels()
 

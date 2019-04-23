@@ -80,7 +80,7 @@ def zero_centered(X):
 # Mean is 0, σ is 1
 def standard(X):
     std = np.std(X, axis=0)
-    std[std == 0] = 1e-25
+    #std[std == 0] = 1e-3
     return zero_centered(X) / std
 
 def shuffle(X, y, seed=None):

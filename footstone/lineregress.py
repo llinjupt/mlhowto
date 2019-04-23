@@ -193,8 +193,8 @@ class LRegress():
         plt.show()
 
     def draw_cost_surface(self, X, y, gdpath=True):
-        x1 = np.linspace(0, 40, 50, endpoint=True)
-        x2 = np.linspace(-10, 30, 50, endpoint=True)
+        x1 = np.linspace(-10, 10, 50, endpoint=True)
+        x2 = np.linspace(-10, 10, 50, endpoint=True)
 
         title = 'Quadratic Cost Function Surface and Contour'
         x1, x2 = np.meshgrid(x1, x2)
@@ -230,20 +230,28 @@ def load_linear_dataset(random_state=None, features=1, points=50):
     # Generate sample data
     x = 20 * rng.rand(points, features) + 2
     y = 0.5 * (x[:,0] - rng.rand(1, points)).ravel() - 1 
-
     return x, y
 
 def LRTest():
     samples = 50
     X, y = load_linear_dataset(random_state=0, features=1, points=samples)
-
-    lr = LRegress(b=15, w1=15, eta=0.1, tol=1e-4)
-    X = lr.sgd(X, y, max_iter=100, standard=True)
+    import scaler
+    
+    y_mean = np.mean(y)
+    y_std = np.std(y)
+    y = scaler.standard(y)
+    
+    lr = LRegress(b=5, w1=5, eta=0.1, tol=1e-4)
+    X = lr.bgd(X, y, max_iter=50, standard=True)
     lr.draw_costs()
     lr.draw_separate_line(X, y)
     lr.draw_cost_surface(X, y)
     print(lr.costs_[-1])
-    print(lr.predict(np.array([[0],[5],[10],[15]])))
+    
+    y_predict = lr.predict(np.array([[5],[10],[15]]))
+    y_real = y_predict * y_std + y_mean
+    print(y_predict)
+    print(y_real)
 
 def BMITest():
     X,y = dbload.load_bmi_dataset(standard=False)
@@ -257,24 +265,26 @@ def BMITest():
     print(lr.costs_[-1])
 
 # extend style as [x1,x2] to [1, x1, x2, x2x1, x1^2, x2^2]
-def poly_extend_feature(X,degree=2):
+def poly_extend_feature(X, degree=2, interaction_only=False, bias=True):
     from sklearn.preprocessing import PolynomialFeatures
-    poly = PolynomialFeatures(degree=degree)
+    poly = PolynomialFeatures(degree=degree, interaction_only=interaction_only,
+                              include_bias=bias)
     return poly.fit_transform(X)
 
 def BMISklearnTest():
     from sklearn.linear_model import LinearRegression
     
-    lr = LinearRegression(fit_intercept=False, n_jobs=None, normalize=True)
+    lr = LinearRegression(fit_intercept=False, n_jobs=None)
     X,y = dbload.load_bmi_dataset(standard=False)
     X = X[:,2].reshape(X.shape[0],1) # last column is BMI
     
     extend_X = poly_extend_feature(X, degree=2)
     # y = b + w1x + w2* x** 2
     lr.fit(extend_X, y)
-    print(lr.coef_) 
+    print(lr.coef_)
 
     cost = np.sum((lr.predict(extend_X) - y)**2) / extend_X.shape[0] / 2
+    print("intercept:%f" % lr.intercept_)
     print("cost:\t%f" % cost)
     print("score:\t%f" % lr.score(extend_X, y))
     print(lr.get_params())
@@ -288,5 +298,185 @@ def BMISklearnTest():
     plt.ylabel("Fat%")  #'y'    
     plt.show()
 
+def load_curve_dataset(random_state=None, features=1, points=50):
+    x = np.linspace(0.5, 3, points, endpoint=True).reshape(points,1)
+    y = x**2 - 1
+    y[1] = 0.4
+    y[4] = 2
+    y[7] = 5
+    y[-1] = 6.5
+
+    return x, y
+
+def OverfitTest():
+    from sklearn.linear_model import LinearRegression
+    X, y = load_curve_dataset(random_state=0, features=1, points=10)
+    lr = LinearRegression(n_jobs=None, normalize=True)
+    extend_X = poly_extend_feature(X, degree=6)
+
+    lr.fit(extend_X, y)
+    print(lr.coef_) 
+
+    cost = np.sum((lr.predict(extend_X) - y)**2) / extend_X.shape[0] / 2
+    print("cost:\t%f" % cost)
+    print("score:\t%f" % lr.score(extend_X, y))
+    print(lr.get_params())
+    
+    plt.figure()
+    x1 = np.linspace(0.4, 3.1, 50, endpoint=True)
+    x1 = x1.reshape(50,1)
+    extend_x1 = poly_extend_feature(x1, degree=6)
+    plt.plot(x1, lr.predict(extend_x1), c='red')
+    plt.scatter(X, y, c='black', marker='o')
+    plt.xlabel("x1") #'x1'
+    plt.ylabel("y")  #'y'    
+    plt.show()
+
+def RidegeTest():
+    from sklearn import linear_model
+
+    X, y = load_curve_dataset(random_state=0, features=1, points=10)
+    extend_X = poly_extend_feature(X, degree=1, bias=False)
+    import scaler
+    print(np.mean(extend_X,axis=0))
+    extend_X = scaler.standard(extend_X)
+    y = scaler.standard(y)
+
+    lr = linear_model.Ridge(fit_intercept=True, alpha=1.2) # lambda = alpha
+    lr.fit(extend_X, y)
+    print(lr.coef_) 
+    
+    cost = np.sum((lr.predict(extend_X) - y)**2) / extend_X.shape[0] / 2
+    print("intercept:%f" % lr.intercept_)
+    print("cost:\t%f" % cost)
+    print("score:\t%f" % lr.score(extend_X, y))
+
+    plt.figure()
+    x1 = np.linspace(-1.6, 1.6, 40, endpoint=True)
+    x1 = x1.reshape(40,1)
+    extend_x1 = poly_extend_feature(x1, degree=1, bias=False)
+    plt.plot(x1, lr.predict(extend_x1), c='red')
+    plt.scatter(extend_X[:,0], y, c='black', marker='o')
+    plt.xlabel("x1") #'x1'
+    plt.ylabel("y")  #'y'    
+    plt.show()
+
+def plot_regular_lambda(clf):
+    import crossvalid
+
+    X,y = dbload.load_bmi_dataset(standard=True)
+    X = X[:,[0,1]] # Height and weight
+    all_X = poly_extend_feature(X, degree=1, bias=False)
+    
+    X_train, Y_test, x_target, y_target = crossvalid.data_split(all_X, y, ratio=0.2)
+    
+    intercepts = []
+    costs = []
+    scores = []
+    tests = 30
+    wmatrix = np.zeros((tests, X_train.shape[1]))
+    for i in range(tests):
+        lr = clf(fit_intercept=True, alpha=np.exp2(i-10))
+        lr.fit(X_train, x_target)
+        wmatrix[i] = lr.coef_.T
+        cost = np.sum((lr.predict(Y_test) - y_target)**2) / Y_test.shape[0] / 2
+        costs.append(cost)
+        scores.append(lr.score(Y_test, y_target))
+        intercepts.append(lr.intercept_)
+
+    plt.figure()
+    for i, row in zip(range(X_train.shape[1]), wmatrix.T):
+        plt.plot(range(-10, tests-10), row, label=('$w_{' + str(i+1) + '}$'))
+
+    #plt.plot(range(-10, tests-10), intercepts, label='w0')
+    plt.xlabel("$log_2(\lambda)$") #'x1'
+    plt.ylabel("Weights")  #'y' 
+    plt.legend(loc='upper right')
+    plt.hlines(0, -10, tests-10, alpha=0.5, linestyle='--')
+    
+    plt.figure()
+    plt.subplot(2,1,1)
+    plt.ylabel("costs") 
+    plt.plot(range(-10, tests-10), costs)
+    plt.subplot(2,1,2)
+    plt.ylabel("scores (%)")
+    plt.plot(range(-10, tests-10), scores)
+    plt.xlabel("$log_2(\lambda)$")
+    plt.show()
+
+def RidegeBMITest():
+    from sklearn import linear_model    
+    #plot_regular_lambda(linear_model.Ridge)
+    plot_regular_lambda(linear_model.Lasso)
+
+def test_intercept():
+    from sklearn.linear_model import LinearRegression
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    bias = 50
+    points = 500
+    X = np.arange(points).reshape(-1,1)
+    y_true = np.ravel(X.dot(0.3) + bias)
+    noise = np.random.normal(0, 40, points)
+    y = y_true + noise
+    
+    lr_fi_true = LinearRegression(fit_intercept=True)
+    lr_fi_false = LinearRegression(fit_intercept=False)
+    
+    lr_fi_true.fit(X, y)
+    lr_fi_false.fit(X, y)
+    
+    print('Intercept when fit_intercept=True : {:.5f}, coef: {}'.format(
+            lr_fi_true.intercept_, lr_fi_true.coef_))
+    print('Intercept when fit_intercept=False : {:.5f}, coef: {}'.format(
+            lr_fi_false.intercept_, lr_fi_false.coef_))
+    
+    lr_fi_true_yhat = np.dot(X, lr_fi_true.coef_) + lr_fi_true.intercept_
+    lr_fi_false_yhat = np.dot(X, lr_fi_false.coef_) + lr_fi_false.intercept_
+    
+    plt.scatter(X, y, label='Actual points')
+    plt.plot(X, lr_fi_true_yhat, 'r--', label='fit_intercept=True')
+    plt.plot(X, lr_fi_false_yhat, 'r-', label='fit_intercept=False')
+    plt.legend()
+
+    plt.vlines(0, 0, y.max(), color='gray')
+    plt.hlines(bias, X.min(), X.max(), color='gray')
+    plt.hlines(0, X.min(), X.max(), color='gray')
+
+    plt.show()    
+
+def test_LR():
+    from sklearn.linear_model import LinearRegression
+    X = np.c_[ .5, 1].T
+    y = [.5, 1]
+    test = np.c_[ 0, 2].T
+    regr = LinearRegression()
+    import matplotlib.pyplot as plt
+    plt.figure()
+    np.random.seed(0)
+    for _ in range(6):
+        this_X = .1 * np.random.normal(size=(2, 1)) + X
+        regr.fit(this_X, y)
+        c = str((1 - _/(6 + 1)) * 0.80)
+        plt.plot(test, regr.predict(test), c=c)
+        plt.scatter(this_X, y, s=15, c=c)
+    plt.show()
+    
+def test_LRidge():
+    from sklearn.linear_model import Ridge
+    regr = Ridge(alpha=.1)
+    plt.figure()
+    np.random.seed(0)
+    test = np.c_[ 0, 2].T
+    X = np.c_[ .5, 1].T
+    y = [.5, 1]
+    for _ in range(6):
+        this_X = .1 * np.random.normal(size=(2, 1)) + X
+        regr.fit(this_X, y)
+        plt.plot(test, regr.predict(test))
+        plt.scatter(this_X, y, s=15)
+    plt.show()
+
 if __name__ == "__main__":
-    BMISklearnTest()
+    RidegeBMITest()

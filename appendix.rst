@@ -3,11 +3,12 @@
 
 参考书目
 -----------
+| [0] Neural Networks: Tricks of the Trade 
 | [1] Eric Matthes，袁国忠(译).Python编程从入门到实践[M].北京:人民邮电出版社，2016
 | [2] Micha Gorelick，Ian Ozsvald，胡世杰，徐旭彬(译).Python高性能编程[M].北京:人民邮电出版社，2017
 | [3] Jake VanderPlas，陈俊杰，陈小莉(译).Python数据科学手册[M].北京:人民邮电出版社，2017
 | [4] Python Machine Learning （美）塞巴斯蒂安·拉施卡（Sebastian Raschka）[M].北京:机械工业出版社，2017
-
+ 
 机器学习相关
 --------------
 - `Deep Learning Book by Ian GoodFellow <http://www.deeplearningbook.org/>`_
@@ -17,6 +18,8 @@
 - `cs229 Notes <http://cs229.stanford.edu/notes/>`_
 - `ml-cheatsheet <https://ml-cheatsheet.readthedocs.io/en/latest/activation_functions.html>`_
 - `莫烦PYTHON <https://morvanzhou.github.io>`_
+- `Keras 参考文档 <https://www.jianshu.com/p/e9c1e68a615e>`_
+- `scipy-lectures <http://scipy-lectures.org/index.html>`_
 - `scikit-learn和tensorflow的区别 <https://www.jianshu.com/p/0837b7c6ce10>`_
 - `主流机器学习框架对比 <https://www.leiphone.com/news/201702/T5e31Y2ZpeG1ZtaN.html>`_
 - `判断欠拟合还是过拟合 <https://blog.csdn.net/qq_30374549/article/details/80937159>`_
@@ -34,6 +37,7 @@ Python相关
 
 数据相关
 --------------
+- `scipy.stats 函数相关 <https://blog.csdn.net/pipisorry/article/details/49515215>`_
 - `Pandas 官方文档 <http://pandas.pydata.org>`_
 - `Python 数据库操作实例 <http://www.cnblogs.com/idbeta/p/5209522.html>`_
 - `Sqlite 数据库操作 <http://www.runoob.com/sqlite/sqlite-data-types.html>`_

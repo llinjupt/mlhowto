@@ -72,7 +72,7 @@ def plot_decision_regions(X, y, clf, test_idx=None, resolution=0.01):
 
     if test_idx is None:
         return
-    
+
     # plot all samples with cycles
     X_test = X[test_idx, :]
     plt.scatter(X_test[:, 0], X_test[:, 1], c='', edgecolor='black',
@@ -102,6 +102,13 @@ def test_plot_decision_regions():
 
     plt.tight_layout()
     plt.show()
+
+def relu(z):
+    np.clip(z, 0, np.finfo(z.dtype).max, out=z)
+    return z
+
+def tanh(X):
+    return np.tanh(X, out=X)
 
 def sigmoid(z):
     return 1.0 / (1.0 + np.exp(-z))
@@ -183,5 +190,57 @@ def plot_sigmoid_cost():
     plt.tight_layout()
     plt.show()
 
+def plot_lines(funcs):
+    colors = ['black', 'gray', 'red', 'blue', 'cyan', 'purple']
+    colors = colors * (len(funcs) // len(colors) + 1)
+    
+    num = len(funcs)
+    x = np.linspace(-2, 2, num=50)
+    plt.figure(figsize=(6,4))
+    for i, f, c in zip(range(num), funcs, colors):
+        c = str((1 - i/(num + 1)) * 0.80)
+        lab = '$y=x+' + str(0.1 * (i + 1))[0:3] + '*x^5$' 
+        plt.plot(x, f(x), c, label=lab)
+    plt.legend(loc='upper left')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.tight_layout()
+    plt.show()
+
+def plot_funcs():
+    from functools import partial
+    def tmppower(x, n=1,delta=1.0):
+        return np.power(x, 1) + np.power(x, n) * delta
+    funcs = [partial(tmppower, n=5, delta=i*0.1) for i in range(6)]
+    plot_lines(funcs)
+
+def plot_showimgs(imgs, title=(), tight=True):
+    plt.figure(figsize=(8,8))
+    plt.title(title)
+    
+    count = len(imgs)
+    columns = rows = int(count ** 0.5)
+    if columns ** 2 < count:
+        columns += 1
+
+    if columns * rows < count:
+        rows += 1
+    
+    index = 1
+    for i in imgs:
+        plt.subplot(rows, columns, index)
+        plt.xticks([])
+        plt.yticks([])
+        
+        if len(title) >= index:
+            plt.title(title[index - 1])
+        plt.imshow(i, cmap='gray', interpolation='none') 
+        plt.axis('off')
+        index += 1
+
+    plt.subplots_adjust(wspace=0, hspace=0)
+    if tight: plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
-    plot_sigmoid()
+    pass

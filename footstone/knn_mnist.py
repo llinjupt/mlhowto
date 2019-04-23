@@ -25,7 +25,7 @@ def draw_normal_distribution(points=100):
     plt.scatter(Ax, Ay, s=5, c='black')
     plt.scatter(Bx, By, s=5, c='black')
     plt.show()
-    
+
 class kNN():
     def __init__(self, k=5):
         self.n_neibours = k
@@ -88,7 +88,7 @@ class kNN_sklearn():
         # for drawing error ratio plot
         self.train_batch = []
         self.error_ratio = []
-        
+
     def predict(self, train, labels, test):
         self.knn.fit(train, labels)
         return self.knn.predict(test)
@@ -137,7 +137,6 @@ class kNN_sklearn():
 if __name__ == '__main__':
     # knn = kNN()
     # knn.batch_test()
-#    knn_sk = kNN_sklearn(alg='brute')
-#    knn_sk.batch_test()
-#    knn_sk.error_ratio_draw()
-    draw_normal_distribution(10000)
+    knn_sk = kNN_sklearn(alg='brute')
+    knn_sk.batch_test()
+    knn_sk.error_ratio_draw()

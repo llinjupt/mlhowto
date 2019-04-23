@@ -44,6 +44,113 @@ def __load_mnist(path, kind='train', count=0, dtype=np.uint8):
 
     return images.reshape(labels.shape[0], 28, 28), labels
 
+# count = 0 mean load all trainset
+expand_file = r"./db/mnist/mnist_testexp.pkl.gz"
+def expand_mnist(count=0, offset_pixels=1):
+    import pickle,gzip
+    import scaler
+    
+    ef = expand_file + str(offset_pixels)
+    if os.path.exists(ef):
+        print("The expanded training set already exists.")
+        return
+    
+    x_train, y_train = __load_mnist("./db/mnist", kind='t10k', 
+                                    count=count, dtype=np.uint8)
+    
+    # move down 1 pixel
+    x_down = np.roll(x_train, offset_pixels, axis=1)
+    x_down[:, 0, :] = 0
+    
+    # move up 1 pixel
+    x_up = np.roll(x_train, -offset_pixels, axis=1)
+    x_up[:, -1, :] = 0
+    
+    # move right 1 pixel 
+    x_right = np.roll(x_train, offset_pixels, axis=2)
+    x_right[:, :, 0] = 0
+
+    # move left 1 pixel 
+    x_left = np.roll(x_train, -offset_pixels, axis=2)
+    x_left[:, :, -1] = 0
+
+    expand_x = np.vstack([x_down, x_up, x_right, x_left])
+    expand_x, expand_y = scaler.shuffle(expand_x, np.tile(y_train, 4))
+    print("Saving expanded data. This may take a few minutes.")
+    with gzip.open(ef, "w") as f:
+        pickle.dump((expand_x, expand_y), f)
+
+'''
+def rotate(image, angle, scale = 1.0):
+    import cv2
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, angle, scale)
+    return cv2.warpAffine(image, M, (w, h))
+'''
+
+def expand_rotate_mnist(count=0, degree=10):
+    import pickle,gzip
+    import scaler,cv2
+    
+    ef = expand_file + 'rotate' + str(degree)
+    if os.path.exists(ef):
+        print("The expanded training set already exists.")
+        return
+
+    x_train, y_train = __load_mnist("./db/mnist", kind='t10k', 
+                                    count=count, dtype=np.uint8)
+
+    count = x_train.shape[0]
+    M = cv2.getRotationMatrix2D((14,14), degree, 1)
+    M1 = cv2.getRotationMatrix2D((14,14), -degree, 1)
+    expand_x = np.zeros((count, 28, 28), dtype='uint8')
+    expand_x1 = np.zeros((count, 28, 28), dtype='uint8')
+    for i in range(count):
+        expand_x[i] = cv2.warpAffine(x_train[i], M, (28, 28))
+        expand_x1[i] = cv2.warpAffine(x_train[i], M1, (28, 28))
+    
+    expand_x = np.vstack([expand_x, expand_x1])
+    expand_x, expand_y = scaler.shuffle(expand_x, np.tile(y_train, 2))
+    print(expand_x.shape, expand_y.shape)
+    print("Saving expanded data. This may take a few minutes.")
+    with gzip.open(ef, "w") as f:
+        pickle.dump((expand_x, expand_y), f)
+
+def load_expand_mnist(count=0, offset_pixels=1):
+    import pickle,gzip
+    
+    ef = expand_file + str(offset_pixels)
+    if not os.path.exists(ef):
+        print("The expanded test set not exists.")
+        return
+
+    f = gzip.open(ef, 'rb')
+    expand_x, expand_y = pickle.load(f)
+    f.close()
+    
+    count = int(count)
+    if count <= 0:
+       return expand_x, expand_y
+    return expand_x[0:count], expand_y[0:count]
+
+def load_expand_rotate_mnist(count=0, degree=10):
+    import pickle,gzip
+    
+    ef = expand_file + 'rotate' + str(degree)
+    if not os.path.exists(ef):
+        print("The expanded test set not exists.")
+        return
+
+    f = gzip.open(ef, 'rb')
+    expand_x, expand_y = pickle.load(f)
+    f.close()
+    
+    count = int(count)
+    if count <= 0:
+       return expand_x, expand_y
+    return expand_x[0:count], expand_y[0:count]
+       
 g_minst_labels = None
 g_minst_images = None
 g_minst_test_labels = None
@@ -53,7 +160,8 @@ def load_mnist(path, kind='train', count=-1):
     
     global g_minst_images, g_minst_labels
     global g_minst_test_images, g_minst_test_labels
-
+    
+    count = int(count)
     if kind == 'train':
         if g_minst_labels is None or g_minst_labels.shape[0] < count:
             g_minst_images, g_minst_labels = __load_mnist(path, kind, count)
@@ -72,7 +180,7 @@ def load_mnist(path, kind='train', count=-1):
         
         return g_minst_test_images, g_minst_test_labels
 
-def load_mnist_vector(count=100, test=100):
+def load_mnist_vector(count=40000, test=10000):
     X_train, X_labels = load_mnist(r"./db/mnist", kind='train', count=count)
     X_train = X_train.reshape(X_train.shape[0], X_train.shape[1] ** 2)
 
@@ -84,6 +192,24 @@ def load_mnist_vector(count=100, test=100):
     X_train = ds.sklearn_standard(X_train)
 
     y_test, y_labels = load_mnist(r"./db/mnist", kind='t10k', count=test)
+    y_test = y_test.reshape(y_test.shape[0], y_test.shape[1] ** 2)
+    # Note: must use X_train mean and std standard testset
+    y_test = (y_test - mean)/std 
+    
+    return X_train, X_labels, y_test, y_labels
+
+def load_expand_mnist_vector(count=40000, test=10000):
+    X_train, X_labels = load_mnist(r"./db/mnist", kind='train', count=count)
+    X_train = X_train.reshape(X_train.shape[0], X_train.shape[1] ** 2)
+
+    mean = np.mean(X_train, axis=0)
+    std = np.std(X_train, axis=0)
+    std[std == 0] = 1e-25
+
+    ds = scaler.DataScaler(X_train)
+    X_train = ds.sklearn_standard(X_train)
+
+    y_test, y_labels = load_expand_mnist(count=test)
     y_test = y_test.reshape(y_test.shape[0], y_test.shape[1] ** 2)
     # Note: must use X_train mean and std standard testset
     y_test = (y_test - mean)/std 
@@ -230,6 +356,5 @@ def load_nd_dataset(positive=100, negtive=100, type='normal'):
 
     return trainset, labels.reshape(positive + negtive,)
 
-def test():
-    images, labels = load_mnist(r"./db/mnist", kind='train', count=10)
-    print(images.shape)
+if __name__ == "__main__":
+    expand_rotate_mnist(degree=20)

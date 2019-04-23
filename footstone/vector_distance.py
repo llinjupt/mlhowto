@@ -7,6 +7,7 @@ Created on Tue Mar 12 21:32:45 2018
 
 import numpy as np
 import cv2
+import dbload
 
 def bitwise(imga, imgb=None, opt='not'):
     '''bitwise: and or xor and not'''
@@ -53,13 +54,13 @@ def show_simple_distance():
 # imgs with shape(count,height,width)
 def show_gray_imgs(imgs, title=' '):
     newimg = imgs[0]
-    for i in imgs[1:]:
-        newimg = np.hstack((newimg, i))
     
+    if len(imgs) > 1:
+        for i in imgs[1:]:
+            newimg = np.hstack((newimg, i))
+        
     cv2.imshow(title, newimg)
     cv2.waitKey(0)
-
-import dbload
 
 def show_distance():
     train,labels = dbload.load_mnist(r"./db/mnist", kind='train', count=20)
@@ -70,3 +71,19 @@ def show_distance():
     
     for i in range(1, len(train)):
         print("distance between 0-{} {}".format(labels[i], vector_dist(num1[0], train[i])))
+
+def real_digits():
+    import drawutils
+    train,labels = dbload.load_mnist(r"./db/mnist", kind='train', count=40000)
+    real_imgs = []
+    titles = []
+    for digit in range(10):
+        numbers = train[labels==digit]
+        real = np.sum(numbers, axis=0, keepdims=True) // numbers.shape[0]
+        real_imgs.append(real.astype(np.uint8).reshape(28,28))
+        titles.append(str(digit))
+    
+    drawutils.plot_showimgs(real_imgs, titles, tight=False)
+
+if __name__ == "__main__":
+    real_digits()

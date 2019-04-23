@@ -27,7 +27,7 @@ class NN(object):
     
     """
     
-    def __init__(self, sizes, eta=0.001, epochs=1000, tol=None, alpha=0):
+    def __init__(self, sizes, eta=0.001, epochs=1000, tol=None, alpha=0, softmax=True):
         '''
         Parameters
         ------------
@@ -46,6 +46,9 @@ class NN(object):
         self.tol = tol
         self.alpha = alpha # for regulization
         
+        self.outactive = self.sigmoid
+        if softmax: self.outactive = self.softmax
+        
         np.random.seed(None)
         
         if 0:
@@ -58,9 +61,9 @@ class NN(object):
 
     def feedforward(self, X):
         out = X.T
-        for b, W in zip(self.biases, self.weights):
+        for b, W in zip(self.biases[0:-1], self.weights[0:-1]):
             out = self.sigmoid(W.dot(out) + b)
-        return out
+        return self.outactive(self.weights[-1].dot(out) + self.biases[-1])
 
     # x is a sample vector with n dim
     def backprop(self, x, y):
@@ -119,11 +122,18 @@ class NN(object):
         activation = X.T
         acts = [activation] # list for all activations layer by layer
         zs = []             # z vectors layer by layer
+        
+        layers = 0
         for b, W in zip(self.biases, self.weights):
             z = W.dot(activation) + b
             zs.append(z)
-            activation = self.sigmoid(z)
+            if layers == self.num_layers - 2:
+                activation = self.outactive(z)
+            else:
+                activation = self.sigmoid(z)
+
             acts.append(activation)
+            layers += 1
 
         # backpropagation
         samples = X.shape[0]
@@ -180,7 +190,7 @@ class NN(object):
         error_entries = np.count_nonzero(error != 0)
         test_entries = y_labels.shape[0]
         self.tests_.append((test_entries - error_entries) / test_entries * 100)
-        print("Accuracy rate {:.02f}% on testset {}".format(
+        print("Accuracy rate {:.02f}% on validateset {}".format(
               self.tests_[-1], test_entries), flush=True)
         
     def gd_checking(self, X, y, costtype='llh'): 
@@ -279,6 +289,9 @@ class NN(object):
                                 return
 
             self.complex += 1
+    
+    def softmax(self, z):
+        return np.exp(z) / np.sum(np.exp(z), axis=0) 
 
     # Activate function
     def sigmoid(self, z):
@@ -312,7 +325,7 @@ class NN(object):
     
     def loglikelihood_cost(self, X, y):
         output = self.feedforward(X)
-
+        
         diff = 1.0 - output
         diff[diff <= 0] = 1e-15
         cost = np.sum(-y.T * np.log(output) - ((1 - y.T) * np.log(diff))) / y.shape[0]
@@ -605,7 +618,7 @@ def kfold_estimate(k=10, type='scv'):
 
 def MNISTTrain():
     import crossvalid
-    images, labels, y_test, y_labels = dbload.load_mnist_vector(count=40000, test=10000)
+    images, labels, y_test, y_labels = dbload.load_mnist_vector(count=10000, test=100)
     X_images, validate, X_labels, validate_labels = \
         crossvalid.data_split(images, labels, ratio=0.1, random_state=None)
 
@@ -613,7 +626,7 @@ def MNISTTrain():
     for i, j in enumerate(X_labels):
         y[i,j] = 1
 
-    nn = NN([X_images.shape[1], 100, 10], eta=1, epochs=100000, tol=1e-8, alpha=15)
+    nn = NN([X_images.shape[1], 100, 10], eta=1, epochs=100000, tol=1e-6, alpha=15)
     nn.fit_mbgd(X_images, y, costtype='llh', batchn=256, x_labels=X_labels, 
                 y_test=validate, y_labels=validate_labels)
 
@@ -711,16 +724,17 @@ def sklearn_XorTrain():
     draw_perdict_surface(mlp.predict_proba, X, y)
     print(mlp.predict(X))
 
-def sklearn_mnist(ratio, hidden_neurons=10, alpha=0):
+def sklearn_mnist(ratio=1, hidden_neurons=40, alpha=0):
     from sklearn.neural_network import MLPClassifier
     images, labels, y_test, y_labels = dbload.load_mnist_vector(
             count=int(40000 * ratio), test=int(10000 * ratio))
    
     mlp = MLPClassifier(hidden_layer_sizes=(hidden_neurons,), max_iter=10000, activation='relu',
-                        solver='adam', early_stopping=False, verbose=1, tol=1e-5, shuffle=True,
-                        learning_rate_init=0.005, alpha=alpha)
+                        solver='lbfgs', early_stopping=False, verbose=1, tol=1e-6, shuffle=True,
+                        learning_rate_init=0.01, alpha=alpha)
 
     mlp.fit(images, labels)
+    print(mlp.score(images, labels), mlp.score(y_test, y_labels))
     return mlp.score(images, labels), mlp.score(y_test, y_labels)
 
 def plot_learning_curve():
@@ -800,178 +814,7 @@ def pipline_test():
     X = np.linspace(1,11,10).reshape(10,1)
     y = X * 2 + 1
     pipe.fit(X, y)
-    print(pipe.predict([[1],[2]]))
-
-def sklearn_learning_curve():
-    from sklearn.neural_network import MLPClassifier
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import learning_curve
-    from sklearn.pipeline import Pipeline
-    from sklearn import datasets
-
-    mlp = MLPClassifier(hidden_layer_sizes=(3,), max_iter=10000, activation='relu',
-                        solver='lbfgs', early_stopping=False, verbose=1, tol=1e-6, shuffle=True,
-                        learning_rate_init=0.001, alpha=0)
-    
-    pipelr = Pipeline([('scl', StandardScaler()),
-                       ('clf', mlp)])
-
-    iris = datasets.load_iris()
-    X_train = iris.data
-    y_train = iris.target
-
-    train_sizes, train_scores, valid_scores = \
-        learning_curve(estimator=pipelr, X=X_train,y=y_train,
-                       train_sizes=np.linspace(0.2, 1, 10, endpoint=True),
-                       cv=5, n_jobs=8)
-    train_mean = np.mean(train_scores * 100, axis=1)
-    train_std = np.std(train_scores * 100, axis=1)
-    valid_mean = np.mean(valid_scores * 100, axis=1) 
-    valid_std = np.std(valid_scores * 100, axis=1)
-
-    plt.title('IRIS Data Learning Curve')
-    plt.plot(train_sizes, train_mean, color='black', marker='o', label='Train Scores')
-    plt.fill_between(train_sizes, train_mean + train_std, train_mean - train_std, 
-                     alpha=0.2, color='black')
-    plt.plot(train_sizes, valid_mean, color='purple', marker='s', label='Validation Scores')
-    plt.fill_between(train_sizes, valid_mean + valid_std, valid_mean - valid_std, 
-                     alpha=0.15, color='purple')
-    plt.xlabel('Trainset samples')
-    plt.ylabel('Scores')
-    plt.legend(loc='lower right')
-    plt.grid()
-    plt.show()
-
-def sklearn_validation_curve():
-    from sklearn.neural_network import MLPClassifier
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import validation_curve
-    from sklearn.pipeline import Pipeline
-    from sklearn import datasets
-
-    mlp = MLPClassifier(hidden_layer_sizes=(3,), max_iter=10000, activation='relu',
-                        solver='lbfgs', early_stopping=False, verbose=1, tol=1e-6, shuffle=True,
-                        learning_rate_init=0.001)
-    
-    pipelr = Pipeline([('scl', StandardScaler()),
-                       ('clf', mlp)])
-
-    iris = datasets.load_iris()
-    X_train = iris.data
-    y_train = iris.target
-    
-    param_range = (0, 0.001, 0.01, 0.1, 1.0, 10)
-    train_scores, valid_scores = \
-        validation_curve(estimator=pipelr, X=X_train,y=y_train,
-                         param_name='clf__alpha', param_range = param_range,
-                         cv=5, n_jobs=8)
-    train_mean = np.mean(train_scores * 100, axis=1)
-    train_std = np.std(train_scores * 100, axis=1)
-    valid_mean = np.mean(valid_scores * 100, axis=1) 
-    valid_std = np.std(valid_scores * 100, axis=1)
-
-    plt.title('IRIS Data Validation Curve')
-    plt.plot(param_range, train_mean, color='black', marker='o', label='Train Scores')
-    plt.fill_between(param_range, train_mean + train_std, train_mean - train_std, 
-                     alpha=0.2, color='black')
-    plt.plot(param_range, valid_mean, color='purple', marker='s', label='Validation Scores')
-    plt.fill_between(param_range, valid_mean + valid_std, valid_mean - valid_std, 
-                     alpha=0.15, color='purple')
-    plt.xlabel('Regulization Parameter \'alpha\'')
-    plt.ylabel('Scores')
-    plt.legend(loc='lower right')
-    plt.grid()
-    plt.ylim([80,100])
-    plt.xscale('log')
-    plt.show()
-
-def sklearn_grid_search():
-    from sklearn.grid_search import GridSearchCV    
-
-    from sklearn.neural_network import MLPClassifier
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.pipeline import Pipeline
-    from sklearn import datasets
-
-    mlp = MLPClassifier(hidden_layer_sizes=(3,), max_iter=10000, activation='relu',
-                        solver='lbfgs', early_stopping=False, verbose=1, tol=1e-6, shuffle=True,
-                        learning_rate_init=0.001)
-    
-    pipelr = Pipeline([('scl', StandardScaler()),
-                       ('clf', mlp)])
-
-    iris = datasets.load_iris()
-    X_train = iris.data
-    X_labels = iris.target
-    
-    alpha_range = (0, 0.001, 0.01, 0.1, 1.0, 10)
-    tol_range = (1e-3, 1e-4, 1e-5, 1e-6, 1e-7)
-    act_range = ('relu', 'logistic')
-    solver_range = ('lbfgs', 'sgd', 'adam')
-    param_grid = {'clf__alpha': alpha_range,
-                  'clf__tol': tol_range,
-                  'clf__activation': act_range,
-                  'clf__solver': solver_range}
-    gsclf = GridSearchCV(estimator=pipelr,
-                         param_grid=param_grid,
-                         scoring='accuracy',
-                         cv=5,
-                         n_jobs=8)
-    gsclf.fit(X_train, X_labels)
-    print(gsclf.best_score_)
-    print(gsclf.best_params_)
-    
-    bestclf = gsclf.best_estimator_
-    bestclf.fit(X_train, X_labels)
-    
-    return bestclf
-
-def sklearn_random_search():
-    from time import time
-    from scipy.stats import randint as sp_randint
-    from sklearn.model_selection import RandomizedSearchCV
-    from sklearn.datasets import load_digits
-    from sklearn.ensemble import RandomForestClassifier
-    
-    # get some data
-    digits = load_digits()
-    X, y = digits.data, digits.target
-    
-    # build a classifier
-    clf = RandomForestClassifier(n_estimators=20)
-
-    # Utility function to report best scores
-    def report(results, n_top=3):
-        for i in range(1, n_top + 1):
-            candidates = np.flatnonzero(results['rank_test_score'] == i)
-            for candidate in candidates:
-                print("Model with rank: {0}".format(i))
-                print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
-                      results['mean_test_score'][candidate],
-                      results['std_test_score'][candidate]))
-                print("Parameters: {0}".format(results['params'][candidate]))
-                print("")
-    
-    # specify parameters and distributions to sample from
-    param_dist = {"max_depth": [3, None],
-                  "max_features": sp_randint(1, 11),
-                  "min_samples_split": sp_randint(2, 11),
-                  "bootstrap": [True, False],
-                  "criterion": ["gini", "entropy"]}
-    
-    # run randomized search
-    n_iter_search = 20
-    random_search = RandomizedSearchCV(clf, param_distributions=param_dist,
-                                       n_iter=n_iter_search, cv=5)
-    
-    start = time()
-    random_search.fit(X, y)
-    print("RandomizedSearchCV took %.2f seconds for %d candidates"
-          " parameter settings." % ((time() - start), n_iter_search))
-    report(random_search.cv_results_)
-        
+    print(pipe.predict([[1],[2]]))        
 
 if __name__ == "__main__":
-    sklearn_random_search()
-    
-    
+    sklearn_mnist(1)
