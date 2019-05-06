@@ -375,6 +375,520 @@ labeled.bbox 方法可以根据 labeled 返回矩形框信息（ndarray），第
   regions = [1,2]
   removed = mh.labeled.remove_regions(labeled, regions)
 
+Mayavi2
+================
+
+VTK(visualization toolkit)是一个开源的用于三维计算机图形学、图像处理和可视化的软件库。它是基于面向对象原理的基础上设计和实现的，它的内核使用 C++ 构建。TVTK （T 表示 Traits-based，也即支持 Traits 软件包）对它进行了 Python 封装，提供 Python 风格的接口。
+
+尽管 VTK 和 TVTK 功能强大，但是使用它们直接进行绘图非强具有挑战性，因此基于 VTK 开发了许多可视化软件，例如 ParaView。而 Mayavi2 则是在 TVTK 基础上，使用纯Python
+开发的 3D 可视化软件。Mayavi2 中的 mlab 模块类似于 matplotlib 的 pylab 模块，提供面向脚本的快速绘图函数。
+
+为便于测试，我们直接借助 IPython 并使用 QT 作为显示的后端。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  ipython --gui=qt
+
+或者在 IPython 交互模式中执行魔术命令：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In []: %gui qt
+
+Mayavi2 默认背景色为灰色，通过 figure 接口更改前景色和背景色，以及图片大小，默认为 400 x 350。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [1]: import mayavi.mlab as mlab
+  
+  # 更改前景色(坐标轴，文字等颜色) 和背景色
+  In [2]: mlab.figure(fgcolor=(0, 0, 0), bgcolor=(1, 1, 1), size=(400, 350))
+
+以上命令将创建一个空白画布，背景为白色，前景为黑色，画布大小为默认，此时将弹出如下窗口：
+
+.. figure:: imgs/mayavi/bg.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  默认窗口
+
+使用 points3d 方法在原点处绘制一个点：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [3]: mlab.points3d([0],[0],[0])
+  
+.. figure:: imgs/mayavi/point.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  绘制点
+
+显然这一点绘制得并不漂亮，但是我们知道 points3d 接受 3 个参数作为 x,y,z 坐标，它们可以是 list 或者 1D ndarray 类型。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 清除绘图对象
+  In [4]: mlab.clf() 
+
+mlab.clf() 用于清除所有画布上的绘图对象，它就是一个黑板擦。接下来将使用更丰富的参数来绘制更精美的 3D 图像。大部分的函数接口均直接使用 numpy 的 ndarray 数组对象作为参数。这让我们可以以更直观的方式观察 ndarray 数据特征。
+
+如果不适用 IPython，也可以调用 mlab.show() 来显示图片。
+
+绘图
+-----------
+
+绘制点
+~~~~~~~~~~~
+
+使用 1 维数组，也即向量可以绘制多个点。mlab.points3d 接口支持多点绘图，每个坐标均支持一个向量，向量的维度就是点的个数：
+
+::
+
+  points3d(x, y, z...)
+  points3d(x, y, z, s, ...)
+  points3d(x, y, z, f, ...)
+
+s 可以是一个与 x,y,z 维度一样的向量用于指定显示点的颜色和大小，也可以是一个函数 f，接受 x,y,z 作为参数，返回 s。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [55]: mlab.figure(fgcolor=(0, 0, 0), bgcolor=(1, 1, 1), size=(400, 350))
+      ...: x, y, z, value = np.random.random((4, 30))
+      ...: mlab.points3d(x, y, z, value)
+
+.. figure:: imgs/mayavi/points.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  绘制多个点
+
+显然 mayavi 自动使用 value 来显示点的大小和颜色，当然 points3d 支持 colormap 来指定颜色方案：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  accent       flag          hot      pubu     set2
+  autumn       gist_earth    hsv      pubugn   set3
+  black-white  gist_gray     jet      puor     spectral
+  blue-red     gist_heat     oranges  purd     spring
+  blues        gist_ncar     orrd     purples  summer
+  bone         gist_rainbow  paired   rdbu     winter
+  brbg         gist_stern    pastel1  rdgy     ylgnbu
+  bugn         gist_yarg     pastel2  rdpu     ylgn
+  bupu         gnbu          pink     rdylbu   ylorbr
+  cool         gray          piyg     rdylgn   ylorrd
+  copper       greens        prgn     reds
+  dark2        greys         prism    set1
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [56]: mlab.points3d(x, y, z, value, colormap='autumn')
+
+.. figure:: imgs/mayavi/autumn.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  使用 autumn 颜色映射绘制多个点
+
+如果不指定 s，那么就会使用相同的颜色和大小绘制所有点，例如：
+
+.. figure:: imgs/mayavi/default.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  不提供 s 参数绘制多个点
+
+默认情况下，s 中最小的值对应 0 直径的点而不会被画出来，此时可以设置缩放因子为 1.
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [74]: x = [1, 2, 3, 4, 5, 6]
+      ...: y = [0, 0, 0, 0, 0, 0]
+      ...: z = y
+      ...: s = [.5, .6, .7, .8, .9, 1]
+      ...: mlab.points3d(x, y, z, s)
+
+.. figure:: imgs/mayavi/dscale.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  默认缩放大小
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [75]: mlab.points3d(x, y, z, s, scale_factor=1)
+
+.. figure:: imgs/mayavi/scale.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  指定缩放因子为 1
+
+通过 mode 参数可以指定 3D 图像，例如圆柱体，箭头等，默认为 sphere：
+
+  ===============    ==============
+  样式               说明
+  ===============    ==============  
+  2darrow            2D 箭头
+  2dcircle           2D 圆环
+  2dcross            十字
+  2ddash             点划线
+  2ddiamond          2D 菱形
+  2dhooked_arrow     钩形箭头
+  2dsquare           2D 方形
+  2dthick_arrow      空心箭头
+  2dthick_cross      空心十字
+  2dtriangle         三角形
+  2dvertex           顶点
+  arrow              3D 箭头
+  axes               3D 轴线
+  cone               圆锥
+  cube               立方体
+  cylinder           圆柱体
+  point              点
+  sphere             球体
+  ===============    ==============  
+
+当然还可以指定线条宽度，颜色等，具体请参考函数手册。
+
+3D 曲线
+~~~~~~~~~~~~
+
+::
+
+  plot3d(x, y, z, ...)
+  plot3d(x, y, z, s, ...)
+
+mlab.plot3d 函数用于绘制 3D 曲线。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [89]: mlab.clf()  # Clear the figure
+      ...: v = np.linspace(0, 4*np.pi, 100)
+      ...: mlab.plot3d(np.sin(v), np.cos(v), 0.1*v, v)
+
+.. figure:: imgs/mayavi/3dline.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  3D 曲线
+
+使用它我们可以绘制非常酷的曲线效果图，例如洛伦茨吸引子轨迹图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # odeint 求解洛伦茨微分方程
+  In [90]: from scipy.integrate import odeint
+
+  In [91]: def lorenz_track(w, t, p, r, b):
+      ...:     x,y,z = w
+      ...:     return np.array([p*(y-x), x*(r-z)-y, x*y-b*z])
+      ...:
+  
+  In [92]: t = np.arange(0,50,0.01)
+      ...: track = odeint(lorenz_track, (0.0, 1.00, 0.0), t, args=(10.0,28.0, 3.0))
+      ...: X,Y,Z = track.T
+      ...: mlab.plot3d(X,Y,Z,t,tube_radius=0.5) # tube_radius 设置曲线粗细
+
+.. figure:: imgs/mayavi/lorenz.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  洛伦茨吸引子轨迹图
+
+plot3d 同样提供了丰富的参数，具体参考手册。
+
+图像显示 2D 数组
+~~~~~~~~~~~~~~~~~
+
+imshow 将 2D 的 ndarray 显示为图片，通常同时显示色标，来查看数值大小与颜色的对应关系。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  arr = np.random.rand(10,10)
+  mlab.imshow(arr)
+  mlab.colorbar() # 添加色标
+  mlab.show()
+
+.. figure:: imgs/mayavi/2dimg.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  显示 2D 数组
+
+imshow 默认使用差值处理以使得图像看起来比较平滑。可以通过 interpolate 关闭它。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  arr = np.random.rand(10,10)
+  mlab.imshow(arr, interpolate=False)
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/di.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  关闭插值
+
+同样可以使用 colormap 指定颜色映射，例如：
+
+.. figure:: imgs/mayavi/imgau.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  指定 autumn 颜色映射方案
+
+条状图
+~~~~~~~~~~~~
+
+barchart 方法可以绘制 1-3 维数组条状图。
+
+::
+
+  barchart(s, ...) 
+  barchart(x, y, s, ...) 
+  barchart(x, y, f, ...) 
+  barchart(x, y, z, s, ...) 
+  barchart(x, y, z, f, ...)
+
+绘制一维数组条状图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  s = np.array([0,1,2])
+  mlab.barchart(s)
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/bar.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  1D 条状图
+
+同样可以绘制二维和三维数组条状图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  mlab.barchart(np.random.rand(3,3))
+  mlab.barchart(np.random.rand(3,3,3))
+  
+.. figure:: imgs/mayavi/2dbar.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  2D 条状图
+
+.. figure:: imgs/mayavi/3dbar.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  3D 条状图
+
+通过条状图和色标可以直观查看数组大小和数据分布情况。
+
+曲面图
+~~~~~~~~~~~~~
+
+surf 方法用于绘制 3D 曲面图：
+
+- x, y 可以是 1D 或 2D 数组(比如 numpy.ogrid 或 numpy.mgrid 返回的数组） 
+- 如果只传递了数组 s ，那么x, y就被认为是数组 s 的索引值。
+
+::
+
+  surf(s, ...) 
+  surf(x, y, s, ...) 
+  surf(x, y, f, ...) 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  obj = mlab.surf([[0,1],[2,3]])
+  mlab.axes()       # 显示坐标   
+  mlab.outline(obj) # 显示边框
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/surf2d.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  2D 曲面图
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  x, y = np.mgrid[-10:10:100j, -10:10:100j]
+  r = np.sqrt(x**2 + y**2)
+  z = np.sin(r)/r
+  mlab.surf(x,y,z, warp_scale='auto')
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/surf3d.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  3D 曲面图
+
+线框图
+~~~~~~~~~~~~
+
+mesh 用于绘制线框图，x, y, z 都是二维数组，拥有相同的 shape，而且 z 代表了平面坐标 (x,y) 对应下的值，它和 surf 不同之处在于 surf 支持 1D 参数。
+
+::
+
+  mesh(x, y, z, ...)
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  phi, theta = np.mgrid[0:np.pi:11j, 0:2*np.pi:11j]
+  x = np.sin(phi) * np.cos(theta)
+  y = np.sin(phi) * np.sin(theta)
+  z = np.cos(phi)
+  
+  # 绘制曲面，与 surf 类似
+  mlab.mesh(x, y, z)
+  
+  # 绘制黑色线条
+  mlab.mesh(x, y, z, representation='wireframe', color=(0, 0, 0))
+  
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/wf.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  3D 线框图
+
+等高线
+~~~~~~~~~~~
+
+contour_surf 方法用于绘制 3D 等高线图。
+
+::
+
+  contour_surf(s, ...) 
+  contour_surf(x, y, s, ...) 
+  contour_surf(x, y, f, ...)
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  def f(x, y):
+      sin, cos = np.sin, np.cos
+      return sin(x + y) + sin(2 * x - y) + cos(3 * x + 4 * y)
+        
+  x, y = np.mgrid[-10:10:0.1, -5:5:0.05]
+  mlab.contour_surf(x, y, f)
+  mlab.colorbar()
+  mlab.show()
+
+.. figure:: imgs/mayavi/cs.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  等高线图
+
+向量场
+~~~~~~~~~~~~
+
+quiver3d 用于绘制场图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  x, y, z = np.mgrid[0:1:20j, 0:1:20j, 0:1:20j]
+  u = np.sin(np.pi*x) * np.cos(np.pi*z)
+  v = -2*np.sin(np.pi*y) * np.cos(2*np.pi*z)
+  w = np.cos(np.pi*x)*np.sin(np.pi*z) + np.cos(np.pi*y)*np.sin(2*np.pi*z)
+  mlab.quiver3d(u, v, w)
+  mlab.outline()  
+  mlab.show()
+
+.. figure:: imgs/mayavi/qd.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  向量场图
+
+简化向量场图，通过 pipeline 中的 vectors 方法可以简化向量场图：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  src = mlab.pipeline.vector_field(u, v, w)
+  mlab.pipeline.vectors(src, mask_points=20, scale_factor=3.)
+
+.. figure:: imgs/mayavi/sqd.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  简化的向量场图
+
 opencv
 ================
 

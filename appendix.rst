@@ -13,6 +13,7 @@
 --------------
 - `Deep Learning Book by Ian GoodFellow <http://www.deeplearningbook.org/>`_
 - `Neural Networks and Deep Learning (Michael Nielsen) <http://neuralnetworksanddeeplearning.com/index.html>`_
+- `Distill Clear Explanations of machine learning <https://distill.pub/>`_
 - `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
 - `cs229 Notes <http://cs229.stanford.edu/notes/>`_
@@ -62,6 +63,8 @@ Python相关
 - `Pillow 图像处理 <https://pillow.readthedocs.io/en/5.3.x/>`_
 - `Turtle 绘图示例 <https://www.zhihu.com/question/271643290/answer/525019532>`_
 - `learnopencv <https://www.learnopencv.com>`_
+- `Mayavi 官网 <http://docs.enthought.com/mayavi/mayavi/>`_
+- `Mayavi2 3D <http://scipy-lectures.org/packages/3d_plotting/index.html#making-it-interactive>`_
 
 符号和表达式
 --------------
