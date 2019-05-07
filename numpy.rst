@@ -393,17 +393,17 @@ randint 返回离散均匀分布（discrete uniform）的整型随机值填充�
 
   randint(low, high=None, size=None, dtype='l')
 
-如果提供 high 从 [low, high) 中取随机数，否则从 [0, low) 中取随机数。size 指定 shape，dtype 指定元素类型，默认 int32。
+如果提供 high 从 [low, high) 中取随机数，否则从 [0, low) 中取随机数。size 指定 shape，dtype 指定元素类型，默认 int32。low 必须提供。
 
 .. code-block:: python
   :linenos:
   :lineno-start: 0
   
-  # 单个随机数
-  print(np.random.randint(1))
+  # size=None 时默认返回单个随机数
+  print(np.random.randint(10))
   
   >>>
-  0
+  5
   
   # 从 [0-2) 中取随机数，含 10 个元素的一维数组
   print(np.random.randint(2, size=10))
@@ -1520,7 +1520,48 @@ np.newaxis 的值被定义为 None，它可以作为索引值传递给 ndarray �
    [2]
    [3]] 
 
+np.newaxis 放在第几个位置，就会在 shape 中相应位置增加一个维数。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  A = np.arange(4).reshape(2,2)
+  print(A.shape)
+  print(A[:,np.newaxis,:].shape)
+  
+  >>>
+  (2, 2)
+  (2, 1, 2)
+
+通常从二维数组里面抽取一列，取出来之后维度却变成了一维，如果我们需要将其还原为二维，就可以使用上述方法。
+
 当然，也可以使用 reshape() 来实现这类变形。
+
+扩展维度
+~~~~~~~~~~~~
+
+np.expand_dims 是另一个扩展维度函数，可以直接通过 axis 指定要扩展的维度的轴。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  A = np.arange(4).reshape(2,2)
+  print(A.shape)
+  print(np.expand_dims(A, axis=0).shape)
+  print(np.expand_dims(A, axis=1).shape)
+  
+  >>>
+  (2, 2)
+  (1, 2, 2)
+  (2, 1, 2)
+
+  # axis 大于当前维度时，在最后的轴上扩展维度
+  print(np.expand_dims(A, axis=10).shape) 
+  
+  >>>  
+  (2, 2, 1)
 
 .. _flatten:
 
