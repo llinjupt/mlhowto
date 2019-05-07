@@ -200,8 +200,7 @@ NumPy标准数据类型：
   int32
   [1449071272 1071747041 -815757517 1072095956]
 
-
-示例随机生成包含 2 个默认的 float64 元素的数组，直接修改类型为 ‘int32’，发现数组元素增加，这不是我们期待的结果。
+示例随机生成包含 2 个默认的 float64 元素的数组，直接修改类型为 ‘int32’，发现数组元素个数增加，这不是我们期待的结果。显然 dtype 用于对内存块的解读。
 
 类型转换需要使用 numpy 提供的 astype 方法：
 
@@ -823,7 +822,7 @@ numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向�
   b = np.array([0,0])
   
   # 0 轴插入
-  c = np.insert(a, 1, b, 0)
+  c = np.insert(a, 1, b, axis=0)
   print(c)
   
   >>>
@@ -837,12 +836,14 @@ numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向�
   [[1 2]
    [3 4]]
 
+行插入和列插入，通过 axis 指定插入轴：
+
 .. code-block:: python
   :linenos:
   :lineno-start: 0
     
   # 行插入
-  print(np.insert(a, 1, b, 1))
+  print(np.insert(a, 1, b, axis=0))
   
   >>>
   [[1 2]
@@ -850,7 +851,7 @@ numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向�
    [3 4]]
   
   # 列插入
-  print(np.insert(a, 1, b, 1))
+  print(np.insert(a, 1, b, axis=1))
 
   >>>
   [[1 0 2]
@@ -3578,8 +3579,8 @@ cosa 在统计学中也被称为 u 和 v 的相关系数，它越大说明夹角
   [1 1 1]
   [0 0 0]
 
-不同形状数组
-`````````````````
+广播可视化
+``````````````
 
 参考 :ref:`array_scalar`，数组和标量之间的运算，相当于把标量扩展为相同形状的数组，然后再进行运算。 
 
@@ -3674,6 +3675,49 @@ NumPy 的广播遵循一组严格的规则，设定这组规则是为了决定�
 B 的维度小于 A，把 B.shape 扩展为 (1, 3)，然后按照 A 的第0轴扩展为 (2, 3)，此时两个数组没有维数为 1 的轴，但是形状不同，无法进行扩展操作。
 
 这些广播规则对于任意二元通用函数都是适用的。 例如 power(a, b) 函数。
+
+广播实现
+````````````
+
+np.broadcast_to 函数提供广播实现，我们可以使用它观察数组广播的行为，只需提供 shape 参数即可：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.array([1, 2, 3])
+  print(np.broadcast_to(a, (3, 3)))
+
+  >>>
+  [[1 2 3]
+   [1 2 3]
+   [1 2 3]]
+
+此外 np.broadcast_arrays 可以直接对多个数组进行广播扩展：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  x = np.array([[1,2,3]])
+  y = np.array([[4],[5]])
+  a, b = np.broadcast_arrays(x, y)
+  print(a)
+  print(b)
+
+  >>>
+  [[1 2 3]
+   [1 2 3]]
+  [[4 4 4]
+   [5 5 5]]
+
+当参数不止 2 个时，可以使用列表扩展来返回多个数组，这样更方便：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  [np.array(a) for a in np.broadcast_arrays(x, y)]
 
 广播应用
 ~~~~~~~~~~~~
@@ -3807,17 +3851,31 @@ B 的维度小于 A，把 B.shape 扩展为 (1, 3)，然后按照 A 的第0轴�
 
 1. 线性函数转换(最大最小值转换法)
 
-y = (x-min)/(max-min)
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  y = (x-min)/(max-min)
 
 x、y 分别表示输入、输出值，max、min表示样本中的最大、最小值。
 
 2. 对数函数转换
 
-y = log(x) 或 log2(x) 或 log10(x)
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  y = log(x) or log2(x) or log10(x)
 
 x、y 分别表示输入、输出值，y 为 x 的以 e，2 或 10 为底的对数函数转换值。
 
-3. 反余切函数转换 y = atan(x)*2/pi
+3. 反余切函数转换 
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  y = atan(x)*2/pi
 
 此外，从集合的角度来看，有些数据或者对象不具备可比性，但是可以通过做维度的维一，即抽象化归一，把不重要的，不具可比性的集合中的元素的属性去掉，保留人们关心的那些属性，这样，本来不具有可比性的对象或是事物，就可以实现归一，即归为一类，然后就可以比较了。并且，人们往往喜欢用相对量来比较，比如人和牛，身高体重都没有可比性，但“身高/体重”的值，就可能有了可比性，这些，从数学角度来看，可以认为是把有纲量变成了无纲量了。
 
