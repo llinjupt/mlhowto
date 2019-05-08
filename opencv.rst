@@ -375,7 +375,7 @@ labeled.bbox 方法可以根据 labeled 返回矩形框信息（ndarray），第
   regions = [1,2]
   removed = mh.labeled.remove_regions(labeled, regions)
 
-Mayavi2
+mayavi2
 ================
 
 VTK(visualization toolkit)是一个开源的用于三维计算机图形学、图像处理和可视化的软件库。它是基于面向对象原理的基础上设计和实现的，它的内核使用 C++ 构建。TVTK （T 表示 Traits-based，也即支持 Traits 软件包）对它进行了 Python 封装，提供 Python 风格的接口。
