@@ -14,6 +14,11 @@ to think about the operations as if it is.
 #   For more information, see http://astroML.github.com
 #   To report a bug or issue, use the following forum:
 #    https://groups.google.com/forum/#!forum/astroml-general
+# 
+# Author: Red Liu (lli_njupt@163.com)
+#   Add more useful functions to draw vector and matrix
+# 
+
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
@@ -184,7 +189,7 @@ def draw_column(cols, xy, size=1):
     x += 0.5 * size
     x += 1
     y += 0.5 * size - font_height() / 2
-    # FIXME. 8 is the font size, how to get the text font size?
+    
     for i in range(cols):
         ax.text(x + i, y, 'col' + str(i), ha='center', va='center', color='k')
 
@@ -192,9 +197,9 @@ def draw_row(rows, xy, size=1):
     x,y = xy
     
     x += 0.5 * size
-    y += 0.5 * size - 8 / fig.dpi / 2
+    y += 0.5 * size - font_height() / 2
     y -= 1
-    # FIXME. 8 is the font size, how to get the text font size?
+    
     for i in range(rows):
         ax.text(x, y - i, 'row' + str(i), ha='center', va='center', color='k')
 
@@ -299,7 +304,8 @@ def draw_sum_axis1(a=None, xy=(4,9)):
     draw_matrix(a, (x, y), title=r'$np.sum(a, axis=1)$')
     sum = np.sum(a, axis=1)
     
-    draw_matrix(sum.reshape(a.shape[0],1), (x + a.shape[1] + 1.5, y - 1), title='', with_row_col=False, with_axis=False)
+    draw_matrix(sum.reshape(a.shape[0],1), (x + a.shape[1] + 1.5, y - 1), 
+                title='', with_row_col=False, with_axis=False)
 
     rows = a.shape[0]
 
@@ -312,7 +318,5 @@ def draw_sum_axis1(a=None, xy=(4,9)):
     ax.set_ylim(2.5, 12)
     plt.show()
 
-#draw_sum_axis1()
-A = np.array([1, 2])
-B = np.array([3, 4])
-print(np.stack((A, B), axis=1))
+if __name__ == "__main__":
+    draw_sum_axis1()
