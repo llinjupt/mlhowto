@@ -682,7 +682,7 @@ s 参数可以为一个标量或 array_like，shape(n,)，指定绘制点的大�
               arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=.2"))
   ......
   plt.rcParams['font.sans-serif']=['SimHei']
-  plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像是负号'-'显示为方块的问题
+  plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时，负号'-'显示为方块问题
   plt.annotate('ABC123abc 30号中文字体', xy=(0.2, 1), xycoords='data',
                xytext=(-10,-10), textcoords='offset pixels', fontsize=30)
   
