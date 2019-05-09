@@ -150,7 +150,7 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 
 上例中我们分别生成了 1,2,3 维的数组，一些常用的维度数组在数学科学领域有专门的术语：
 
-- 单个数值，输出不被包含在 [] 中，例如 1，0.1等被称为标量(scalar)，它们自身不是数组，但可以与数组进行数学运算。
+- 单个数值，输出不被包含在 [] 中，例如 1，0.1等被称为标量(scalar)，它们自身不是数组，但可以与数组进行数学运算。np.array 可以创建只包含标量的数组，shape 为 ()。
 - 1维数组，如 [1,2,3]，被称为向量（vector），只有一个轴。
 - 2维数组，可以看作是向量组成的数组叫作矩阵（matrix），有两个轴，第一个轴称为行（row），第二个轴称为列（column）。
 - 3维数组，多个矩阵组合成一个新的数组，可以得到一个 3D 矩阵。
@@ -673,6 +673,20 @@ array() 可以实现列表向数组的转换，自动提升元素类型。它还
    [3 4]]
   [ 1.  2.  3.]
 
+array() 可以生成 0D 的标量数组，它的 shape 为空的 tuple：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [229]: a = np.array(0)
+  
+  In [231]: a
+  Out[231]: array(0)
+  
+  In [230]: a.shape
+  Out[230]: ()
+
 subok 表示是否将子类型转换为 ndarray，例如：
 
 .. code-block:: python
@@ -761,6 +775,121 @@ frombuffer。
 ``````````````
 
 参考 :ref:`iter_array`。 
+
+数组文件
+~~~~~~~~~~
+
+保存到文件
+``````````````
+
+::
+
+  savetxt(fname, X, fmt='%.18e', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+
+我们可以通过 np.savetxt 将数组保存到 txt 文件，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.arange(4).reshape(2,2)
+  np.savetxt('narray.txt', a)
+
+narray.txt 文件内容如下，尽管 dtype 为 int32，数据看起来就是浮点数，这是由于默认参数为 fmt 设置成了 '%.18e'：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  0.000000000000000000e+00 1.000000000000000000e+00
+  2.000000000000000000e+00 3.000000000000000000e+00
+
+从文件加载
+`````````````
+
+::
+
+  loadtxt(fname, dtype=<class 'float'>, comments='#', delimiter=None, converters=None, 
+          skiprows=0, usecols=None, unpack=False, ndmin=0)
+  
+np.loadtxt 实现从文件加载，相当于 np.savetxt 的逆向操作，所以要保持相关参数一致，例如 delimiter。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.loadtxt('narray.txt', delimiter=' ')
+  print(a.dtype)
+  print(a)
+  
+  >>>
+  float64
+  [[ 0.  1.]
+   [ 2.  3.]]
+
+显然通过 txt 文件只能保存数组的数据部分，部分信息（数组类型）被丢失了。使用 Python 的 pickle 数据包可以轻松完成这一功能，并且支持多个数组的保存，当然缺点是无法打开文件直接查看数据。
+
+pickle 操作
+```````````
+
+这里定义了两个函数，用于一次保存或者加载多个 Python 对象，显然这些对象也可以是 ndarray。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def db_pickle_save(file, data, overwrite=False):
+      import pickle,gzip
+      '''
+      file:
+          file path, to save gize pickle
+      data:
+          with style [] or ()
+      '''
+  
+      if overwrite== False and os.path.exists(file):
+          print("Can't over write {}.".formate(file))
+          return
+      with gzip.open(file, "w") as f:
+          pickle.dump(data, f)
+  
+  def db_pickle_load(file):
+      import pickle,gzip
+      '''
+      file:
+          file path, to save gize pickle
+      data:
+          with style [] or ()
+      '''
+      
+      if not os.path.exists(file):
+          print("File {} do not exist.".formate(file))
+          return
+  
+      with gzip.open(file, 'rb') as f:
+          return pickle.load(f)
+
+操作很简单，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  a = np.arange(4).reshape(2,2)
+  b = np.arange(9).reshape(3,3)
+
+  fname = "narray.gzip"
+  dbload.db_pickle_save(fname, [a, b])
+  a, b = dbload.db_pickle_load(fname)
+  print(a.dtype, b.dtype)
+  print(a)
+  
+  >>>
+  int32 int32
+  [[0 1]
+   [2 3]]
+
+通过 pickle 可以完整保存 python 对象的所有信息。
 
 数列数组
 ~~~~~~~~~~~~~~
