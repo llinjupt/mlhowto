@@ -76,11 +76,11 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
    [[ 0.  0.]
     [ 0.  0.]]]  
 
-我们可以通过数第一行开始连续左中括号 "[" 的个数来判断数组的维数。而判断数组的各个维的维数，则可以从内向外进行，也即从最内层向最外层数：
+我们可以通过数第一行开始连续左中括号 "[" 的个数来判断数组的维数。而判断数组的各个维的长度，则可以从内向外进行，也即从最内层向最外层数：
 
 - 如下所示的数组，首先查看最内层元素 [ 0.  0.]，元素个数为 2 个，所以最后一维的维数为 2
 - 接着把 [ 0.  0.] 看做一个整体单元，查看外层括号包含多少个此单元，显然为 2 个
-- 然后再把 [[ 0.  0.] [ 0.  0.]]，看做一个整体单元，继续查看外层外寒多少个此单元，显然只有 1 个
+- 然后再把 [[ 0.  0.] [ 0.  0.]]，看做一个整体单元，继续查看外层包含多少个此单元，显然只有 1 个
 - 以此类推，直至遍历完所有中括号，显然下面代码中的数组的 shape 为 (1,2,2)。
 
 .. code-block:: python
@@ -92,9 +92,9 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 
 描述数组大小的属性有三个：
 
-- nidm：描述数组的维度，也被称为轴数（axes），为整数，对于三维数组来说它有 3 个轴，通常记为 x,y,z，这与真实世界的三维空间坐标轴是一致的。
-- shape：由每个轴（axis，也即每个维）的大小组成的元组类型，一个轴上的元素数称为这个轴的维数，注意和数组维度区别。
-- size：数组的元素总个数，整数。
+- nidm：描述数组的维度（dimensions），也被称为轴数（axes），为整数，对于三维数组来说它有 3 个轴，通常记为 x,y,z，这与真实世界的三维空间坐标轴是一致的。
+- shape：由每个轴（axis，也即每个维）的长度大小组成的元组类型，一个轴上的元素数称为这个轴的长度，注意和数组维度区别。
+- size：数组的元素总个数，整数，size 等于 shape 中所有元素相乘: size = np.prod(a.shape)。
 
 .. code-block:: python
   :linenos:
@@ -109,10 +109,11 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
   X2 ndim: 2 shape: (2, 2) size: 4
   X3 ndim: 3 shape: (2, 2, 2) size: 8
 
-用于描述存储相关大小的属性有两个：
+用于描述数组元素存储的属性有：
 
-- itemsize：表示每个数组元素字节大小。
-- nbytes：表示数组总字节大小，一般 nbytes = itemsize * size
+- dtype：数组元素类型，决定了每个元素的大小，例如 int32，float64。
+- itemsize：表示每个元素占用字节大小。
+- nbytes：表示数组中数据部分所占的字节大小，通常 nbytes = itemsize * size。
 
 .. code-block:: python
   :linenos:
@@ -139,10 +140,15 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
   >>>
   float64
 
-数组类型
-~~~~~~~~~
+关于元素类型要注意以下几点：
 
-上例中我们分别生成了 1,2,3维度的数组，一些常用的维度数组在数学科学领域有专门的术语：
+- 转换数组类型不可以直接更改 dtype，它用于对数据存储区域的解读方式，例如 float64 对应 8 个 bytes，int32 对应 4 个 bytes，直接更改 dtype 会让 float64 类型的数组元素个数翻倍，并未实际改变数组类型。正确的方法应该通过 np.astype 方法进行。
+- 更新数组元素时，会强制把新元素的数据类型转换为数组的 dtype。
+
+不同维度的数组
+~~~~~~~~~~~~~~
+
+上例中我们分别生成了 1,2,3 维的数组，一些常用的维度数组在数学科学领域有专门的术语：
 
 - 单个数值，输出不被包含在 [] 中，例如 1，0.1等被称为标量(scalar)，它们自身不是数组，但可以与数组进行数学运算。
 - 1维数组，如 [1,2,3]，被称为向量（vector），只有一个轴。
@@ -151,8 +157,7 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 
 以上各类量有一个专门的名词，统称为张量（Tensor）。张量的维度（dimension）也叫作轴（axis）。张量轴的个数也叫作阶 （rank）。
 
-dimension 或 axis 或 rank 的个数在 NumPy 用 ndim 属性表示。
-每个维度的大小在 NumPy 中用 shape 属性表示。
+dimension 或 axis 或 rank 的个数在 NumPy 用 ndim 属性表示。每个维度的大小在 NumPy 中用 shape 属性表示。
 
 标量不是数组，而是数值，维度为 0，它在 NumPy 不用 ndarray 对象表示，没有 ndim 和 shape 属性。
 
@@ -203,6 +208,51 @@ NumPy标准数据类型：
   ========== ==================
 
 更多的信息可以在 NumPy 文档（http://NumPy.org/） 中查看。NumPy 也支持复合数据类型。创建数组时，如果不指定元素类型，元素默认类型为 float64。
+
+浮点数据的精度可以通过 numpy.finfo 接口获取：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # numpy.float 等价于 numpy.float64
+  In [53]: print (numpy.finfo(numpy.float))
+  Machine parameters for float64
+  ---------------------------------------------------------------
+  precision =  15   resolution = 1.0000000000000001e-15
+  machep =    -52   eps =        2.2204460492503131e-16
+  negep =     -53   epsneg =     1.1102230246251565e-16
+  minexp =  -1022   tiny =       2.2250738585072014e-308
+  maxexp =   1024   max =        1.7976931348623157e+308
+  nexp =       11   min =        -max
+  ---------------------------------------------------------------
+  
+  In [54]: print (numpy.finfo(numpy.float32))
+  Machine parameters for float32
+  ---------------------------------------------------------------
+  precision =   6   resolution = 1.0000000e-06
+  machep =    -23   eps =        1.1920929e-07
+  negep =     -24   epsneg =     5.9604645e-08
+  minexp =   -126   tiny =       1.1754944e-38
+  maxexp =    128   max =        3.4028235e+38
+  nexp =        8   min =        -max
+  ---------------------------------------------------------------
+
+np.array 会根据提供的数据自动选择 int32 或 flot64 作为数组的 dtype。对于使用切片生成数组的函数，也会根据参数类型自动选择生成数组的 dtype，例如 np.arange，不像 Python 的 range 函数，它可以接受浮点数作为参数：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [55]: np.arange(10)
+  Out[55]: array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  
+  In [56]: np.arange(10.) # 指定 stop 为浮点数
+  Out[56]: array([ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.])
+
+.. admonition:: 注意
+
+  在整数后加一点 '.'，例如 10. 表示这是一个浮点数，是 10.0 的简写，常通过该简写生成浮点类型数组。
 
 类型转换
 ~~~~~~~~~
@@ -378,6 +428,22 @@ full() 根据 shape 生成特定维度的数组，所有元素默认值为 fill_
   [[2 2]
    [2 2]]
   1 
+
+fill 是 ndarray 对象方法，可以将数组填充为特定标量，注意会进行强制类型转换：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [65]: a = np.arange(5)
+  
+  In [66]: a
+  Out[66]: array([0, 1, 2, 3, 4])
+  
+  In [67]: a.fill(2.1) # 强制转换为 int 型
+  
+  In [68]: a
+  Out[68]: array([2, 2, 2, 2, 2])
 
 随机数数组
 ~~~~~~~~~~~~
@@ -607,6 +673,24 @@ array() 可以实现列表向数组的转换，自动提升元素类型。它还
    [3 4]]
   [ 1.  2.  3.]
 
+subok 表示是否将子类型转换为 ndarray，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  np.array(np.mat('1 2; 3 4'), subok=True)
+  
+  >>>
+  matrix([[1, 2], # 类型依然为 matrix，保留子类型
+          [3, 4]])
+  
+  np.array(np.mat('1 2; 3 4'), subok=False)
+  
+  >>>        
+  array([[1, 2],  # 类型转化为 ndarray
+         [3, 4]])
+
 ::
   
   asarray(a, dtype=None, order=None)
@@ -684,11 +768,13 @@ frombuffer。
 等差数列 arange
 ````````````````
 
+arange 可以生成整型或者浮点型数列，这与 Python 的 range 函数不同。
+
 ::
 
   arange([start,] stop[, step,], dtype=None)
 
-从 [start, stop) 中每隔 step 取值，生成等差数列。不含 stop。不指定 dtype 则根据数据使用最小满足类型。
+从 [start, stop) 中每隔 step 取值，生成等差数列，不含 stop。不指定 dtype 则根据数据使用最小满足类型。
   
 .. code-block:: python
   :linenos:
@@ -709,6 +795,30 @@ frombuffer。
 
   >>>
   [0 1 2 3 4 5 6 7]
+
+尽管 arange 声称不含 stop，但是当参数为浮点数时，由于浮点数舍入误差（round-off error）的影响，可能会包含 stop，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [1]: np.arange(1.5, 1.8, 0.3)
+  Out[1]: array([ 1.5,  1.8])
+
+浮点数在计算机内无法精确存储，例如这里的 0.3 实际存储的不是准确的 0.3，这导致 1.5 + 2.9. 后再进行舍入操作得到了 1.8：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  In [188]: a = np.array([1.8,0.3])
+  
+  In [189]: a[1]
+  Out[189]: 0.29999999999999999
+
+.. admonition:: 注意
+
+  通常使用 np.linespace 来生成浮点型的差数列，而 np.arange 用于生成整型的等差数列以和 range 函数保持一致，并避免浮点误差问题。
 
 等差数列 linespace
 ```````````````````
@@ -813,7 +923,7 @@ logspace() 等价于先等差再对元素以底数 base 乘幂：
 列表索引
 ````````````
 
-使用列表索引，结合切片索引，可以选择特定的多行或多列。切片索引参考  :ref:`array_slice` 。
+列表索引是花式索引（fancy indexing）的一种，使用列表索引，结合切片索引，可以选择特定的多行或多列。切片索引参考  :ref:`array_slice` 。
 
 .. code-block:: python
   :linenos:
@@ -1645,12 +1755,12 @@ np.c\_ 的实现等价于：
 - 接着交换 0 轴和 -1 轴，得到 2x1 的 2D 数组，[[1] [2] [3]] 和 [[4] [5] [6]]。
 - 最后在 axis = -1 轴进行合并，最终得到如上结果。
 
-通常 np.r\_ 和 np.c\_ 只用于切片对象的合并，更易用易读的合并操作应该通过 stack 系列函数完成。
+通常 np.r\_ 和 np.c\_ 只用于切片对象的合并，由于它们通过 Python 的类实现，所以效率不高，另外字符参数比较隐晦，包含了多步操作，使得代码难于理解，更易用易读的合并操作应该通过 stack 系列函数完成。
 
 向量合并为矩阵
 ```````````````
 
-column_stack 将 1D 向量作为列，合并为 2D 数组。
+column_stack 将 1D 向量作为列，合并为 2D 数组，参数只可以为 1D 数组。
 
 .. code-block:: python
   :linenos:
@@ -1666,8 +1776,21 @@ column_stack 将 1D 向量作为列，合并为 2D 数组。
   [[1 4]
    [2 5]
    [3 6]]
+
+column_stack 代码实现等价于：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
   
-row_stack 等价于 vstack。
+  arrays = map( transpose,map(atleast_2d,tup) )
+  concatenate(arrays, axis=1)
+
+- 首先对所有数组通过 pre-pended 扩充，转换为 2D 数组。
+- 接着进行交换行和列，也即转置操作。
+- 最后在列上进行拼接。
+
+row_stack 等价于 vstack，在行上均迭 1D 向量，合并为 2D 数组。
 
 .. code-block:: python
   :linenos:
@@ -1680,13 +1803,15 @@ row_stack 等价于 vstack。
   [[1 2 3]
    [4 5 6]]
 
+总结：从数字序列转换为 1D 向量可以使用 np.r\_，多个 1D 向量可以使用 column_stack 和 row_stack 转换为 2D 矩阵。
+
 扩展行或列
 ```````````
 
 ::
   
   numpy.insert(arr, obj, values, axis=None)
-  
+
 numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向量后的数组。若axis=None，则返回一个扁平(flatten)数组。
 
 - arr：要插入元素的数组
@@ -1729,7 +1854,7 @@ numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向�
   [[1 2]
    [0 0]
    [3 4]]
-  
+
   # 列插入
   print(np.insert(a, 1, b, axis=1))
 
@@ -1745,7 +1870,7 @@ numpy.insert 接受四个参数，axis 是可选参数。返回一个插入向�
 任意轴拼接
 ``````````````
 
-concatenate(tuple) 将相同轴数的数组元组进行拼接。结果数组不改变轴数。之所以首先介绍该函数，在于下面的 vstack，hstack 和 stack 最终都是通过它实现的。
+concatenate(tuple) 将相同轴数的数组元组进行拼接。结果数组不改变轴数。之所以首先介绍该函数，在于下面的 stack 系列函数最终都是通过它实现的（np.c\_ 和 np.r\_ 最终也通过它实现，实际上它是 C 语言的接口函数）。
 
 .. code-block:: python
   :linenos:
@@ -1771,12 +1896,14 @@ concatenate(tuple) 将相同轴数的数组元组进行拼接。结果数组不�
   print(C)
   D = np.concatenate((A, B), axis=1) # 增加列数
   print(D)
-  
+
   >>>
   [[1 2 3]
    [4 5 6]]
   [[1 2 3 4 5 6]]
- 
+
+与聚合操作比较，可以发现聚合操作默认会减少轴数，而拼接操作不会改变轴数。concatenate 要求所有数组除了拼接的轴上的 shape 值无需相同，其他的轴上的 shape 值必须相同，否则无法拼接。
+
 垂直堆叠
 `````````````````
 
@@ -1796,7 +1923,15 @@ vstack(tuple) 接受一个由数组组成的元组，每个数组在列上的元
    [7 8 9]
    [1 2 3]]
 
-vstack 依次处理各个数组，按第一个轴依次取数据，生成新数组。看起来像是在垂直方向上堆叠数据。
+vstack 依次处理各个数组，按第一个轴依次取数据，生成新数组。看起来像是在垂直方向上堆叠数据。等价于如下操作：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  concatenate( map(atleast_2d,tup), axis=0)
+
+显然要进行垂直堆叠操作，数组至少是 2D 的，转换后在行上堆叠：vstack 返回的结果会增加轴数。
 
 水平堆叠
 `````````````````
@@ -1813,6 +1948,16 @@ hstack(tuple) 与 vstack(tuple) 类似，按第二个轴依次取数据，数组
   
   >>>
   [1 2 3 4 5 6 1 2 3]
+
+hstack 等价于如下操作：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  concatenate( map(atleast_1d,tup), axis=1)
+
+水平堆叠只需要保证数组有 1D 即可，所以结果不会增加向量的轴数。
 
 数组分割
 ~~~~~~~~~~~~~~~
@@ -4540,31 +4685,12 @@ A[0,1]，A[1,0] 和 A[1,1] 对应元素均大于 0。A[B] 等价于 A[np.where(A
 花式索引
 ~~~~~~~~~~~~~~~~
 
-花式索引指的是用整数列表或者整数数组进行索引。
-
-直接提取元素
-````````````
-
-通过表达式 [A[index], A[index],...] 直接提取元素。生成 list 类型。
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  A = np.arange(4).reshape(2, 2)
-  print(A)
-  B = [A[0,0] A[1,1]]
-  print(B)
-    
-  >>>
-  [[0 1]
-   [2 3]]
-  [0, 3]   # list 类型
+花式索引指的是用整数列表（array-likes）或者整数数组进行索引。与切片索引不同，花式索引会对原数组数据进行复制以生成新数组。
 
 索引列表
 `````````````
 
-传递索引的单个列表，用于提取一维数组：
+传递由整数索引组成的索引列表，用于提取索引对应的元素：
 
 .. code-block:: python
   :linenos:
@@ -4576,7 +4702,7 @@ A[0,1]，A[1,0] 和 A[1,1] 对应元素均大于 0。A[B] 等价于 A[np.where(A
   >>>
   [0 1 2 3]
   
-  # 使用列表进行索引
+  # 索引列表提取元素
   print(A[[0, 3]])
   
   >>>
@@ -4603,7 +4729,7 @@ A[0,1]，A[1,0] 和 A[1,1] 对应元素均大于 0。A[B] 等价于 A[np.where(A
   [0 3]   # 对应 [A[0,0] A[1,1]]
 
 使用列表作为索引的结果均是一维数组。 
-  
+
 索引数组
 ``````````
 
