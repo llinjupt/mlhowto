@@ -31,6 +31,56 @@ Matplotlib 是 Python 编程语言及其数值数学扩展包 NumPy 的可视化
   >>>
   1.13.1
 
+这里不得不提到 Octave（模仿 Matlab 的 GNU 开源软件），它是另一个在科学计算领域应用广泛的开发环境，作者 John W. Eaton。实际上 Octave 之所以易于使用，从而也被广泛应用在教学领域，在于它沿用 Matlab 在各个轴上的定义与笛卡尔坐标系保持一致，从而避免了学习梯度的陡升。掌握 NumPy 的关键就是理解不同维度数组的轴，以及建立在轴上的复杂变换（高维数组上轴的定义与 Octave 不同，这让 NumPy 看起来有些混乱）。
+
+这里使用 2D 数组在 Octave 和 NumPy 上做一对比：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  octave:2> A = [1 2 3; 4 5 6]
+  A =
+
+   1   2   3
+   4   5   6;
+
+上下比较，哪一个更简洁更易理解是非常明显的，NumPy 在数组显示上要糟糕得多，这还是在只有 2D 的情况下：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  In [1]: A = np.array([[1, 2, 3], [4, 5, 6]])
+  
+  In [2]: A
+  Out[2]:
+  array([[1, 2, 3],
+         [4, 5, 6]])
+
+我们再看一个 3D 的例子，以说明各个轴和笛卡尔坐标系的关系：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  octave:33> A = reshape ([0, 1, 2, 3, 4, 5, 6, 7], 2, 2, 2)
+  A =
+  
+  ans(:,:,1) =
+  
+     0   2
+     1   3
+  
+  ans(:,:,2) =
+  
+     4   6
+     5   7
+
+octave 的下标总是从 1 开始，常规思维 [1,1,2]（对应 Numpy 的索引为 [0,0,1]）的元素是什么？
+
+NumPy 另一个令人诟病的地方就是不支持列向量，也即只能使用 Nx1 的 2D 数组来模拟，而行向量却是 1D 的，这看起来非常不合理（Stupid！），所以没有任何经验的人使用 Octave 并基于正常思维掌握它是非常迅速的，而要掌握 NumPy，使用直觉思维是不现实的，你在尝试解读代码时必须要经过一个短暂的转换思考过程。
+
 数组属性和类型
 -----------------
 
@@ -162,18 +212,33 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 - 2维数组，可以看作是向量组成的数组叫作矩阵（matrix），有两个轴，第一个轴称为行（row），第二个轴称为列（column）。
 - 3维数组，多个矩阵组合成一个新的数组，可以得到一个 3D 矩阵。
 
-以上各类量有一个专门的名词，统称为张量（Tensor）。张量的维度（dimension）也叫作轴（axis）。张量轴的个数也叫作阶 （rank）。
+以上各类量有一个专门的名词，统称为张量（Tensor）。张量的维（dimension）也称为轴（axis），轴的个数叫作秩（rank），因为它和矩阵的秩含义不同，为了防止混淆， 通常很少使用术语 rank，而是称张量的维度。与此同时 np.rank 函数也不再被推荐使用，而是被 ndarray.ndim 替代。
 
-dimension 或 axis 或 rank 的个数在 NumPy 用 ndim 属性表示。每个维度的大小在 NumPy 中用 shape 属性表示。
+dimension 或 axis 的个数（rank）在 NumPy 用 ndim 属性表示。每个维的大小（长度）在 NumPy 中用 shape 属性表示。
 
-标量不是数组，而是数值，维度为 0，它在 NumPy 不用 ndarray 对象表示，没有 ndim 和 shape 属性。
+标量不是数组，而是数值，维度为 0，它在 NumPy 不用 ndarray 对象表示（实际上可以通过 array(scaler) 获得 0D 的 ndarray 对象，但是没有必要，直接使用标量即可），没有 ndim 和 shape 属性。
 
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # 创建 0D 的 ndarray 对象
+  In [1]: a = np.array(1) 
+  
+  In [2]: type(a)
+  Out[2]: numpy.ndarray
+  
+  In [3]: a.ndim
+  Out[3]: 0
+  
 .. figure:: imgs/numpy/narraytypes.png
   :scale: 100%
   :align: center
   :alt: narraytypes
 
   1D 向量和 2D 矩阵
+
+为了区分向量和 1xN 的矩阵，向量使用平面方式绘制，矩阵使用 3D 效果绘制。
 
 图中可以看出：
 
@@ -2154,7 +2219,14 @@ vstack 依次处理各个数组，按第一个轴依次取数据，生成新数�
   
   concatenate( map(atleast_2d,tup), axis=0)
 
-显然要进行垂直堆叠操作，数组至少是 2D 的，转换后在行上堆叠：vstack 返回的结果会增加轴数。
+显然要进行垂直堆叠操作，数组至少是 2D 的，转换后在行上堆叠：vstack 在 1D 上堆叠会返回 2D 数组。
+
+.. figure:: imgs/numpy/vstack.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  vstack 垂直堆叠示意图
 
 水平堆叠
 `````````````````
@@ -2165,12 +2237,12 @@ hstack(tuple) 与 vstack(tuple) 类似，按第二个轴依次取数据，数组
   :linenos:
   :lineno-start: 0
 
-  A = np.array([1, 2, 3])
-  B = np.array([4, 5, 6])
+  A = np.array([0, 1, 2])
+  B = np.array([30,40])
   print(np.hstack((A, B, A)))
   
   >>>
-  [1 2 3 4 5 6 1 2 3]
+  [0, 1, 2, 30, 40, 0, 1, 2]
 
 hstack 等价于如下操作：
 
@@ -2181,6 +2253,13 @@ hstack 等价于如下操作：
   concatenate( map(atleast_1d,tup), axis=1)
 
 水平堆叠只需要保证数组有 1D 即可，所以结果不会增加向量的轴数。
+
+.. figure:: imgs/numpy/hstack.png
+  :scale: 100%
+  :align: center
+  :alt: borders
+
+  hstack 水平堆叠示意图
 
 数组分割
 ~~~~~~~~~~~~~~~
@@ -2844,7 +2923,7 @@ np.multiply.outer(A, 2) 等同于 A * 2，不会改变维度。
   a = np.arange(16).reshape(4,4)
   sum = np.sum(a, axis=1)
   print(sum.shape, sum)
-  
+
   >>>
   (4,) [ 6 22 38 54]
 
@@ -2855,7 +2934,7 @@ np.multiply.outer(A, 2) 等同于 A * 2，不会改变维度。
 
   axis = 1 上的加法聚合示例
 
-上图中尽管画成了列向量，实际上在 numpy 中就是向量，这只是为了方便理解聚合如何作用在 1 轴上。当指定 axis = 1 时，会在 1 轴方向进行聚合，聚合后的结果数组中 1 轴就消失了。
+上图中尽管画成了列向量，实际上在 numpy 中就是向量，这只是为了方便理解聚合如何作用在 1 轴上。当指定 axis = 1 时，会在 1 轴方向进行聚合，聚合后的结果数组中 1 轴就消失了，成为了 1D 向量。
 
 聚合函数均支持 keepdims 布尔开关选项，指明是否保留结果数组的维度不变：
 
