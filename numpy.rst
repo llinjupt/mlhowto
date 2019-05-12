@@ -31,7 +31,7 @@ Matplotlib 是 Python 编程语言及其数值数学扩展包 NumPy 的可视化
   >>>
   1.13.1
 
-这里不得不提到 Octave（模仿 Matlab 的 GNU 开源软件），它是另一个在科学计算领域应用广泛的开发环境，作者 John W. Eaton。实际上 Octave 之所以易于使用，从而也被广泛应用在教学领域，在于它沿用 Matlab 在各个轴上的定义与笛卡尔坐标系（C语言的多维数组索引）保持一致，从而避免了学习梯度的陡升。掌握 NumPy 的关键就是理解不同维度数组的轴，以及建立在轴上的复杂变换（高维数组上轴的定义与 Octave 不同，这让 NumPy 看起来有些混乱）。
+这里不得不提到 Octave（模仿 Matlab 的 GNU 开源软件），它是另一个在科学计算领域应用广泛的开发环境，作者 John W. Eaton。实际上 Octave 之所以易于使用，从而也被广泛应用在教学领域，在于它沿用 Matlab 在各个轴上的定义与笛卡尔坐标系（Cartesian coordinates）保持一致，从而避免了学习梯度的陡升。掌握 NumPy 的关键就是理解不同维度数组的轴，以及建立在轴上的复杂变换（高维数组上轴的定义与 Octave 不同，这让 NumPy 看起来有些混乱）。
 
 这里使用 2D 数组在 Octave 和 NumPy 上做一对比：
 
@@ -87,7 +87,7 @@ octave 的下标总是从 1 开始，常规思维 [1,1,2]（对应 Numpy 的索�
   octave:3> A(1,1,2)
   ans =  4
 
-这里不对 octave 如何进行 reshape 进行深入分析。这里的重点在于 [1,1,1] 对应了 x, y 和 z，通过直观思考就可以得出值为 4。而在 Numpy 却不同：
+这里不对 octave 如何进行 reshape 进行深入分析。这里的重点在于 [1,1,1] 对应了 x, y 和 z，通过直观思考就可以得出值为 4。而 Numpy 却不同：
 
 .. code-block:: python
   :linenos:
@@ -104,7 +104,7 @@ octave 的下标总是从 1 开始，常规思维 [1,1,2]（对应 Numpy 的索�
   In [2]: a[0,0,1]
   Out[2]: 1
 
-你可能会认为结果是 4，而事实并非如此，在数组属性一节会分析这一令人迷惑的问题。
+你可能会认为结果是 4，而事实并非如此，在数组坐标轴这一节会分析这一令人迷惑的问题。
 
 NumPy 另一个令人诟病的地方就是不支持列向量，也即只能使用 Nx1 的 2D 数组来模拟，而行向量却是 1D 的，这看起来非常不合理（Stupid！），所以没有任何经验的人使用 Octave 并基于正常思维掌握它是非常迅速的，而要掌握 NumPy，使用直觉思维是不现实的，你在尝试解读代码时必须要经过一个短暂的转换思考过程。
 
@@ -232,7 +232,7 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 不同维度的数组
 ~~~~~~~~~~~~~~
 
-上例中我们分别生成了 1,2,3 维的数组，一些常用的维度数组在数学科学领域有专门的术语：
+上例中我们分别生成了 1,2,3 维的数组，一些常用的不同维度的数组在数学科学领域有专门的术语：
 
 - 单个数值，输出不被包含在 [] 中，例如 1，0.1等被称为标量(scalar)，它们自身不是数组，但可以与数组进行数学运算。np.array 可以创建只包含标量的数组，shape 为 ()。
 - 1维数组，如 [1,2,3]，被称为向量（vector），只有一个轴。
@@ -243,7 +243,7 @@ ndarray（n dimention array，多维数组）对象是 NumPy 的数据承载核�
 
 dimension 或 axis 的个数（rank）在 NumPy 用 ndim 属性表示。每个维的大小（长度）在 NumPy 中用 shape 属性表示。
 
-标量不是数组，而是数值，维度为 0，它在 NumPy 不用 ndarray 对象表示（实际上可以通过 array(scaler) 获得 0D 的 ndarray 对象，但是没有必要，直接使用标量即可），没有 ndim 和 shape 属性。
+标量不是数组，而是数值，维度为 0，它在 NumPy 不用 ndarray 对象表示（实际上可以通过 array(scaler) 获得 0D 的 ndarray 对象，但是没有必要，直接使用标量即可），它没有 ndim 和 shape 属性。
 
 .. code-block:: python
   :linenos:
@@ -274,6 +274,433 @@ dimension 或 axis 的个数（rank）在 NumPy 用 ndim 属性表示。每个�
 - 每个轴均具有索引属性，从 0 开始。
 
 理解轴的概念是理解 numpy 提供的很多操作，如聚合，拼接等的基础。
+
+数组坐标轴
+~~~~~~~~~~~~
+
+我们已经知道数组可以是多维的，这很容易联想到笛卡尔坐标系，2D 使用 x,y 描述平面上的任一点，3D 使用 x,y,z 描述空间中的任一点。是否我们可以借助笛卡尔坐标系来理解 2D 和 3D 数组呢？回答是肯定的，只是不同的软件环境对坐标系的描述不同，有的直接借用了笛卡尔坐标系，有的则进行了变换。
+
+.. figure:: imgs/numpy/cs.png
+  :scale: 100%
+  :align: center
+  :alt: cs
+
+  不同的直角坐标系
+
+平面中的一点和空间中的一点均可使用轴坐标 x,y 或者 x,y,z 来得到，显然它们起到了索引的作用。对数组元素的访问就是通过索引进行的。
+
+Octave 和 numpy 在 2D 数组处理上保持了一致，也即把数组分为行和列，只是和常见的笛卡尔 2D 坐标系比较，交换了 x 和 y 轴：在水平方向表示列，垂直方向表示行，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  octave:2> a = reshape ([0, 1, 2, 3], 2, 2)
+  a =
+  
+     0   2
+     1   3
+  
+  octave:3> a(1,1)
+  ans = 0
+  octave:4> a(1,2)
+  ans =  2
+
+不难想象，左上角成了坐标原点，而通过 a(1,1) 可以索引到元素 0，a(1,2) 可以索引到元素 2，注意 Octave 的下标总是从 1 开始，并使用圆括号进行索引。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  水平方向，对应列
+  +--------> y
+  | 0   2
+  | 1   3
+  V
+  x
+
+Numpy 与此类似，下标总是从 0 开始，使用方括号进行索引，这与 C 语言保持了一致：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [651]: a = np.arange(4).reshape(2,2,order='F')
+  
+  In [652]: a
+  Out[652]:
+  array([[0, 2],
+         [1, 3]])
+  
+  In [653]: a[0,0]
+  Out[653]: 0
+  
+  In [654]: a[0,1]
+  Out[654]: 2
+
+这里暂时不追究 order 的作用，为了和 Octave 保持结果一致，我们使用了 'F'。显然针对 2D 数组，稍微有些编程基础（例如 C 语言）的人就很容易和笛卡尔坐标系结合起来，形成行列的直观思维，在给定索引后很容易指出对应的元素位置。
+
+然而在 3D 甚至更高维数组的时候，就没那么简单了。观察上图中的 3D 坐标系，Octave 与笛卡尔坐标系保持了一致，也即 0,1,2 轴分别对应笛卡尔坐标系的索引 x,y,z，所以在给定如下视图和索引时我们很容易指出对应的元素值。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  octave:5> a = reshape ([0, 1, 2, 3, 4, 5, 6, 7], 2, 2, 2)
+  a =
+  
+  ans(:,:,1) =
+  
+     0   2
+     1   3
+  
+  ans(:,:,2) =
+  
+     4   6
+     5   7
+
+例如 [0,0,1]（实际命令为 a(1,1,2)）索引对应的元素是 4。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  octave:6> a(1,1,2)
+  ans =  4
+
+以上示例对应如下坐标描述：
+
+.. figure:: imgs/numpy/octave3d.png
+  :scale: 100%
+  :align: center
+  :alt: octave3d
+
+  0ctave 3D 数组坐标示例
+
+octave 每新增一个轴，原来的轴保持不变，新增的轴变为新的维度，看起来轴是在尾部新增的。numpy 与此不同，新增的轴总是添加在最前面，变成 0 轴，原来的轴依次加 1。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [665]: a = np.arange(8).reshape(2,2,2,order='F')
+  
+  In [666]: a
+  Out[666]:
+  array([[[0, 4],
+          [2, 6]],
+  
+         [[1, 5],
+          [3, 7]]])
+  
+  In [667]: a[0,0,1]
+  Out[667]: 4
+
+.. figure:: imgs/numpy/numpy3d.png
+  :scale: 100%
+  :align: center
+  :alt: numpy3d
+
+  Numpy 3D 数组坐标示例
+
+理解了数组坐标轴的区别，那么就真正理解索引机制了。我们会发现使用直角坐标系表示 2D 数组时可以把第一维称为行（row），第二维称为列（column），第三维并没有固定的称谓，可以认为是深度（depth），高度（height）或者层（slice ）。但是一旦超过 3 维，这种表示方法就将无能为力了，实际上索引只是一个树形结构，后面将会展示这种更具弹性的表示方法。
+
+另一个问题是 order 参数的作用，在 2D 数组中，如果指定了 order = 'F'，那么 Numpy 和 Octave 的打印结果就是一致的，我们也已经指出它们的行列规定是一致的。
+然而如果生成的是 3D 数组，那么 np.array 参数即便指定了 order = 'F' 参数，生成的 3D 数组打印出来依然是不同的，这是因为坐标系规定不同。
+
+我们可以惊奇的发现，上面两幅图只要进行适当的旋转，数据部分就会重合，也即使用相同的索引它们都会得到相同的值（例如  a(1,1,2) 和 a[0,0,1] 结果均为 4）。
+
+如果不指定 order = 'F' 呢，结果会怎样，order 参数到底起到什么作用？这关系到另一个更深层次的问题：内存布局。
+
+内存布局
+~~~~~~~~~
+
+理解内存布局对理解坐标系规定至关重要，实际上就是它决定了坐标系的变换规则。`Memory layout of multi-dimensional arrays <https://eli.thegreenplace.net/2015/memory-layout-of-multi-dimensional-arrays/>`_ 是一篇很好的文章。
+
+行与列
+``````````
+
+通常计算机的内存均是线性编址的，可以看做是一维的大数组，通过系统调用分配到一块内存后，虚地址也是连续的，那么当要实现多维数组时，如何读取这一连续的内存数据到多维数组中，同样地如何把数组的行列等存储到这一连续的内存块中呢？这就涉及到内存布局（memory layout）策略。
+
+对于 2D 数组来说通常有两种策略：行优先（Row-major）和列优先（column-major）。
+
+- 行优先：逐行按序读取（存储），行内的元素均是连续读取（存储），然后第二行接着第一行，依次类推。
+- 列优先：逐列按序读取（存储），列内的元素均是连续读取（存储），然后第二列接着第一列，依次类推。
+
+.. figure:: imgs/numpy/rowfirst.png
+  :scale: 100%
+  :align: center
+  :alt: rowfirst
+
+  行优先内存布局
+
+.. figure:: imgs/numpy/columnfirst.png
+  :scale: 100%
+  :align: center
+  :alt: rowfirst
+
+  列优先内存布局
+
+比较以上两图，很容易理解行优先和列优先的区别，这有些像大小端字节序。内存布局用来指示何读取一块内存到多维数组，以及如何存储数据到一块连续内存。
+
+Numpy 同时支持两种内存布局，可以通过 order 参数指定。在大部分函数（例如创建，变形等）中均接受 order 参数，用于指定行优先或者列优先：
+
+- 'C' 表示行优先（row major），numpy 的默认参数，在 C 语言（C++，Python, Pascal，Mathematica 等）中使用。也被称为 C-like 索引顺序。
+- 'F' 表示列优先（column major），Fortran 语言（Matlab, R, Julia 等为了使用 Fortran 的 LAPACK 计算库也同样遵循该规则）默认使用列优先，Fortran-like 索引顺序。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  # Numpy 默认 order 为 C-like
+  In [684]: a = np.arange(9).reshape(3,3,order='C')
+  
+  In [685]: a
+  Out[685]:
+  array([[0, 1, 2],
+         [3, 4, 5],
+         [6, 7, 8]])
+  
+  In [686]: b = np.arange(9).reshape(3,3,order='F')
+  
+  In [687]: b
+  Out[687]:
+  array([[0, 3, 6],
+         [1, 4, 7],
+         [2, 5, 8]])
+
+以上示例均是从相同的一块连续的内存中（9 个连续的 int32 类型的 0-8 数字）读取元素并生成 3x3 的 2D 数组，由于内存布局不同，它们读取到数据后的处理就不同：一个把前三个元素作为行，一个把前三个元素作为列。
+
+同样对于数据写入，不同的内存布局也会影响索引对应的实际内存偏移地址，结合上图中的地址变化规律，不难得出 2D 数组的偏移公式如下：
+
+.. role:: raw-latex(raw)
+    :format: latex html
+
+.. math::
+
+  \begin{eqnarray}
+  offset & = & i_{row} * columns + i_{col} \qquad(行优先)\\
+  offset & = & i_{col} * rows + i_{row} \qquad\qquad(列优先) \\     
+  offset_{bytes} & = & offset * itemsize
+  \end{eqnarray}
+
+其中 :raw-latex:`\(i_{row}\)` 和  :raw-latex:`\(i_{col}\)` 分别表示行索引和列索引，例如 a[1,2] 中的 1 代表行索引，2 代表列索引。
+
+- a[1,2] 行优先，可以计算得到它在内存中相对于首个元素的偏移个数为 1 * 3 + 2 = 5，因为第一个元素为 0，所以 a[1,2] 就是元素 5。
+- b[1,2] 列优先，偏移个数为 2 * 3 + 1，所以 b[1,2] 将访问到元素 7。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [722]: a[1,2]
+  Out[722]: 5
+  
+  In [723]: b[1,2]
+  Out[723]: 7
+
+索引的本质
+`````````````
+
+如果尝试把行优先和列优先内存布局策略推广到 3D 甚至任意维，就不可行了，不可能为每一维都进行命名并映射到我们可以直观理解的空间进行形象描述。无论行还是列，本质上它们都是用于构成索引的一组数字，我们的目的是通过索引唯一定位到连续内存中的某个元素。
+
+.. figure:: imgs/numpy/indices.png
+  :scale: 100%
+  :align: center
+  :alt: indices
+
+  索引与全排列
+  
+我们知道 1 个 bit 可以表示 0 和 1， 而 2 个 bits 可以表示 0-3，所以使用十进制数左右排列在一起具有相同的本质 [i1,i2,...in]，可以表示 0 到 offset = (i1 + 1)(i2 + 1)...(in + 1) 所有数字，可以索引内存块的 0 偏移到最大 offset 处，这一索引关系是一一对应的。 
+
+只要确定了数组的维数（轴数）和每个维的大小（长度），那么它占用内存块长度就是确定的，与此同时索引的一一对应关系就是确定的，整个索引空间就是各维大小的全排列。
+
+所谓行优先和列优先只是进行全排列时，哪一维在前哪一维在后的区别，在后的那一维它的索引变化最快。所以使用低维最快变化（first index change） 和高维最快变化（last index change）对描述任意维数组都是贴切的。
+
+观察上图，行优先时最后一维的索引变化最快，它就是 last index change 机制，相应地，列优先属于 first index change 机制。当然我们也可以选择任意一维最快更新，并依次定义其他维的变化优先级，只是通常没有必要。
+
+这看起来内存布局的区别和大小端字节序区别非常类似，也即没有好坏之分，然而并非如此，内存布局对数据处理速度影响很大：
+
+- CPU 非常善于处理连续数据，它的多级流水线机制使得在处理当前数据时，可以预取紧随其后的其他数据。
+- CPU 设有多级 cache，处理连续数据让靠近 CPU 核的 cache 命中率更高。
+
+我们应该让内存布局符合这一特征：如果处理集中在行数据上，那么就应该使用高维最快变化（order='C'），集中在列上，就应该使用低维最快变化（order='F'），这就保证了读取行或列时是数据是被顺序读取的。
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+
+  # 默认为行优先
+  In [108]: a = np.empty((10,10))
+  
+  In [109]: a[0,:] *= 100
+  
+  In [110]: %timeit a[0,:] *= 100
+  2.24 µs ± 79.4 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+  
+  In [111]: %timeit a[:,0] *= 100
+  3.14 µs ± 147 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+
+在小数组上，性能相差不大，但是在处理大数组时差距尤为明显：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  # 默认为行优先
+  In [123]: a = np.empty((10000,10000))
+  
+  # 处理行数据速度很快
+  In [124]: %timeit a[0,:] *= 100
+  5.84 µs ± 399 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+  
+  # 处理列数据速度很慢
+  In [125]: %timeit a[:,0] *= 100
+  155 µs ± 4.27 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+
+如果我们在创建数组时指定列优先，那么结果就会相反：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  # 指定列优先
+  In [132]: a = np.empty((10000,10000), order='F')
+  
+  # 处理行数据速度很慢
+  In [133]: %timeit a[0,:] *= 100
+  149 µs ± 1.41 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+  
+  # 处理列数据速度很快
+  In [134]: %timeit a[:,0] *= 100
+  5.55 µs ± 184 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+
+示例中数据元素达到了 1 亿个，此时性能相差 30 倍，所以在进行大数据处理时一定要正确设置内存布局。
+
+
+数组视图
+~~~~~~~~~~~~
+
+在理解数组视图之前，理解不同的内存布局（Memory Layouts）是有益的，
+
+NumPy 中提供了大量的对数组进行处理的函数，这些函数返回的新数组中的元素和原数组元素具有两种关系：
+
+- 引用，也即不对原数组中元素复制，修改元素会相互影响。
+- 复制，拷贝副本，修改不会互相影响。包含简单索引（例如简单索引和切片组合使用）的引用方式，均会进行复制。
+
+一个数组被称为数组包含的数据的一个视图（view），所以如果是引用返回的数组，则称为数据的另一个视图。不同视图是对数据的不同观察方式，体现在数组上就是形式的变形，不会拷贝任何东西。视图也被称为视窗。例如同样是 4 个元素，可以是 2x2 的 2 维数组，也可以组成 1x4 的向量或者 4x1 的 2 维数组，它们均是同一组数据的不同视图。
+
+步长 strides 是另一个 ndarray 对象成员，它对于理解数组视图至关重要。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  x = np.array([[1, 2, 3],
+                [4, 5, 6],
+                [7, 8, 9]], dtype=np.int8)
+  t = x.T
+  print(id(x.data), id(t.data))
+  
+  >>>
+  1621569473776 1621569473776
+
+转置不会复制数据，所以 t 和 x 的 data 地址是相同的。但是它们的 stides 是不同的：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  print(x.strides)
+  
+  >>>
+  (3, 1)
+
+  print(t.strides)
+  
+  >>>
+  (1, 3)
+
+strides 是一个元组，它的元素个数与 shape 元素个数相同，它记录了查找对应轴下一个元素需要偏移的字节数。为了加速访问数据，ndarray 对象的 data 数据在内存中均是连续成块存储的，所以如何解读这一块数据，就需要 strides 来指示。
+
+通过 np.nditer 可以直接顺序访问这一连续内存，并打印各个元素以观察它们的在内存中的存储情况：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [1]: for i in np.nditer(x):
+    ...:     print(i, end=' ')
+    ...:
+  1 2 3 4 5 6 7 8 9
+
+由于转置操作不会对数组进行复制，所以这里的参数替换为 x.T 结果也是一样的。
+
+这里的 x 类型定义为 int8，所以每个元素占用 1 个字节，x 的 strides 为 (3, 1) 表示：
+
+- 需要偏移 3 个字节找到下一行的开始数据。
+- 需要偏移 1 个字节找到下一列的开始数据。
+
+有了 shape 和 strides 就构成了一个视图，可以对元素进行不同视图的解读。这种机制在 NumPy 被称为索引策略（indexing scheme），这些成员均存储在每个 ndarray 实例的管理字段中。 
+
+不同的 order 参数创建的数组的 strides 是不同的，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  y = np.array([[1, 2, 3],
+                [4, 5, 6],
+                [7, 8, 9]], dtype=np.int8, order='F')
+  print(y.strides)
+  
+  >>>
+  (1, 3)
+
+如果数组元素索引为 i[0], i[1], ..., i[n]，通过 strides 可以计算出元素在数组中的偏移字节数:
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  offset = sum(np.array(i) * a.strides)
+
+下面的示例构造一个从 0 开始的，差为 1 的等差数列，这样保证元素的偏移 = 数组元素 * itemsize：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [0]: x = np.reshape(np.arange(5*6*7*8), (5,6,7,8)).transpose(2,3,1,0)
+  
+  In [1]: x.strides
+  Out[1]: (32, 4, 224, 1344)
+  
+  # 计算[3,5,2,2]索引处的元素偏移字节数
+  In [2]: offset = sum(np.array([3,5,2,2]) * x.strides)
+  
+  In [3]: x[3,5,2,2]
+  Out[3]: 813
+  
+  In [4]: offset / x.itemsize
+  Out[4]: 813.0  
+
+尽管通过 np.isfortran(a) 接口可以判断数组元素的索引策略，该接口不再被推荐使用，而是直接查看 flags 字段：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [517]: x.flags
+  Out[517]:
+    C_CONTIGUOUS : True   # C-like index order
+    F_CONTIGUOUS : False
+    OWNDATA : False
+    WRITEABLE : True
+    ALIGNED : True
+    UPDATEIFCOPY : False
+
+对于 1D 向量来说，C_CONTIGUOUS 和 F_CONTIGUOUS 是没有区别的，strides 均为 (itemsize,)，此时这两个标志均为 True。
 
 元素类型
 ~~~~~~~~~~~
@@ -353,6 +780,109 @@ np.array 会根据提供的数据自动选择 int32 或 flot64 作为数组的 d
 
   在整数后加一点 '.'，例如 10. 表示这是一个浮点数，是 10.0 的简写，常通过该简写生成浮点类型数组。
 
+字符串类型
+~~~~~~~~~~~~
+
+字符串类型在以数值处理见长的 numpy 中很少使用，但是不意味着它不支持。我们可以通过为 dtype 指定 'Sn' 或者 'Un' 来创建字符串类型数组。
+
+- 'Sn' 中的 'S' 表示 ascii string，它使用单个字节存储字符，n 表示 ascii 字符个数。
+- 'Un' 中的 'U' 表示 unicode string，它使用 unicode 编码存储字符，n 表示 unicode 字符个数。
+
+.. admonition:: 注意
+
+  n 是字符的个数，不是字节数。
+
+numpy 数组均是在创建时一次性分配连续内存的，所以一旦指定了 n，每个元素所能存储的字符长度就固定了。
+
+np.str 是 'U1' 的别名，所以使用 np.str 创建的数组只能存储一个 unicode 字符。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [8]: s = np.zeros((2,2), dtype='S1')
+  
+  In [9]: s
+  Out[9]:
+  array([[b'', b''],
+         [b'', b'']],
+        dtype='|S1') 
+
+'|' 表示该类型不区分大小端。如果赋值的字符串超过元素所能存储的长度大小，并不会报错，而直接进行截断处理。 'Sn' 类型的数组不支持宽字符赋值，否则进行报错处理。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+    
+  In [10]: s[0,0] = '123'
+  
+  In [11]: s
+  Out[11]:
+  array([['1', ''],
+         ['', '']],
+        dtype='|S1')
+
+Numpy 推荐使用 unicode 类型来创建字符串数组，这样就可以兼容所有可用字符，注意 unicode 是大小端敏感的，所以考虑到程序的移植性，应该明确指定大小端。   
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [33]: s = np.zeros((2,2), dtype='<U2')
+  
+  # 超过长度将进行截断处理
+  In [34]: s[0,0] = '你好吗'
+  
+  In [35]: s
+  Out[35]:
+  array([['你好', ''],
+         ['', '']],
+        dtype='<U2')
+
+如何将字符串数组转换为一个字符串，很简单：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [38]: ''.join(s.ravel().tolist())
+  Out[38]: '你好'
+
+如果想创建支持任意长度字符的数组，可以指定 object 类型，当然这一维这数组的每个元素可以支持任意类型，付出的代价是：数组无法一次性为所有元素分配连续内存，访问效率不高。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [48]: s = np.zeros((2,2), dtype=object)
+  
+  In [49]: s[0,0] = 'hello'
+  
+  In [50]: s
+  Out[50]:
+  array([['hello', 0],
+         [0, 0]], dtype=object)
+
+同样字符串数组支持一系列的处理函数：`字符串数组处理函数 <https://docs.scipy.org/doc/numpy/reference/routines.char.html>`_ ，借助它们可以实现一些有趣的操作，例如：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  ar = np.arange(9).astype('<U16')
+  
+  commas = ar.copy()
+  commas.fill(',')
+  
+  #将两个 shape 相同的数组按元素拼接起来，中间插入逗号
+  indices = np.core.defchararray.add(ar, commas)
+  indices = np.core.defchararray.add(indices, ar)
+
+  print(indices)
+
+  >>>
+  ['0,0' '1,1' '2,2' '3,3' '4,4' '5,5' '6,6' '7,7' '8,8']
+
 类型转换
 ~~~~~~~~~
 
@@ -391,103 +921,6 @@ np.array 会根据提供的数据自动选择 int32 或 flot64 作为数组的 d
   >>>
   int32
   [0 0]
-
-数组视图
-~~~~~~~~~~~~
-
-NumPy 中提供了大量的对数组进行处理的函数，这些函数返回的新数组中的元素和原数组元素具有两种关系：
-
-- 引用，也即不对原数组中元素复制，修改元素会相互影响。
-- 复制，拷贝副本，修改不会互相影响。包含简单索引（例如简单索引和切片组合使用）的引用方式，均会进行复制。
-
-一个数组被称为数组包含的数据的一个视图（view），所以如果是引用返回的数组，则称为数据的另一个视图。不同视窗是对数据的不同观察方式，体现在数组上就是形式的变形，不会拷贝任何东西。视图也被称为视窗。
-
-步长 strides 是另一个 ndarray 对象成员，它对于理解数组视图至关重要。
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  x = np.array([[1, 2, 3],
-                [4, 5, 6],
-                [7, 8, 9]], dtype=np.int8)
-  t = x.T
-  print(id(x.data), id(t.data))
-  
-  >>>
-  1621569473776 1621569473776
-
-转置不会复制数据，所以 t 和 x 的 data 地址是相同的。但是它们的 stides 是不同的：
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-
-  print(x.strides)
-  
-  >>>
-  (3, 1)
-
-  print(t.strides)
-  
-  >>>
-  (1, 3)
-
-strides 是一个元组，它的元素个数与 shape 元素个数相同，它记录了查找对应轴下一个元素需要偏移的字节数。为了加速访问数据，ndarray 对象的 data 数据在内存中均是连续成块存储的，所以如何解读这一块数据，就需要 strides 来指示。
-
-这里的 x 类型定义为 int8，所以每个元素占用 1 个字节，x 的 strides 为 (3, 1) 表示：
-
-- 需要偏移 3 个字节找到下一行的开始数据。
-- 需要偏移 1 个字节找到下一列的开始数据。
-
-有了 shape 和 strides 就构成了一个视图，可以对元素进行不同的行列解读。
-
-在大部分创建数组对象的函数中接受 order 参数，用于指定行优先或者列优先，例如：
-
-- ‘C’ 表示行优先（row major），numpy 的默认参数。
-- ‘F’ 表示列优先（column major），Fortran 语言默认使用列优先。
-
-不同的 order 创建的数组的 strides 是不同的，例如：
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  y = np.array([[1, 2, 3],
-                [4, 5, 6],
-                [7, 8, 9]], dtype=np.int8, order='F')
-  print(y.strides)
-  
-  >>>
-  (1, 3)
-
-如果数组元素索引为 i[0], i[1], ..., i[n]，通过 strides 可以计算出元素在数组中的偏移字节数:
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  offset = sum(np.array(i) * a.strides)
-
-下面的示例构造一个从 0 开始的，差为 1 的等差数列，这样保证元素的偏移 = 数组元素 * itemsize：
-
-.. code-block:: python
-  :linenos:
-  :lineno-start: 0
-  
-  In [0]: x = np.reshape(np.arange(5*6*7*8), (5,6,7,8)).transpose(2,3,1,0)
-  
-  In [1]: x.strides
-  Out[1]: (32, 4, 224, 1344)
-  
-  # 计算[3,5,2,2]索引处的元素偏移字节数
-  In [2]: offset = sum(np.array([3,5,2,2]) * x.strides)
-  
-  In [3]: x[3,5,2,2]
-  Out[3]: 813
-  
-  In [4]: offset / x.itemsize
-  Out[4]: 813.0  
 
 创建数组
 ------------
@@ -5865,7 +6298,7 @@ NumPy 中也可以定义更高级的复合数据类型。 例如， 你可以创
   [[ 0.  0.  0.]
    [ 0.  0.  0.]
    [ 0.  0.  0.]]
-   
+
 现在 X 数组的每个元素都包含一个 id 和一个 3×3 的矩阵。 为什么我们宁愿用这种方法存储数据， 也不用简单的多维数组， 或者 Python 字典呢？ 原因是 NumPy 的 dtype 直接映射到 C 结构的定义， 因此包含数组内容的缓存可以直接在 C 程序中使用。 如果你想写一个 Python 接口与一个遗留的 C 语言或 Fortran 库交互， 从而操作结构化数据， 你将会发现结构化数组非常有用！
 
 NumPy 还提供了 np.recarray 类。 它和前面介绍的结构化数组几乎相同， 但是它有一个独特的特征： 域可以像属性一样获取， 而不是像字典的键那样获取。 前面的例子通过以下代码获取年龄：
