@@ -35,6 +35,7 @@ Python相关
 - `Python 从入门到深入 <https://pythonhowto.readthedocs.io/zh_CN/latest/>`_ 
 - `Module of the Week <https://pymotw.com/3/>`_
 - `Numpy 和 Scipy 官网 <https://docs.scipy.org/doc/>`_
+- `NumPy 中文文档 <https://numpy.org.cn/index.html>`_
 - `在线 octave 开发环境 <https://octave-online.net/>`_
 
 数据相关
