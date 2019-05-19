@@ -22,6 +22,7 @@
   sympy
   opencv
   practice
+  bayes
   neuron
   cnn
   deeplearn
