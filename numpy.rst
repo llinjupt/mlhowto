@@ -592,9 +592,9 @@ Numpy 同时支持两种内存布局，可以通过 order 参数指定。在大�
 
   树形坐标
 
-上图描述了一个 shape(2,2,2) 的 3D 数组，为了作图简便，最后两维保留了行列的2维形状，这样树形图就少了一次分支，不会显得太臃肿。
+上图描述了一个 shape(2,2,2) 的 3D 数组，为了作图简便，最后两维保留了行列的2维形状，这样树形图就少了一次分支，不会显得太臃肿。虚线部分为扩展为 4D 数组时的最后一维的示意图，可以想见这个虚轴左侧对应 3 轴，右侧对应 0 轴，其余轴增加 1。
 
-尽管我们极力想把最后两维想象成行或列，正如前所述，我们可以把任意两维作为行或列。我们可能认为一幅彩色图片在 Numpy 应该以 [RGB,W,H] 的索引方式来处理，这样行就对应了高度，列就对应了宽度，第一维描述各个通道。实际上并非如此，而是以 [W,H,RGB] 的方式处理的，这样 Numpy 的树形坐标就和 Octave/Matlab 保持一致了。
+尽管我们极力想把最后两维想象成行或列，正如前所述，我们可以把任意两维作为行或列。我们可能认为一幅彩色图片在 Numpy 应该以 [RGB,W,H] 的索引方式来处理，这样行就对应了高度，列就对应了宽度，第一维描述各个通道。实际上并非如此，而是以 [W,H,RGB] 的方式处理的，这样 Numpy 的树形坐标就和 Octave/Matlab 保持一致了（0, 1轴描述高和宽，类似行和列）。
 
 .. code-block:: python
   :linenos:
@@ -609,7 +609,7 @@ Numpy 同时支持两种内存布局，可以通过 order 参数指定。在大�
   ndarray
   (256, 256, 3)
 
-实际应用中应该根据具体数据，来变换索引（坐标）以最形象直观的方式描述，而不要拘泥于总是把最后两维看做行和列。
+实际应用中应该根据具体数据，来变换索引（坐标）以最形象直观的方式描述，而不要拘泥于总是把最后两维看做行和列。理解了这一点，就明白了 np.swapaxes() 等轴变换函数的作用了。 
 
 数组视图
 ~~~~~~~~~~~~
@@ -725,6 +725,31 @@ strides 是一个元组，它的元素个数与 shape 元素个数相同，它�
 
   offset = sum(np.array(i) * a.strides)
 
+不同内存布局下，strides 的计算函数如下：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  def f_contiguous_strides(itemsize, shape):
+      if shape:
+          strides = [itemsize]
+          for s in shape[:-1]:
+              strides.append(strides[-1]*s)
+          return tuple(strides)
+      else:
+          return ()
+  
+  
+  def c_contiguous_strides(itemsize, shape):
+      if shape:
+          strides = [itemsize]
+          for s in shape[:0:-1]:
+              strides.append(strides[-1]*s)
+          return tuple(strides[::-1])
+      else:
+          return ()
+
 下面的示例构造一个从 0 开始的，差为 1 的等差数列，这样保证元素的偏移 = 数组元素 * itemsize：
 
 .. code-block:: python
@@ -761,6 +786,46 @@ strides 是一个元组，它的元素个数与 shape 元素个数相同，它�
     UPDATEIFCOPY : False
 
 对于 1D 向量来说，C_CONTIGUOUS 和 F_CONTIGUOUS 是没有区别的，strides 均为 (itemsize,)，此时这两个标志均为 True。
+
+数据复制
+```````````
+
+有些函数的帮助文件中会有如此描述，例如 np.ravel()：
+
+.. code-block:: sh
+  :linenos:
+  :lineno-start: 0
+  
+  ravel(a, order='C')
+      Return a contiguous flattened array.
+  
+      A 1-D array, containing the elements of the input, is returned.  A copy is
+      made only if needed.
+
+np.ravel() 用于将数组展平为 1D 向量，它通常返回的是视图，但是注意 “A copy is made only if needed”，这说明有些情况返回的不是视图，而会进行数据复制。
+
+何时需要复制数据呢？ravel() 返回的数组总是会指向一串连续的内存，如果展平的数组不能满足连续内存，那么只能进行数据复制：
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [373]: a = np.arange(4).reshape(2,2)
+  
+  In [374]: b = a[:,:1]
+  
+  In [375]: b
+  Out[375]:
+  array([[0],
+         [2]])
+  
+  In [376]: b.base
+  Out[376]: array([0, 1, 2, 3])
+  
+  # 如果对 b 进行 ravel()，由于元素 0,2 内存不连续，会进行复制
+  In [377]: c = b.ravel()
+
+  In [378]: c.base
 
 元素类型
 ~~~~~~~~~~~
