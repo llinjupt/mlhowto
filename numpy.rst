@@ -1510,6 +1510,38 @@ ndarray 类型转为list类型使用对象的 tolist 方法即可。转 list 可
   >>>
   [[1, 2], [3, 4]]
 
+set 转数组
+````````````
+
+set 是 python 自带的集合类型，与 list 不同，如果需要把 set 转换为 ndarray，则首先需要转换为 list，然后再创建数组，否则创建出的数组将是 object 类型，并把 set 作为一个整体对待，这可能不是我们想要的。
+
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+  
+  In [28]: a_set = set([1,1,2,3])
+  
+  In [29]: bad_array = np.array(a_set)
+  
+  In [30]: bad_array.dtype
+  Out[30]: dtype('O') # 默认创建的是 object 类型
+
+把 set 转化为 list，然后再创建 ndarray：
+  
+.. code-block:: python
+  :linenos:
+  :lineno-start: 0
+
+  # 先把集合转化为 list
+  In [35]: b_list = list(a_set)
+  
+  In [36]: b_list
+  Out[36]: [1, 2, 3]
+  
+  # 然后再使用 list 创建数组
+  In [37]: np.array(b_list)
+  Out[37]: array([1, 2, 3])
+
 字节流转数组
 ``````````````
 
