@@ -8,13 +8,16 @@
 | [2] Micha Gorelick，Ian Ozsvald，胡世杰，徐旭彬(译).Python高性能编程[M].北京:人民邮电出版社，2017
 | [3] Jake VanderPlas，陈俊杰，陈小莉(译).Python数据科学手册[M].北京:人民邮电出版社，2017
 | [4] Python Machine Learning （美）塞巴斯蒂安·拉施卡（Sebastian Raschka）[M].北京:机械工业出版社，2017
+| [5] An Introduction to Information Retrieval （美） Christopher D. Manning Prabhakar Raghavan Hinrich Schütze Cambridge, 2009
  
 机器学习相关
 --------------
 - `Deep Learning Book by Ian GoodFellow <http://www.deeplearningbook.org/>`_
 - `Neural Networks and Deep Learning (Michael Nielsen) <http://neuralnetworksanddeeplearning.com/index.html>`_
 - `Distill Clear Explanations of machine learning <https://distill.pub/>`_
+- `最新论文发布 <http://paperreading.club/>`_
 - `CS231 斯坦福大学汇总 <https://github.com/sharedeeply/cs231n-camp>`_
+- `CS224n：深度自然语言处理课程 <http://www.mooc.ai/course/494>`_
 - `吴恩达 CS229 课程讲义中文翻译 <https://kivy-cn.github.io/Stanford-CS-229-CN/#/README>`_
 - `cs229 Notes <http://cs229.stanford.edu/notes/>`_
 - `ml-cheatsheet <https://ml-cheatsheet.readthedocs.io/en/latest/activation_functions.html>`_
@@ -29,6 +32,11 @@
 - `标准化和归一化详解 <https://www.jianshu.com/p/95a8f035c86c>`_
 - `Artificial Intelligence, Deep Learning, and NLP <http://www.wildml.com/>`_
 - `常用代价函数 <https://stats.stackexchange.com/questions/154879/a-list-of-cost-functions-used-in-neural-networks-alongside-applications>`_
+
+NLP 自然语言相关
+-----------------
+
+- `自然语言处理NLP中的N-gram模型 <https://blog.csdn.net/songbinxu/article/details/80209197>`_
 
 Python相关
 -----------
