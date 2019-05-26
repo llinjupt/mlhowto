@@ -26,4 +26,5 @@
   neuron
   cnn
   deeplearn
+  hadoop
   appendix
