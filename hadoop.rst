@@ -1,16 +1,26 @@
 hadoop
 ================
 
-Hadoop 是一个由 Apache 基金会所开发的分布式大数据存储和处理架构。
+Hadoop 是一个由 Apache 基金会所开发的分布式大数据存储和处理架构。它实现了一个分布式文件系统（Hadoop Distributed File System），简称 HDFS，用于大数据的存储以及 MapReduce 机制对大数据高效处理。
 
-它实现了一个分布式文件系统（Hadoop Distributed File System），简称 HDFS，用于大数据的存储以及 MapReduce 机制对大数据高效处理。
+Hadoop 核心组件:
 
-Hadoop 具有：
+- HDFS（Hadoop Distributed File System）Hadoop 分布式文件系统.
+- YARN，运算资源调度系统
+- MapReduce，分布式映射归约编程处理框架。
+
+Hadoop 具有以下优点：
 
 - 高容错性：不依赖于底层硬件，在软件层面维护多个数据副本，确保出现失败后针对这类节点重新进行分布式处理；
 - 可以部署在大量的低廉硬件上；
 - 针对离线大数据处理的并行处理框架：MapReduce；
-- 流式文件访问，一次性写入，多次读取，保证数据一致性。
+- 流式文件访问，一次性写入，多次读取。
+
+与此同时，也有如下缺点：
+
+- 不支持低延迟数据访问；
+- 不擅长存储大量的小文件（< block 大小）：寻址数据 block 时间长；元数据记录的存储压力极大。
+- 为保证数据一致性，不支持数据随机修改，只可追加。
 
 安装和配置
 -------------
@@ -122,6 +132,8 @@ ifconfig 查看网口名称，如果服务器配置有多块网卡，则注意�
 
 重启网卡，使新配置生效：
 
+.. code-block:: sh
+
   # systemctl restart network
 
 测试网络连通性，可以 ping 网关，如果可以连接外网，可以 ping 外部网站，例如 www.baidu.com：
@@ -151,6 +163,18 @@ ifconfig 查看网口名称，如果服务器配置有多块网卡，则注意�
   # ping -c 1 hadoop0
   PING hadoop0 (192.168.10.7) 56(84) bytes of data.
   64 bytes from promote.cache-dns.local (192.168.10.8): icmp_seq=1 ttl=64 time=0.129 ms
+
+主机名映射
+``````````````
+
+通过添加内网主机名映射，可以直接使用域名互访主机。编辑 /etc/hosts，追加主机 IP 和主机名信息：
+
+.. code-block:: sh
+  
+  192.168.10.7 hadoop0
+  192.168.10.8 hadoop0
+
+所有主机均复制相同的一份配置。
 
 关闭防火墙
 ```````````
@@ -219,18 +243,6 @@ SELinux 提供了程序级别的安全控制机制，hadoop 有些服务，例�
   # setenforce 1 
 
 永久关闭需要修改配置文件 /etc/selinux/config，将其中SELINUX 设置为 disabled 并重启系统。
-
-域名映射
-``````````````
-
-通过添加内网域名映射，可以直接使用域名互访主机。编辑 /etc/hosts，追加主机 IP 和主机名信息：
-
-.. code-block:: sh
-  
-  192.168.10.7 hadoop0
-  192.168.10.8 hadoop0
-
-所有主机均复制相同的一份配置。
 
 时间同步
 ``````````
@@ -329,7 +341,7 @@ CentOS 7 默认使用 systemd 服务，可以通过 ps 查看进程，此时不�
 免密登录
 ```````````
 
-由于 hadoop 的 shell 脚本均是通过 ssh 来统一在主从节点上执行的，所以必须配置免密码登录。
+由于 hadoop 的 shell 脚本均是通过 ssh 来统一在主从节点上执行的，其中 rsync 数据同步服务也需要 ssh 支持，所以必须配置免密码登录。
 
 首先切换到普通用户，在所有主机上生成密钥，然后把生成的公钥分发给其他主机。
 
@@ -365,7 +377,7 @@ CentOS 7 默认使用 systemd 服务，可以通过 ps 查看进程，此时不�
   -rw------- 1 hadoop hadoop 1675 May 25 22:07 id_rsa
   -rw-r--r-- 1 hadoop hadoop  396 May 25 22:07 id_rsa.pub
 
-所有当前主机可以免密登录的其他主机的公钥均放在 ~/.ssh/authorized_keys 文件中，本机登录自身也需要将公钥添加到 authorized_keys 文件中：
+所有当前主机可以免密登录的其他主机的公钥均放在 ~/.ssh/authorized_keys 文件中，本机登录自身也需要将公钥添加到 authorized_keys 信任列表文件中：
 
   $ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys 
   
@@ -391,7 +403,7 @@ ssh-copy-id 命令可以将本机的 .pub 追加到目标主机的 authorized_ke
   
   # 登录测试
   hadoop@hadoop0:/home$ ssh hadoop0
-  Last login: Sat May 25 22:20:12 2019 from hadoop0
+  Last login: Sat May 25 22:20:12 2018 from hadoop0
   [hadoop@hadoop0 ~]$ 
 
 由于在分布式集群模式下，hadoop 命令可以在任一主机上执行并唤醒其他主机进程，所有主机生成的 .pub 文件必须分发给所有其他主机，这样主机之间才能任意互访。
@@ -478,13 +490,11 @@ CentOS 默认安装 OpenJDK，首先需要把它卸载掉：
   # 设置和 /etc/profile 中保持一致：
   export JAVA_HOME=/opt/jdk1.8.0_172
 
-souce 命令必须在 root 用户下执行：
+执行 source 命令无需 sudo 权限：
 
 .. code-block:: sh
 
-  [hadoop@hadoop0 ~]$ sudo su
-  [root@hadoop0 hadoop]# source /etc/profile
-  [root@hadoop0 hadoop]# exit
+  [hadoop@hadoop0 ~]$ source /etc/profile
 
   # 验证安装环境
   [hadoop@hadoop0 ~]$ hadoop version
@@ -528,7 +538,7 @@ _SUCCESS 文件用于指示任务运行成功，是一个标记文件，没有�
 
 .. code-block:: sh
 
-  [hadoop@hadoop1 output]$ cat part-r-00000 
+  [hadoop@hadoop0 output]$ cat part-r-00000 
   hello   1
   world   1
 
@@ -537,21 +547,23 @@ _SUCCESS 文件用于指示任务运行成功，是一个标记文件，没有�
 .. code-block:: sh
   
   # 查看文件系统
-  [hadoop@hadoop1 ~]$ hadoop fs -df
+  [hadoop@hadoop0 ~]$ hadoop fs -df
   Filesystem        Size        Used   Available  Use%
   file:///    8575254528  6253735936  2321518592   73%
   
   # 当前文件夹文件列表
-  [hadoop@hadoop1 ~]$ hadoop fs -ls
+  [hadoop@hadoop0 ~]$ hadoop fs -ls
   Found 16 items
-  -rw-------   1 hadoop hadoop       2600 2019-05-26 11:39 .bash_history
+  -rw-------   1 hadoop hadoop       2600 2018-05-26 11:39 .bash_history
   -rw-r--r--   1 hadoop hadoop         18 2018-10-31 01:07 .bash_logout
   ......
 
 伪分布模式
 ``````````````
 
-伪分布式只需要一台主机，这里使用 hadoop1 主机为例。
+伪分布模式在单机模式上增加了代码调试功能，允许检查内存使用情况，HDFS 命令，以及其他守护进程间交互。它类似于完全分布式模式，这种模式常用来开发测试 Hadoop 程序的执行是否正确并验证算法效率。
+
+伪分布模式只需要一台主机，这里使用 hadoop1 主机为例。
 
 核心配置文件 etc/hadoop/core-site.xml 配置主节点 namenode:
 
@@ -564,16 +576,18 @@ _SUCCESS 文件用于指示任务运行成功，是一个标记文件，没有�
       </property>
       <property>
           <name>hadoop.tmp.dir</name>
-          <value>/home/hadoop/hadoop-2.7.5/tmp</value>
+          # 此目录需配置在 hadoop 用户具有读写的目录
+          <value>/home/hadoop/hadooptmp</value>
       </property>
   </configuration>
 
 - fs.defaultFS 属性指定 namenode 的 hdfs 协议的文件系统通信地址，格式为：协议://主机:端口。
-- hadoop.tmp.dir 指定 hadoop 运行时的临时文件存放目录（tmp 文件夹已使用 mkdir 创建）。
+- hadoop.tmp.dir 指定 hadoop 运行时的临时文件存放目录（tmp 文件夹已使用 mkdir 创建），例如存放助理节点数据 namesecondary。默认位置为 /tmp/hadoop-${user.name}。
 
 hdfs-site.xml 配置分布式文件系统的相关属性：
 
 .. code-block:: sh
+
   <configuration>
       <property>
           <name>dfs.namenode.name.dir</name>
@@ -589,7 +603,7 @@ hdfs-site.xml 配置分布式文件系统的相关属性：
       </property>
   </configuration>
 
-- dfs.namenode.name.dir 和 dfs.datanode.data.dir 分别配置主从节点的存储位置，默认位置为 /tmp/hadoop-${usrname}/dfs/。/tmp 是临时文件夹，空间可能会被系统回收。
+- dfs.namenode.name.dir 和 dfs.datanode.data.dir 分别配置主从节点的存储位置，默认位置为 /tmp/hadoop-${user.name}/。/tmp 是临时文件夹，空间可能会被系统回收。
 - dfs.replication 属性指定每个 block 的冗余副本个数，在伪分布模式下配置为 1 即可，也即不启用副本。
 
 yarn-site.xml 用于配置资源管理系统 yarn ：
@@ -628,6 +642,7 @@ mapred-site.xml 指定 mapreduce 运行的资源调度平台为 yarn：
 
 .. code-block:: sh
   
+  # salves
   hadoop1
 
 格式化 hdfs：
@@ -676,10 +691,10 @@ fsimage 文件是 namenode 中关于元数据的镜像，也称为检查点。
   12885 DataNode
   13581 ResourceManager # 主管理进程
 
-也可以通过 WEB 页面查看进程是否启动成功：
+也可以通过 WEB 页面查看进程是否启动成功（如果使用 Windows 远程管理，则需要在 hosts 中配置域名映射）：
 
-- hdfs 服务地址 http://192.168.10.8:50070/
-- yarn 服务地址 http://192.168.10.8:8088/
+- hdfs 管理界面 http://hadoop1:50070/
+- yarn 管理界面 http://hadoop1:8088/
 
 相应的退出进程脚本为：
 
@@ -697,8 +712,8 @@ fsimage 文件是 namenode 中关于元数据的镜像，也称为检查点。
 
   $ hadoop fs -mkdir -p /wordcount/input
   $ hadoop fs -ls -R /
-  drwxr-xr-x   - hadoop supergroup   0 2019-05-26 17:23 /wordcount
-  drwxr-xr-x   - hadoop supergroup   0 2019-05-26 17:23 /wordcount/input
+  drwxr-xr-x   - hadoop supergroup   0 2018-05-26 17:23 /wordcount
+  drwxr-xr-x   - hadoop supergroup   0 2018-05-26 17:23 /wordcount/input
 
 使用 put 命令追加文件：
 
@@ -707,7 +722,7 @@ fsimage 文件是 namenode 中关于元数据的镜像，也称为检查点。
   $ hadoop fs -put test.txt /wordcount/input/
   $ hadoop fs -ls /wordcount/input/
   Found 1 items
-  -rw-r--r--   1 hadoop supergroup   12 2019-05-26 17:30 /wordcount/input/test.txt
+  -rw-r--r--   1 hadoop supergroup   12 2018-05-26 17:30 /wordcount/input/test.txt
 
   # 查看 HDFS 目录
   [hadoop@hadoop1 data]$ tree
@@ -736,8 +751,8 @@ fsimage 文件是 namenode 中关于元数据的镜像，也称为检查点。
 
   # 查看输出结果
   $ hadoop fs -ls -R /wordcount/output
-  -rw-r--r--   1 hadoop supergroup          0 2019-05-26 17:40 /wordcount/output/_SUCCESS
-  -rw-r--r--   1 hadoop supergroup         16 2019-05-26 17:40 /wordcount/output/part-r-00000
+  -rw-r--r--   1 hadoop supergroup          0 2018-05-26 17:40 /wordcount/output/_SUCCESS
+  -rw-r--r--   1 hadoop supergroup         16 2018-05-26 17:40 /wordcount/output/part-r-00000
 
   $ hadoop fs -cat /wordcount/output/part-r-00000
   hello   1
@@ -748,4 +763,247 @@ fsimage 文件是 namenode 中关于元数据的镜像，也称为检查点。
 .. code-block:: sh
   
   $ hadoop fs -get /wordcount/output/* output/ 
+
+.. admonition:: 注意
+
+  hadoop fs 只有绝对路径的访问方式，没有相对路径的访问方式，使用 $ hadoop fs 打印所有支持的命令。
+  
+全分布模式
+`````````````
+
+在全分布式模式下，Hadoop 的守护进程分布运行在由多台主机搭建的集群上，是真正的生产环境，所有主机组成相互连通的网络。
+在主机间设置 ssh 免密码登录，把各节点生成的公钥添加到各节点的信任列表。
+
+类似伪分布式，但是需要：
+
+- 在所有主机上安装和配置 Hadoop 运行环境；
+- 各个节点执行 hadoop 的普通用户名和用户密码均应相同。
+- 时间必须同步。
+
+全分布式的存在单节点故障问题（NameNode 节点宕机），通常不用于实际生产环境。
+
+全分布式的配置关键点在于集群规划：各类服务进程的分配，这里以 hadoop0 和 hadoop1 两台主机为例，划分节点进程注意点：
+
+- NameNode 和 SecondaryNameNode 分布在不同主机。
+- DataNode 和 NodeManager 可以分布在所有主机。
+- ResourceManager 不应和 NameNode，SecondaryNameNode 主机分布在相同主机，以进行负载平衡，因为只有两台主机，考虑到 NameNode 负载较大，把它放在 hadoop1 主机上。
+
+  ================ =================
+  hadoop0           hadoop1
+  ---------------- -----------------
+  NameNode         SecondaryNameNode
+  ---------------- -----------------
+  DataNode         DataNode
+  ---------------- -----------------
+    ---            ResourceManager
+  ---------------- -----------------
+  NodeManager      NodeManager
+  ================ =================
+
+.. note::
+
+  实际生产环境将 NameNode 单独部署在一台主机上，以提高索引速度。
+
+根据以上集群规划配置各文件如下：
+
+.. code-block:: sh
+
+  # hadoop-env.sh
+  export JAVA_HOME=/opt/jdk1.7.0_80
+
+  # core-site.xml
+  <configuration>
+      <property>
+          <name>fs.defaultFS</name>
+          <value>hdfs://hadoop0:9000</value> # 指定 hdfs 服务地址
+      </property>
+      <property>
+          <name>hadoop.tmp.dir</name>
+          # 此目录需配置在 hadoop 用户具有读写的目录
+          <value>/home/hadoop/hdata/tmp</value>
+      </property>
+  </configuration>
+
+  # hdfs-site.xml
+  <configuration>
+      <property>
+          <name>dfs.namenode.name.dir</name>
+          <value>/home/hadoop/hdata/name</value>
+      </property>
+      <property>
+          <name>dfs.datanode.data.dir</name>
+          <value>/home/hadoop/hdata/data</value>
+      </property>
+      <property>
+          <name>dfs.replication</name>
+          # 由于只有两台主机，这里配置为 2，默认为 3
+          <value>2</value>
+      </property>
+      <property>
+          <name>dfs.secondary.http.address</name>
+          # 配置助理运行节点 SecondaryNameNode
+          <value>hadoop1:50090</value>
+      </property>
+   </configuration>   
+   
+   # yarn-site.xml
+   <configuration>
+        <property>
+            # ResourceManager 运行在 hadoop1 节点上
+            <name>yarn.resourcemanager.hostname</name>
+            <value>hadoop1</value>
+        </property>
+        <property>
+            <name>yarn.nodemanager.aux-services</name>
+            <value>mapreduce_shuffle</value>
+        </property>
+  </configuration>
+  
+  # mapred-site.xml
+  <configuration>
+      <property>
+      <name>mapreduce.framework.name</name>
+      <value>yarn</value>
+      </property>
+  </configuration>
+  
+  # slaves，配置运行 DataNode 的主机名
+  hadoop0
+  hadoop1
+
+实际操作中，首先配置 ssh 免密登录，然后在一个主机上将配置文件修改完毕后（可以将 sbin 下用于 windows 平台的 cmd 文件删除，以防命令提示时需要进行补全），通过  scp 将配置后的 hadoop 分发到其他主机上，其他配置文件如 /etc/profile 进行同样操作。
+
+配置完毕后，进行格式化，必须在主节点上进行：
+
+.. code-block:: sh
+
+  $ hdfs namenode -format
+
+在格式化成功后，将创建 namenode 的存储数据，其中的 VERSION 文件记录了集群的 HDFS 版本信息：
+
+.. code-block:: sh
+
+  hadoop@hadoop0:~/hdata/name/current$ cat VERSION 
+  namespaceID=421950326
+  clusterID=CID-158c8cd0-40c7-4ebe-ab52-2e4ef69a8571
+  cTime=0
+  storageType=NAME_NODE
+  blockpoolID=BP-321273679-192.168.10.7-1558927063408
+  layoutVersion=-47
+
+每次格式化生成的版本信息都是不同的，由 clusterID 唯一确定。
+
+start-dfs.sh 启动可以在任意主机上操作，这里以 hadoop0 启动为例。
+
+.. code-block:: sh
+
+  hadoop@hadoop0:~$ start-dfs.sh 
+  Starting namenodes on [hadoop0]
+  hadoop0: starting namenode, logging to /home/hadoop/hadoop-2.7.5/logs/hadoop-hadoop-namenode-hadoop0.out
+  hadoop0: starting datanode, logging to /home/hadoop/hadoop-2.7.5/logs/hadoop-hadoop-datanode-hadoop0.out
+  hadoop1: starting datanode, logging to /home/hadoop/hadoop-2.7.5/logs/hadoop-hadoop-datanode-hadoop1.out
+  Starting secondary namenodes [hadoop1]
+  hadoop1: starting secondarynamenode, logging to /home/hadoop/hadoop-2.7.5/logs/hadoop-hadoop-secondarynamenode-hadoop1.out
+  
+  # 查看 hadoop0 上进程
+  hadoop@hadoop0:~$ jps
+  17367 NameNode
+  17515 DataNode
+  17711 Jps
+
+  # 查看 hadoop1 上进程
+  [hadoop@hadoop1 ~]$ jps
+  10216 DataNode
+  10301 SecondaryNameNode
+  10398 Jps
+
+datanode 的存储数据在启动 start-dfs.sh 时生成，其中的 VERSION 同样记录有 clusterID，
+
+.. code-block:: sh
+
+  hadoop@hadoop0:~/hdata/data/current$ cat VERSION 
+  #Mon May 27 11:30:10 CST 2018
+  storageID=DS-1182442983-192.168.10.7-50010-1558927457305
+  clusterID=CID-158c8cd0-40c7-4ebe-ab52-2e4ef69a8571
+  cTime=0
+  storageType=DATA_NODE
+  layoutVersion=-47
+
+此 clusterID 必须和 namenode 中的 clusterID 一致，指明它们属于同一个集群。
+
+.. note::
+
+  在全分布集群模式一旦格式化成功，不可重复格式化，否则将导致 clusterID 不一致，DataNode 进程无法启动。如确需重新格式化，应该删除所有主机上的存储信息，也即这里的 hdata 文件夹。
+
+start-yarn.sh 必须在 yarn 的主节点上执行，这里在 hadoop1 上执行：
+
+.. code-block:: sh
+
+  [hadoop@hadoop1 ~]$ start-yarn.sh 
+  starting yarn daemons
+  starting resourcemanager, logging to /home/hadoop/hadoop-2.7.5/logs/yarn-hadoop-resourcemanager-hadoop1.out
+  hadoop0: starting nodemanager, logging to /home/hadoop/hadoop-2.7.5/logs/yarn-hadoop-nodemanager-hadoop0.out
+  hadoop1: starting nodemanager, logging to /home/hadoop/hadoop-2.7.5/logs/yarn-hadoop-nodemanager-hadoop1.out
+
+  # 查看 hadoop1 上进程
+  [hadoop@hadoop1 ~]$ jps
+  11075 ResourceManager
+  10216 DataNode
+  11225 Jps
+  11180 NodeManager
+  10301 SecondaryNameNode
+
+  # 查看 hadoop0 上进程
+  hadoop@hadoop0:~$ jps
+  18816 Jps
+  18688 NodeManager
+  17367 NameNode
+  17515 DataNode
+
+此时的 WEB 管理界面地址如下：
+
+- hdfs 管理界面 http://hadoop0:50070/
+- yarn 管理界面 http://hadoop1:8088/
+
+完全分布式验证与伪分布式验证完全相同，不再赘述。
+
+不同模式配置对比
+````````````````
+
+三种模式配置的属性列表如下：
+
+  =============== ============================== =============== =================== ===============
+  组件名称         属性名称                       单机模式         伪分布式           完全分布式
+  --------------- ------------------------------ --------------- ------------------- ---------------
+  Common          fs.defaultFs                    file:///(默认)   hdfs://localhost/  hdfs://namenode
+  --------------- ------------------------------ --------------- ------------------- ---------------
+  HDFS            dfs.replication                 N/A               1                  2 (默认3)
+  --------------- ------------------------------ --------------- ------------------- ---------------
+  MapReduce       mapreduce.framework.name        local(默认）     yarn                yarn
+  --------------- ------------------------------ --------------- ------------------- ---------------
+  Yarn             yarn.resoucemanager.hostname   N/A             localhost          resoucemanager
+  --------------- ------------------------------ --------------- ------------------- ---------------
+  Yarn            yarn.nodemanager.auxservice     N/A             mapreduce_shuffle  mapreduce_shuffle   
+  =============== ============================== =============== =================== ===============
+
+生产环境
+~~~~~~~~~~
+
+实际生产环境需要集群可以持续 7*24 小时不间断提供服务，由于全分布集群模式属于一主多从架构，存在单点宕机问题（SecondaryNameNode 属于静态备份，需手动恢复，而不能热备），所以无法满足这一需求。zookeeper 模块解决了这一问题。
+
+高可用集群
+`````````````
+
+高可用（High Available）模式属于双主多从，有两个节点 namenode 节点，同一时间只有一个主节点处于激活（active）状态，另一主节点处于热备份状态，所以该节点也被称为 standby，两个主节点存储的数据是完全一致的。当活跃主节点失活时，standy 后备节点立刻被激活。
+
+当原主节点重新被激活后，自动成为 standy 热备节点，不再主动成为激活节点。
+
+高可用模式可以支撑数百台主机集群。当主机达到上千台时，主节点由于元数据激增导致压力变大，热备节点无法分担激活节点的压力。
+
+联邦机制
+```````````
+
+联邦机制（federation）与高可用集群类似，同一集群中可以有多个主节点，但它们是对等的，也即同一时间可以有多个激活的主节点，它们之间共享集群中所有元数据，每个 NameNode 进程只负责一部分元数据处理，这些元数据对应不同的文件。
+
+联邦机制也同样存在主节点宕机问题，而导致部分数据无法访问。所以当数据量极大时，需要联邦机制结合高可用集群模式，每一个主节点均有一个热备主节点。
 
