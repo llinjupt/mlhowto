@@ -20,7 +20,7 @@ Hadoop 具有以下优点：
 
 - 不支持低延迟数据访问；
 - 不擅长存储大量的小文件（< block 大小）：寻址数据 block 时间长；元数据记录的存储压力极大。
-- 为保证数据一致性，不支持数据随机修改，只可追加。
+- 为保证数据一致性，不支持数据随机修改，只可追加或删除后再重新提交。
 
 安装和配置
 -------------
@@ -1006,4 +1006,182 @@ start-yarn.sh 必须在 yarn 的主节点上执行，这里在 hadoop1 上执行
 联邦机制（federation）与高可用集群类似，同一集群中可以有多个主节点，但它们是对等的，也即同一时间可以有多个激活的主节点，它们之间共享集群中所有元数据，每个 NameNode 进程只负责一部分元数据处理，这些元数据对应不同的文件。
 
 联邦机制也同样存在主节点宕机问题，而导致部分数据无法访问。所以当数据量极大时，需要联邦机制结合高可用集群模式，每一个主节点均有一个热备主节点。
+
+spark
+-------------
+
+spark 集群配置
+~~~~~~~~~~~~~~
+
+spark 官网 http://spark.apache.org/downloads.html 下载 spark-2.4.3-bin-hadoop2.7.tgz，这里要注意匹配集群环境的 hadoop 版本。
+
+修改 spark 运行环境变量：
+
+.. code-block:: sh
+
+  $ cd spark-2.4.3-bin-hadoop2.7/conf
+  $ cp -f spark-env.sh.template spark-env.sh
+  
+  # 在该文件中添加如下配置
+  export JAVA_HOME=/opt/jdk1.8.0_172
+  export SPARK_MASTER_IP=hadoop0
+  export SPARK_MASTER_PORT=7077
+  
+  # 在 slaves 文件中添加所有工作节点
+  $ cp -f slaves.template slaves
+  $ cat slaves
+  # A Spark Worker will be started on each of the machines listed below.
+  hadoop0
+  hadoop1
+
+注意所有工作节点上 spark 的安装位置必须相同，且进行相同如上配置。可以在一个节点配置好后，再一次打包分发。
+
+由于 spark/sbin 目录下的脚本命名与 hadoop 向冲突，所以不要添加 spark 环境变量到 /etc/profile 中，而是使用绝对路径启动。
+
+.. code-block:: sh
+
+  # 在主节点上启动 spark 进程
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/sbin$ ./start-all.sh 
+  
+  # 查看进程
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/sbin$ jps
+  25538 Jps
+  25461 Worker
+  25355 Master
+  
+  # 查看 7077 端口
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/sbin$ lsof -i :7077
+  COMMAND   PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+  java    25355 hadoop  256u  IPv6 245516      0t0  TCP hadoop0:7077 (LISTEN)
+
+spark 的工作进程 Worker 和主进程 Master 之间使用 TCP 7077 端口通信。在 hadoop1 上查看工作进程是否启动：
+
+.. code-block:: sh
+  
+  # hadoop1 上查看工作进程
+  [hadoop@hadoop1 conf]$ jps
+  8311 Worker
+  8408 Jps
+  
+  # 查看 7077 端口状态
+  [hadoop@hadoop1 conf]$ lsof -i :7077
+  COMMAND  PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+  java    8311 hadoop  301u  IPv6  55206      0t0  TCP hadoop1:42802->hadoop0:7077 (ESTABLISHED)
+  
+  # 查看使用 42802 的进程 8311
+  hadoop    8311  5.7 12.2 5491992 124580 ?      Sl   15:37   0:12 /opt/jdk1.8.0_172/bin/java -cp 
+  /home/hadoop/spark-2.4.3-bin-hadoop2.7/conf/:/home/hadoop/spark-2.4.3-bin-hadoop2.7/jars/* 
+  -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://hadoop0:7077
+
+启动流程为 start-all.sh 分别调用 start-master.sh 和 start-slaves.sh，start-slaves.sh 调用 slaves.sh 通过 ssh 通知子节点启动 Worker 进程。
+
+spark shell
+~~~~~~~~~~~~~
+
+单机版运行
+````````````
+
+单机版运行无需进行集群配置，直接执行 bin 下的 ./spark-shell 即可，常用语简单应用的验证。
+
+.. code-block:: sh
+  
+  # 成功运行后将进入 spark 的交互环境
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/bin$ ./spark-shell
+  Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.4.3
+      /_/
+         
+  Using Scala version 2.11.12 (Java HotSpot(TM) Server VM, Java 1.8.0_31)
+  Type in expressions to have them evaluated.
+  Type :help for more information.
+  
+  scala> 
+  
+  # 单机版只启动 SparkSubmit 进程
+  $ jps
+  5606 Jps
+  5241 SparkSubmit
+
+可以键入 scala> :help 查询帮助，:quit 退出交互界面。
+
+集群版启动
+``````````````
+
+首先在 sbin 下启动 start-all.sh 启动集群服务，然后在启动 spark-shell 时，指定主节点 spark 服务的地址以启动集群服务。
+
+.. code-block:: sh
+  
+  # --master 参数指定集群主节点地址和端口
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/bin$ ./spark-shell --master spark://hadoop0:7077
+  
+  # 查询参数
+  $ $ ./spark-shell --help 
+  # --executor-memory MEM  指定单个节点使用的内存数，默认 1G
+  # 
+  
+  # 如果使用虚拟机模拟集群运行，则需要限制每个节点的内存使用
+  $ ./spark-shell --master spark://hadoop0:7077 --executor-memory 512m
+
+  # 查看启动进程  
+  hadoop@hadoop0:~$ jps
+  7236 CoarseGrainedExecutorBackend # 执行任务进程
+  7655 Jps
+  7147 SparkSubmit                  # 提交任务继承
+  6635 Worker
+  6524 Master
+
+  # 查看子节点进程
+  [hadoop@hadoop1 ~]$ jps
+  7474 Worker
+  7917 Jps
+  7775 CoarseGrainedExecutorBackend
+
+可以通过浏览器访问主节点 http://192.168.10.7:8081/ 查看相关进程和任务信息。
+
+.. code-block:: sh
+  
+  # 查看更详细的 java 进程信息
+  $ jps -lvm 
+  13456 sun.tools.jps.Jps -lvm -Denv.class.path=.:/opt/jdk1.8.0_31/lib:/opt/jdk1.8.0_31/jre/lib 
+  -Dapplication.home=/home/red/sdc/toolchains/jdk1.8.0_31 -Xms8m
+  6635 org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://hadoop0:7077 -Xmx1g
+  6524 org.apache.spark.deploy.master.Master --host hadoop0 --port 7077 --webui-port 8080 -Xmx1g
+
+任务提交
+`````````````
+
+可以直接在 spark-shell 交互式界面中输入 scala 程序命令，实际上它将读取的命令调用 spark-submit 进行提交，所以我们也可以使用 spark-submit 来提交一个任务。
+
+.. code-block:: sh
+
+  $ ./spark-submit --class org.apache.spark.examples.SparkPi --executor-memory 512m  
+  --master spark://hadoop0:7077 
+  ~/spark-2.4.3-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.4.3.jar 10000
+  
+  ......
+  18/06/01 19:14:39 INFO TaskSetManager: Finished task 9994.0 in stage 0.0 (TID 9994) in 220 ms on 192.168.10.7 (executor 1) (9997/10000)
+  18/06/01 19:14:39 INFO TaskSetManager: Finished task 9997.0 in stage 0.0 (TID 9997) in 196 ms on 192.168.10.7 (executor 1) (9998/10000)
+  18/06/01 19:14:39 INFO TaskSetManager: Finished task 9986.0 in stage 0.0 (TID 9986) in 300 ms on 192.168.10.8 (executor 0) (9999/10000)
+  18/06/01 19:14:39 INFO TaskSetManager: Finished task 9985.0 in stage 0.0 (TID 9985) in 300 ms on 192.168.10.8 (executor 0) (10000/10000)
+  18/06/01 19:14:39 INFO DAGScheduler: ResultStage 0 (reduce at SparkPi.scala:38) finished in 251.837 s
+  18/06/01 19:14:39 INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool 
+  18/06/01 19:14:39 INFO DAGScheduler: Job 0 finished: reduce at SparkPi.scala:38, took 252.849893 s
+  Pi is roughly 3.141681075141681
+  18/06/01 19:14:39 INFO SparkUI: Stopped Spark web UI at http://hadoop0:4040
+  18/06/01 19:14:39 INFO StandaloneSchedulerBackend: Shutting down all executors
+  18/06/01 19:14:39 INFO CoarseGrainedSchedulerBackend$DriverEndpoint: Asking each executor to shut down
+  18/06/01 19:14:40 INFO MapOutputTrackerMasterEndpoint: MapOutputTrackerMasterEndpoint stopped!
+  18/06/01 19:14:40 INFO MemoryStore: MemoryStore cleared
+  18/06/01 19:14:40 INFO BlockManager: BlockManager stopped
+  18/06/01 19:14:40 INFO BlockManagerMaster: BlockManagerMaster stopped
+  18/06/01 19:14:40 INFO OutputCommitCoordinator$OutputCommitCoordinatorEndpoint: OutputCommitCoordinator stopped!
+  18/06/01 19:14:40 INFO SparkContext: Successfully stopped SparkContext
+  18/06/01 19:14:40 INFO ShutdownHookManager: Shutdown hook called
+  18/06/01 19:14:40 INFO ShutdownHookManager: Deleting directory /tmp/spark-089079cd-699c-475b-bc63-3b78013bf9b6
+  18/06/01 19:14:40 INFO ShutdownHookManager: Deleting directory /tmp/spark-5a5af16b-a97f-4a87-8744-e6199b6c2333
+
+spark-examples_2.11-2.4.3.jar 中提供了很多实例，这里以其中的 SparkPi 为例。spark-submit 将启动 org.apache.spark.deploy.SparkSubmit 进程。
 
