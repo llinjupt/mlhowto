@@ -379,6 +379,8 @@ CentOS 7 默认使用 systemd 服务，可以通过 ps 查看进程，此时不�
 
 所有当前主机可以免密登录的其他主机的公钥均放在 ~/.ssh/authorized_keys 文件中，本机登录自身也需要将公钥添加到 authorized_keys 信任列表文件中：
 
+.. code-block:: sh
+
   $ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys 
   
   # 测试本机登录
@@ -1010,6 +1012,17 @@ start-yarn.sh 必须在 yarn 的主节点上执行，这里在 hadoop1 上执行
 spark
 -------------
 
+Spark最初由美国加州伯克利大学（UCBerkeley）的AMP实验室于2009年开发，是基于内存计算的大数据并行计算框架，可用于构建大型的、低延迟的数据分析应用程序。
+
+2013 年 Spark 加入 Apache 孵化器项目后发展迅猛，Spark在2014年打破了 Hadoop 保持的基准排序纪录：Spark用十分之一的计算资源，获得了比 Hadoop 快 3 倍的速度。
+
+Spark具有如下几个主要特点：
+
+- 运行速度快：使用 DAG（Directed Acyclic Graph，有向无环图）执行引擎以支持循环数据流与内存计算。
+- 容易使用：同时支持Scala、Java、Python 和 R 语言进行编程，可以通过Spark Shell进行交互式编程。
+- 通用性：Spark 提供了完整而强大的技术栈，包括 SQL 查询、流式计算、机器学习和图算法组件。
+- 运行模式多样：可运行于独立的集群模式中，可运行于 Hadoop 中，也可运行于Amazon EC2 等云环境中，并且可以访问 HDFS、Cassandra、HBase 等多种数据源。
+
 spark 集群配置
 ~~~~~~~~~~~~~~
 
@@ -1036,8 +1049,13 @@ spark 官网 http://spark.apache.org/downloads.html 下载 spark-2.4.3-bin-hadoo
 
 注意所有工作节点上 spark 的安装位置必须相同，且进行相同如上配置。可以在一个节点配置好后，再一次打包分发。
 
-由于 spark/sbin 目录下的脚本命名与 hadoop 向冲突，所以不要添加 spark 环境变量到 /etc/profile 中，而是使用绝对路径启动。
+环境变量只配置 bin 目录，由于 spark/sbin 目录下的脚本命名与 hadoop 相冲突，所以不要添加 spark 环境变量到 /etc/profile 中，而是使用绝对路径启动。
 
+.. code-block:: sh
+
+  export SPARK_HOME=/home/hadoop/spark-2.4.3-bin-hadoop2.7
+  export PATH=$PATH:${JAVA_HOME}/bin:${HADOOP_HOME}/bin:${HADOOP_HOME}/sbin:${SPARK_HOME}/bin
+  
 .. code-block:: sh
 
   # 在主节点上启动 spark 进程
@@ -1078,15 +1096,16 @@ spark 的工作进程 Worker 和主进程 Master 之间使用 TCP 7077 端口通
 spark shell
 ~~~~~~~~~~~~~
 
-单机版运行
+本地模式
 ````````````
 
-单机版运行无需进行集群配置，直接执行 bin 下的 ./spark-shell 即可，常用语简单应用的验证。
+本地模式也称为单机模式，单机模式运行无需进行集群配置，直接执行 bin 下的 ./spark-shell 即可，常用语简单应用的验证。
 
 .. code-block:: sh
   
   # 成功运行后将进入 spark 的交互环境
   hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/bin$ ./spark-shell
+  ......
   Welcome to
       ____              __
      / __/__  ___ _____/ /__
@@ -1100,12 +1119,18 @@ spark shell
   
   scala> 
   
-  # 单机版只启动 SparkSubmit 进程
+  # 本地模式只启动 SparkSubmit 进程
   $ jps
   5606 Jps
   5241 SparkSubmit
 
-可以键入 scala> :help 查询帮助，:quit 退出交互界面。
+可以键入 scala> :help 查询帮助，:quit 退出交互界面。也通过 local[n] 可以指定执行线程数：
+
+.. code-block:: sh
+
+  hadoop@hadoop0:~/spark-2.4.3-bin-hadoop2.7/bin$ spark-shell --master local[4] 
+
+本地模式只启动 SparkSubmit 进程，它自身作为 Master 并启动指定个数的执行线程。
 
 集群版启动
 ``````````````
@@ -1162,7 +1187,6 @@ spark shell
   ~/spark-2.4.3-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.4.3.jar 10000
   
   ......
-  18/06/01 19:14:39 INFO TaskSetManager: Finished task 9994.0 in stage 0.0 (TID 9994) in 220 ms on 192.168.10.7 (executor 1) (9997/10000)
   18/06/01 19:14:39 INFO TaskSetManager: Finished task 9997.0 in stage 0.0 (TID 9997) in 196 ms on 192.168.10.7 (executor 1) (9998/10000)
   18/06/01 19:14:39 INFO TaskSetManager: Finished task 9986.0 in stage 0.0 (TID 9986) in 300 ms on 192.168.10.8 (executor 0) (9999/10000)
   18/06/01 19:14:39 INFO TaskSetManager: Finished task 9985.0 in stage 0.0 (TID 9985) in 300 ms on 192.168.10.8 (executor 0) (10000/10000)
@@ -1184,4 +1208,229 @@ spark shell
   18/06/01 19:14:40 INFO ShutdownHookManager: Deleting directory /tmp/spark-5a5af16b-a97f-4a87-8744-e6199b6c2333
 
 spark-examples_2.11-2.4.3.jar 中提供了很多实例，这里以其中的 SparkPi 为例。spark-submit 将启动 org.apache.spark.deploy.SparkSubmit 进程。
+
+上例中可以看到只要指定任务 \*.jar 和 jar 中的主程序名 org.apache.spark.examples.SparkPi 即可，所以我们只要编写自己的任务 .jar 文件即可进行提交执行。
+
+spark 任务创建
+~~~~~~~~~~~~~~
+
+安装 scala
+`````````````
+
+因为 Scala 是运行在JVM平台上的，所以安装 Scala 之前要安装 JDK，注意安装时路径不要有空格或者中文。
+
+访问 `Scala官网 <http://www.scala-lang.org>`_ 下载 Scala 编译器安装包，由于目前大多数框架都是用 2.10.x 编写开发的，推荐安装 2.10.x 版本，Windows 平台直接下载 scala-2.10.6.msi 安装即可，会自动配置环境变量。
+
+Scala 安装包会自动添加环境变量，直接验证安装环境：
+
+.. code-block:: sh
+
+  E:\>scala -version
+  Scala code runner version 2.10.6 -- Copyright 2002-2018, LAMP/EPFL and Lightbend, Inc.
+
+Linux 环境下载 .tgz 文件，解压后在 /etc/profile 下修改环境变量
+
+.. code-block:: sh
+
+  # 解压缩
+  $ tar -zxvf scala-2.10.6.tgz -C /opt/
+
+  vi /etc/profile
+  export JAVA_HOME=/opt/jdk1.8.0_172
+  export PATH=$PATH:$JAVA_HOME/bin:/opt/scala-2.10.6/bin
+
+Idea和Maven环境配置
+````````````````````
+
+Idea 是用户开发 Java 项目的优秀IDE，由于 spark 使用 scala 语言开发，需要安装 scala 插件以支持 spark 开发。
+
+从 http://www.jetbrains.com/idea/download/ 下载社区免费版并安装，由于 Idea 启动时加载比较慢，建议安装在固态硬盘，安装时如果有网络可以选择在线安装 scala 插件。
+
+如果网速较慢，可以选择离线安装，从地址 http://plugins.jetbrains.com/?idea_ce 搜索 Scala 插件，然后下载。
+
+.. figure:: imgs/scala/idea.png
+  :scale: 60%
+  :align: center
+  :alt: idea
+
+  首次启动窗口
+
+首次启动 Idea 安装Scala插件：Configure -> Plugins -> Install plugin from disk -> 选择Scala插件 -> OK -> 重启IDEA。
+
+如果当前已经进入 Idea，可以通过 File->Settings 搜索 Plugins 标签页，在标签页面右下角选择 Install plugin from disk，然后从本地磁盘安装插件。
+
+maven 用于自动配置软件包依赖。它的下载地址，http://maven.apache.org/download.cgi。maven 安装过程：
+
+- 解压 maven 安装包，例如 E:\spark\apache-maven-3.6.1。
+- 配置本地类库路径，例如 E:\spark\maven_repo，打开配置文件 E:\spark\apache-maven-3.6.1\conf\settings.xml 做以下配置:
+ 
+.. code-block:: sh
+
+   # 指定本地类库路径
+   <localRepository>E:\\spark\\maven_repo</localRepository>
+  
+   # 添加 aliyun 镜像，加速类库下载
+   <mirrors>
+     <mirror>
+      <id>nexus-aliyun</id>
+      <mirrorOf>*</mirrorOf>
+      <name>Nexus aliyun</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+     </mirror>
+  </mirrors>
+  
+  # 配置 JDK 版本 1.8，和系统中安装 JDK 版本一致
+  <profile>
+    <id>jdk-1.8</id>
+
+    <activation>
+      <jdk>1.8</jdk>
+    </activation>
+
+    <repositories>
+      <repository>
+        <id>jdk18</id>
+        <name>Repository for JDK 1.8 builds</name>
+        <url>http://www.myhost.com/maven/jdk14</url>
+        <layout>default</layout>
+        <snapshotPolicy>always</snapshotPolicy>
+      </repository>
+    </repositories>
+  </profile>
+
+Idea 配置 maven：File->Settings 搜索 Maven 标签页，进行如下配置：
+
+.. figure:: imgs/scala/maven.jpg
+  :scale: 60%
+  :align: center
+  :alt: maven
+
+  maven 配置
+
+单词统计
+``````````
+
+首先使用 spark-shell 交互环境，进行单词统计，以验证 spark 在 hadoop 环境的运行是否正常。
+
+.. code-block:: sh
+
+  # 启动 hdfs 服务
+  $ start-dfs.sh
+  
+  # 查看 hdfs 路径验证 hdfs 服务
+  $ hadoop fs -ls
+  
+  # 启动交互式 spark 环境
+  $ spark-shell --master spark://hadoop0:7077 --executor-memory 512m
+  
+  # 进入交互环境，交互环境中自动创建上下文句柄 sc，使用 textFile 方法打开 hdfs 路径或文件
+  scala> val textFile = sc.textFile("hdfs://hadoop0:9000/input/")
+  textFile: org.apache.spark.rdd.RDD[String] = hdfs://hadoop0:9000/input/ MapPartitionsRDD[5] at textFile at <console>:24
+  
+  # 查看文件数
+  scala> textFile.count
+  res2: Long = 1                                                                  
+  
+  # 统计单词
+  scala> val wordCount = textFile.flatMap(line => line.split(" ")).map(word => (word, 1)).reduceByKey(_+_)
+  wordCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[8] at reduceByKey at <console>:25
+
+  # 对结果进行排序
+  scala> wordCount.sortBy(_._2, ascending=false)
+  res3: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[13] at sortBy at <console>:26
+  
+  # 打印统计信息
+  scala> wordCount.collect()
+  res4: Array[(String, Int)] = Array((hello,1), (world,1))   
+
+以上均是使用 spark 原生支持的 scala 语言提交任务， pyspark 提供了 python 接口，让应用更容易。
+
+远程提交
+``````````````
+
+远程任务提交可以通过 ssh 登录主节点，然后运行 spark-shell 或者 spark-submit 提交任务。这是推荐的做法。
+
+另一种方式是通过 spark-shell 使用 master 参数指定远程主节点，这种方式比较麻烦。
+
+- 首先，登录主机需要配置 spark 运行环境，这包括 jdk，scale，hadoop 以及 spark （SPARK_HOME 和 PATH）自身的环境变量。
+- 由于 spark 连接依靠域名（即便配置了 SPARK_LOCAL_IP 为 IP 地址依然会被解析为域名），所以必须将登录主机的域名添加到所有节点上，所以如果没有配置域名服务器，这种操作将很繁琐。
+- 关闭登录主机的防火墙。
+
+spark 需要配置 spark-env.sh 和 slaves，网络链接导致的错误会打印大量资源不足信息：
+
+.. code-block:: sh
+
+  WARN TaskSchedulerImpl: Initial job has not accepted any resources; check your 
+  cluster UI to ensure that workers are registered and have sufficient resources
+
+此时应通过主节点 http://hadoop0:8080/ 进入 Running Applications ，然后查看 Executor 的 stderr 日志来判断具体错误原因。
+
+通常开发环境位于 Windows 上，此时使用本地模式来测试代码，验证无误后，再 ssh 登录到远程主机提交任务。
+
+pyspark
+~~~~~~~~~~
+
+pyspark 是 Spark 提供的一个 Python_Shell，可以以交互的方式使用 Python 编写并提交 Spark 任务。它位于 spark 安装文件的 bin 目录下，所以一旦配置了 SPARK_HOME 环境变量，并添加 bin 目录到 PATH 环境变量就可以直接运行 pyspark 了。
+
+需要注意的是如果系统中有多个版本的 Python，那么需要指定 pyspark 使用的版本：
+
+.. code-block:: sh
+
+  $ which python3
+  /usr/bin/python3
+
+  # /etc/profile 指定 pyspark 使用的 python 版本
+  export PYSPARK_PYTHON=/usr/bin/python3
+  
+  # 使用ipython3作为默认启动交互界面  
+  export PYSPARK_DRIVER_PYTHON=ipython3
+
+  $ pyspark
+  Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /__ / .__/\_,_/_/ /_/\_\   version 2.4.3
+      /_/
+
+  Using Python version 3.4.3 (default, Nov 12 2018 22:20:49)
+  SparkSession available as 'spark'.
+  
+  In [1]: 
+
+当然也可以使用 jupyter-notebook 作为交互界面：
+
+.. code-block:: sh
+
+  # 安装 jupyter
+  $ pip3 install jupyter
+
+  # 配置 juypter  
+  $ jupyter notebook --generate-config
+  
+  # 生成配置文件位于用户home 下 /home/hadoop/.jupyter/jupyter_notebook_config.py
+  # 配置 notebook 的工作目录
+  c.NotebookApp.notebook_dir = '/home/hadoop/notebooks'
+
+  # 配置 jupyter 登录密码
+  $ jupyter notebook password
+  
+  # 解决 jupyter 权限 bug
+  $ unset XDG_RUNTIME_DIR
+    
+  # 指定 ip 和 port 可以远程访问 jupyter 进行 pyspark 操作
+  export PYSPARK_DRIVER_PYTHON=jupyter
+  export PYSPARK_DRIVER_PYTHON_OPTS="notebook --no-browser --ip 192.168.10.7 --port 10000"
+
+使用 jupyter 作为交互界面，启动后日志提示如下：
+
+.. code-block:: sh
+
+  $ pyspark
+  [I 13:35:15.689 NotebookApp] Serving notebooks from local directory: /home/hadoop/notebooks
+  [I 13:35:15.689 NotebookApp] The Jupyter Notebook is running at:
+  [I 13:35:15.689 NotebookApp] http://192.168.10.7:10000/
+  [I 13:35:15.689 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+
+此时可以通过 http://192.168.10.7:10000/ 访问 jupyter notebook。
 
