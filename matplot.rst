@@ -3,9 +3,7 @@ matplotlib
 
 matplotlib 是 python 中一个非常强大的 2D 函数绘图模块，它提供了子模块 pyplot 和 pylab 。pylab 是对 pyplot 和 numpy 模块的封装，更适合在 IPython 交互式环境中使用。
 
-`scipy.stats 函数相关 <https://blog.csdn.net/pipisorry/article/details/49515215>`_
-
-`绘图: matplotlib核心剖析 <https://www.cnblogs.com/vamei/archive/2013/01/30/2879700.html>`_
+经典参考：`绘图: matplotlib核心剖析 <https://www.cnblogs.com/vamei/archive/2013/01/30/2879700.html>`_
 
 对于一个项目来说，官方建议分别导入使用，这样代码更清晰，即：
 

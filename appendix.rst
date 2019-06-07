@@ -79,6 +79,7 @@ Python相关
 符号和表达式
 --------------
 - `正则表达式 <http://deerchao.net/>`_
+- `scipy.stats 函数相关 <https://blog.csdn.net/pipisorry/article/details/49515215>`_
 - `常用数学符号的 LaTeX 表示方法 <http://www.mohu.org/info/symbols/symbols.htm>`_
 - `Math in reStructuredText <https://yuyuan.org/MathInreStructuredText/#use-mathjax-in-restructuredtext>`_
 
