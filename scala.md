@@ -86,7 +86,17 @@ acronym：首字母缩写
 
 Naming conventions：命名规范
 
+Idioms：成语，俗语
 
+Code conventions：编码规范
+
+#### 语法糖
+
+语法糖(Syntactic sugar),是由Peter J. Landin(和图灵一样的天才人物，是他最先发现了Lambda演算，由此而创立了函数式编程)创造的一个词语，它意指那些没有给计算机语言添加新功能，而只是对人类来说更“甜蜜”（简便）的语法。
+
+语法糖往往给程序员提供了更实用的编码方式，有益于**更好的编码风格，更易读**。不过其并没有给语言添加什么新东西。
+
+例如：在C语言里用a[i]表示*(a+i),用a[i][j]表示*(*(a+i)+j)，所以语法糖就是原来需要人工输入很多代码的地方支持简写，由编译器进行转换。
 
 #### 分号推断
 
@@ -124,6 +134,15 @@ Scala中没有传统意义上的操作符，类似 +，-，*，/ 这样的字符
 ```scala
 scala> (1).+(2)
 res62: Int = 3
+
+//所以空格很重要，+- 是方法名，提示 Int 没有此方法
+scala> 1 +-1
+<console>:15: error: value +- is not a member of Int
+       1 +-1
+         ^
+
+scala> 1 + -1
+res173: Int = 0
 ```
 
 上例中 1 就是值为 1 的 Int 对象，+ 是 Int 对象的方法，2 是将 Int  对象 2 作为参数传入 + 方法中。
@@ -160,6 +179,59 @@ scala> val a = Array.apply(2, 3)
 a: Array[Int] = Array(2, 3)
 ```
 
+####各种省略
+
+```scala
+// 定义复数类，小括号不可省略
+class Complex(real:Double,imaginary:Double){
+    def re() = real
+    def im() = imaginary
+}
+
+// 以上定义等价于
+class Complex(real:Double,imaginary:Double){
+    def re():Double = {
+        return real
+    }
+    def im():Double = {
+        return imaginary
+    }
+}
+```
+
+- 函数没有参数列表，可以省略小括号()
+- 返回类型可以根据返回值推断时可以略写
+- 函数体如果只有一条语句，可以省略大括号{}
+- return 语句可以省略，函数返回值总是最后一条语句的值
+
+由于括号的省略，你可能迷惑 FOO 是什么：
+
+```scala
+val x = FOO {
+    // more code here
+}
+```
+
+一个匿名类或者一个只有一个传名参数（是一个代码段构成的函数）的函数。
+
+```scala
+val x = FOO {(a:String)=>
+    // more code here
+}
+```
+
+一个类，参数为函数或者一个函数接受传名参数的函数。
+
+
+
+#### 函数式编程特征
+
+- 只使用纯函数
+- 传入参数均是 val 类型，只处理不可变数据
+- 使用递归，和高阶函数，例如 map,filter,fold,reduce等
+- 使用 Option，Try 类型处理异常
+- 使用 case 匹配处理结果
+
 ### 特殊符号汇总
 
 | 符号    | 示例代码                                                     | 意义                                                         |
@@ -174,6 +246,10 @@ a: Array[Int] = Array(2, 3)
 | ++      | "scala" ++ "java"                                            | 类似:::，++ 方法除了连接集合还可以连接字符串                 |
 | /: , :\ |                                                              | 分别对应 foldLeft 和 foldRight 函数                          |
 | ==      | a == true                                                    | 调用对象 equals 方法                                         |
+| _       | val add = (_:Int) + 1                                        | 匿名函数占位符                                               |
+| _       | import Fruilts.{Apple=>McIntosh,_}                           | 从 Fruits 对象引入所有的成员，Apple 对象重命名为McIntosh     |
+| _       | `import Fruilts.{Apple=>_,_}`                                | 引入除 Apple 之外的 Fruits 的所有成员                        |
+| =>      | `import System.out.{println => echo}`                        | 导入别名                                                     |
 
 ### ()与{}
 
@@ -279,6 +355,16 @@ scala> val result = list.map{case (x,y)=>(x-y)*(x+y)}
 result: List[Int] = List(-3, -7)
 ```
 
+以下哪些定义是正确的：（CD），注意若声明参数类型，则必须在小括号内。
+
+A) 	`val f = _ + 1`
+
+B)	`val f = (_:Int) => _ + 1`
+
+C)	`val f = (_:Int) + 1`
+
+D)	`val f = (i:Int) => i + 1`
+
 ### 字符串插值
 
 Scala 提供了丰富的字符串插值，作用类似于 shell 脚本：
@@ -373,6 +459,95 @@ Scala 基础数据类型类似 Java，共有 9 种：
 - 和 Java 不同，Scala 没有基本类型（primitive type），Scala是纯面型对象的。
 
 以上9种基础类型均使用字面量（Literal）来赋值，字面量是在代码中直接写入常量值的一种方式。
+
+###数值范围
+
+数值类型所占字节数：
+
+```shell
+Data type   Range
+---------   --------------------------------------
+Char        16-bit unsigned Unicode character
+Byte        8-bit signed value 	[-128, 127]
+Short       16-bit signed value	[-32768, 32767]
+Int         32-bit signed value [-2^31, 2^31 - 1]
+Long        64-bit signed value
+Float       32-bit IEEE 754 single precision float
+Double      64-bit IEEE 754 single precision float
+```
+
+均是有符号数，数值范围：[-2^(n-1), 2^(n-1) - 1]，n 为所占字节数。
+
+```scala
+scala> Byte.MaxValue
+res0: Byte = 127
+
+scala> Byte.MinValue
+res188: Byte = -128
+
+scala> Short.MaxValue
+res1: Short = 32767
+
+scala> Short.MinValue
+res189: Short = -32768
+
+scala> Int.MaxValue
+res2: Int = 2147483647
+
+scala>  Int.MinValue
+res190: Int = -2147483648
+
+scala> Long.MaxValue
+res3: Long = 9223372036854775807
+
+scala> Double.MaxValue
+res4: Double = 1.7976931348623157E308
+```
+
+###大数值
+
+扩展的大数值类型有 BigInt 和 BigDecimal，和普通数值类型一样支持数学等各类运算，只受限于系统内存，不受限于数值位数：
+
+```scala
+scala> var b = BigInt(1234567890) // 大整数类型
+b: scala.math.BigInt = 1234567890
+
+scala> var b = BigDecimal(123456.789) // 大小数类型
+b: scala.math.BigDecimal = 123456.789
+```
+
+数学运算：
+
+```scala
+scala> b + b
+res0: scala.math.BigInt = 2469135780
+
+scala> b * b
+res1: scala.math.BigInt = 1524157875019052100
+
+scala> b += 1
+
+scala> println(b)
+1234567891
+```
+
+类型转换：
+
+```scala
+scala> b.toInt
+res2: Int = 1234567891
+
+scala> b.toLong
+res3: Long = 1234567891
+
+scala> b.toFloat
+res4: Float = 1.23456794E9
+
+scala> b.toDouble
+res5: Double = 1.234567891E9
+```
+
+
 
 ###字面量
 
@@ -869,7 +1044,7 @@ res32: scala.collection.immutable.IndexedSeq[Char] = Vector(H, e, l, l, o, I, f,
 
 ### for推导式
 
-for 推导式（comprehension ）是 Scala 中对普通 for loop 循环的升级，它实际上由三部分构成：
+for 推导式（comprehension ）是 Scala 中对普通 for loop 循环的升级，是 for 表达式（for expression）的另一种称呼。它实际上由三部分构成：
 
 ```scala
 for {  // 使用大括号，可以使用换行分割各部分
@@ -949,6 +1124,19 @@ val mutualFriends = for {
     if (myFriend.name == adamsFriend.name)
 } yield myFriend
 ```
+
+确切的规则如下：
+
+- 如果类型只定义了 map，它将允许包含单个生成器的 for 表达式。
+- 如果同时定义了 map 和 flatMap，它将允许包含多个生成器的 for 表达式
+- 如果只定义了 foreach，它将允许 for 循环（单个或多个生成器）
+- 如果定义了 withFilter，它将允许 for 表达式中以 if 开头的过滤器表达式
+
+编译器对 for 表达式的翻译仅依赖存在相应的 map，flatMap 和 withFilter 方法。
+
+大部分集合类型都定义了这些方法，例如数组和列表，集，以及区间和迭代器。
+
+支持 for 操作的类型或者对象与函数式编程概念中的**单子(Modad)**定义相一致。
 
 ### foreach
 
@@ -1209,6 +1397,8 @@ object learnScala {
 
 ### 一等函数
 
+所谓一等函数（First-Class functions）是指它的地位和普通变量一样，可以通过字面量定义，作为参数传递，返回等等，函数等价于变量，支持匿名函数（Lambda）一定支持一等函数。
+
 ```scala
 scala> val add1 = (x:Int) => x+1
 add1: Int => Int = $$Lambda$1025/5338884@28a6e171
@@ -1278,7 +1468,7 @@ list.foreach((x:Int) => println(x))
 
 ####简写函数字面量
 
-由于可以根据调用调用对象推测出元素类型，可以省去参数类型声明：
+由于可以根据调用对象推测出元素类型，可以省去参数类型声明：
 
 ```scala
 scala> list.foreach((x) => println(x))
@@ -1291,7 +1481,7 @@ scala> list.foreach((x) => println(x))
 
 #### 占位符
 
-可以使用下划线作为占位符，表示一个或者多个参数，只要满足每个参数只在函数字面量中出现一次即可，此时省去了参数声明部分和 => 符号。
+可以使用下划线作为占位符，表示一个或者多个参数，只要满足每个参数只在函数字面量中出现一次即可，此时**必须省去参数声明和 => 符号**。
 
 ```scala
 scala> list.foreach(println(_))
@@ -1311,6 +1501,29 @@ res9: Int = 3
 ```
 
 多个占位符表示多个参数，而不是对单个参数的重复使用。
+
+体会下面的示例：
+
+```scala
+// Scala 编译器无法根据表达式推断 _ 类型，必须明确声明
+scala> val f = _ + 1
+<console>:11: error: missing parameter type for expanded function ((x$1: <error>) => x$1.$plus(1))
+       val f = _ + 1
+
+// 直接在函数体的语句中对占位符声明，而不是在参数列表中，必须带小括号
+scala> val f = (_:Int) + 1
+f: Int => Int = $$Lambda$1451/854632898@773bfe56
+
+// 参数列表中声明的只能是变量名，不能是占位符
+scala> val f = (_:Int) => _ + 1
+<console>:11: error: missing parameter type for expanded function ((x$2: <error>) => x$2.$plus(1))
+       val f = (_:Int) => _ + 1
+
+scala> val f = (i:Int) => i + 1
+f: Int => Int = $$Lambda$1453/289247782@63cde372
+```
+
+但是你会发现 `def f = print(_)` 不会报错，而 `def f = println(_)`会报错。Why？
 
 #### 偏应用函数
 
@@ -1332,7 +1545,7 @@ res29: Int = 11
 
 #### 闭包
 
-运行时从函数字面量创建出来的函数对象被称作闭包（closure）。没有自由变量的函数字面量，例如 (X:Int) =>X+1 称为闭合语（closed term），无需外部变量，已经自闭合。
+编译时从函数字面量创建出来的函数对象被称作闭包（closure）。没有自由变量的函数字面量，例如 (X:Int) =>X+1 称为闭合语（closed term），无需外部变量，已经自闭合。
 
 ```scala
 // 乘法因子
@@ -1343,7 +1556,7 @@ scala> val multiplier = (i: Int) => i * factor
 multiplier: Int => Int = $$Lambda$1052/1606886748@20a47036
 ```
 
-上例不同，它有外部变量 factor，所以需要创建上下文，编译器创建了一个闭包，用于包含（或“覆盖”） multiplier 与它引用的外部变量的上下文信息，从而也就绑定了外部变量本身。函数值是通过闭合这个开放语（open term）的动作产生的。
+上例不同，它有外部变量 factor，所以需要创建上下文，编译器创建了一个**闭包**，用于包含（或“覆盖”） multiplier 与它引用的外部变量的上下文信息，从而也就绑定了外部变量本身。函数值是通过闭合这个开放语（open term）的动作产生的。
 
 外部变量的修改可以被闭包感知，也即引用的是变量而不是它的值。
 
@@ -1418,7 +1631,13 @@ sum: (Int, Int) => Int = $$Lambda$1970/1378644910@bad1c5
 
 ![img](./signature.jpg)
 
-####map
+####map和functor
+
+map 方法/函数签名如下，将原列表转换为新列表：
+
+```scala
+map[B](f: A => B): List[B]
+```
 
 map 方法可以将集合中的成员一次转换为另一种类型的成员，并返回新类型的集合：
 
@@ -1428,9 +1647,15 @@ res79: Array[Int] = Array(2, 4, 6)
 
 scala> List(1,2,3).map("<" + _ + ">")
 res82: List[String] = List(<1>, <2>, <3>)
+
+// 字符串列表转为长度列表
+scala> List("abc,", "hello").map(_.length)
+res20: List[Int] = List(4, 5)
 ```
 
 传入的函数参数将调用者中的每一个成员转换成新集合中的成员，新旧集合元素类型可能改变。
+
+实现了 map 方法的类型被称为**函子**（functor）。
 
 #### flatten
 
@@ -1519,6 +1744,197 @@ def flatMap[B](f: A => Sequence[B]): Sequence[B]
 
 
 
+### 函数契约
+
+为了满足函数的链式调用，一个函数的返回值应该是确信的，也即不能对外抛出异常：
+
+```scala
+val solution = myData.function1(arg1)
+                     .function2(arg2, arg3)
+                     .function3(arg4)
+                     .function4(arg5)
+```
+
+如下定义不符合函数签名：返回值应该总是 Int，然而会对外抛出 NumberFormatException 异常：
+
+```scala
+def makeInt(s: String): Int = s.trim.toInt
+```
+
+函数应该在内部处理异常，并提供对外透明的确信的接口：
+
+```scala
+def makeInt(s: String): Option[Int] = {
+    try {
+        Some(s.trim.toInt)
+    } catch {
+        case e: Exception => None
+    }
+}
+
+// 调用接口通常使用 match/case 语句，而不是 if/else，显然前者更高效
+makeInt(input) match {
+    case Some(i) => println(s"i = $i")
+    case None => println("toInt could not parse 'input'")
+}
+```
+
+另一种简便写法是使用 Option 类提供获取值的方法，例如 get，但是 get 在遇到 None 时会抛出NoSuchElementException 异常，推荐做法使用 getOrElse，它可以在遇到 None 时返回提供的默认值：
+
+```scala
+scala> makeInt("abc").getOrElse(0)
+res25: Int = 0
+```
+
+借助 map 和 flatten ，我们可以对一组字符串进行批量处理：
+
+```scala
+val bag = List("1", "2", "foo", "3", "bar")
+
+scala> bag.map(makeInt(_))
+res28: List[Option[Int]] = List(Some(1), Some(2), None, Some(3), None)
+
+// flatten 会过滤掉 None 元素
+scala> bag.map(makeInt(_)).flatten
+res29: List[Int] = List(1, 2, 3)
+
+// 等价于 bag.map(makeInt(_)).flatten
+scala> bag.flatMap(makeInt(_))
+res26: List[Int] = List(1, 2, 3)
+```
+
+以上要求，也是纯函数必须具备的：纯函数的返回值必须具有契约精神（contract）。函数值编程推荐使用`Option`作为返回值来处理异常情况，而不是 `null` 。
+
+Option 也有缺陷，它无法给出返回 None的原因，一个可选的方式是使用 Try 类型：
+
+```scala
+import scala.util.{Try, Success, Failure}
+def makeInt(s: String): Try[Int] = Try(s.trim.toInt)
+
+makeInt("hello") match {
+    case Success(i) => println(s"Success, value is: $i")
+    case Failure(s) => println(s"Failed, message is: $s")
+}
+```
+
+然而 Try 类型不支持 flatten，也即无法批处理数据，这是它的缺陷，然而另一种 Either 也是如此：
+
+```scala
+def makeInt(s: String): Either[String,Int] = {
+    try {
+        Right(s.trim.toInt)
+    } catch {
+        case e: Exception => Left(e.toString)
+    }
+}
+
+makeInt("11") match {
+    case Left(s) => println("Error message: " + s)
+    case Right(i) => println("Desired answer: " + i)
+}
+```
+
+Either 类型是指只返回类型列表的2中之一，上例中要么返回 Int 类型，要么返回 String，Either 只支持二选一。顾名思义，Left 存储返回的错误，Right 存储返回的正确值。
+
+（Scala 既然支持通过元组返回多个值，为何搞得这么复杂！！返回（status,result）不就直截了当吗）：
+
+```scala
+def makeInt(in:String):(String, Int)={ // 返回元组，第一个是错误信息，第二个是结果值
+	try{
+		("", in.trim.toInt)
+	} catch {
+		case e: Exception => (e.toString, 0)
+	}
+}
+
+val (errMsg,result) = makeInt("1024")
+if(0 == errMsg.length)
+	println(result)
+```
+
+当然这种做法无法融入 Scala 自带的各类强大的函数式编程函数，例如 flatten，map。也即需要对结果进行特定过滤处理，例如检查所有错误信息长度为 0 的元组。
+
+几种不同的异常处理方式：
+
+| Base Type | Success Case | Failure Case |
+| --------- | ------------ | ------------ |
+| Option    | Some         | None         |
+| Try       | Success      | Failure      |
+| Or        | Good         | Bad          |
+| Either    | Right        | Left         |
+
+如果方法返回的是列表，那么需要保证没有元素时应该返回 Nil 空列表，以保证一致性：
+
+```scala
+def doSomething(list: List[Int]): List[Int] = {
+    if (someTestCondition(list)) {
+        // return some version of `list`
+    } else {
+        // return an empty List
+        Nil: List[Int] // 可以简写为 Nil，在 Scala 中只有一种 Nil，不具有类型
+    }
+}
+```
+
+### 参数化多态
+
+如果函数的参数类型均是确定的，那么这个函数就是单态的（monomorphic）。单态函数只能处理对应类型的参数。如果希望函数可以处理任何类型，那么就是多态函数（polymorphic function），也被称为参数化多态（参数具有匹配任何类型的能力）。
+
+注意这里的多态和面向对象中的多态不同，面向对象里的多态是发生在引用继承类对象上。
+
+```scala
+// findFirst 可以匹配任意类型的数组
+def findFirst[A](as:Array[A], f: (A) => Boolean):Int={
+	@tailrec
+	def loop(i:Int): Int ={
+		if(i >= as.length) -1
+		else if(f(as(i))) i
+		else loop(i + 1)
+	}
+
+	loop(0)
+}
+
+val as = Array[Int](1,2,3,4)
+println (findFirst(as, (_:Int) == 2)) // 传入匿名函数
+```
+
+上例是一个多态函数，也称为泛型函数（generic function）。多态函数是对参数类型的
+
+抽象化。函数名后 [] 中使用逗号分隔的类型参数（type parameter）来抽象类型。可以使用任何合法的标识符作为类型参数，但是习惯上使用单个大写字母来命名，例如 [A, B, C]。
+
+类型变量可在参数列表中和函数体内部使用。
+
+###函数组合
+
+集合参数多态，函数可以任意组合，例如柯里化和反柯里化：
+
+```scala
+// 柯里化三个参数的函数
+def curry[A,B,C](f: (A, B) => C): A => (B => C) = {
+	a:A => ((b:B) => f(a, b))
+}
+
+// 反柯里化
+def uncurry[A,B,C](f: A => B => C): (A, B) => C = {
+	(a: A, b: B) => f(a)(b)
+}
+
+// 两函数组合，等价于Scala自带的 andThen
+def compose[A,B,C](f: B => C, g: A => B): A => C = {
+	(a:A) => f(g(a))
+}
+```
+
+体会函数结合的应用：
+
+```scala
+val a = compose((_:Double).toInt, (_:Int).toString)
+println(a(3.1415))
+```
+
+
+
 ### 传名和传值参数
 
 传名（call-by-name）和传值（call-by-value）参数是变量作为参数传递给方法时是否预先求值：
@@ -1531,7 +1947,7 @@ def flatMap[B](f: A => Sequence[B]): Sequence[B]
 scala> def funByValue(x:Int):Int = {println("in function"); 2 * x }
 funByValue: (x: Int)Int
 
-// 传名参数，无需给出参数类表
+// 传名参数，无需给出参数类型
 scala> def funByName(x: => Int):Int = {println("in function"); 2 * x }
 funByName: (x: => Int)Int
 
@@ -1567,7 +1983,7 @@ java.lang.AssertionError
   at .myAssert(<console>:11)
   ... 28 elided
 
-// 定义成传递函数
+// 定义成传值函数
 scala> def myAssert(boolBlock: () => Boolean) = if(!boolBlock())throw new AssertionError
 myAssert: (boolBlock: () => Boolean)Unit
 
@@ -1583,7 +1999,7 @@ java.lang.AssertionError
 
 #### 延迟求值
 
-def：类似于每一次重新赋值，如果用 def 定义函数，则是每一次重新获得一个函数，做call-by-name操作。
+def：定义时不求值，每次使用时都重新求值。如果用 def 定义函数，则是每一次重新获得一个函数，做call-by-name操作。
 
 ```scala
 // def 定义变量，指向一个代码块
@@ -1785,8 +2201,6 @@ scala> addCurried(1)(2)
 res9: Int = 3
 ```
 
-
-
 ### 过程
 
 没有返回值的函数被称为过程（procedure），实际上过程返回Unit类型的()，只是定义的时候可以不显式地指明返回值，并且省去 = 号：
@@ -1802,6 +2216,8 @@ scala> box("hello")
 |hello|
 -------
 ```
+
+更普遍地，过程用于描述会产生副作用的函数。
 
 ##偏函数
 
@@ -2372,6 +2788,7 @@ tuple: (Int, String) = (1,string) // 类型是一个 tuple2 元组 (Int, String)
 Scala使用元组进行多变量定义和初始化：
 
 ```scala
+// var a,b,c = 1,"str",false 是错误的
 scala> var (a,b,c) = (1,"str",false)
 a: Int = 1
 b: String = str
@@ -2400,6 +2817,34 @@ scala> val (a,_,b) = (1,2,3)
 a: Int = 1
 b: Int = 3
 ```
+
+_* 匹配 0 到 多个：
+
+```scala
+scala> val Array(a, b, _, c @ _*) = Array(1, 2, 4, 5, 6, 7)
+
+a: Int = 1
+b: Int = 2
+c: Seq[Int] = Vector(5, 6, 7)
+```
+
+注意与如下情况区分，多变量都被赋同一初始值：
+
+```scala
+// 多变量赋同一初始值
+scala> var a,b,c = (1,"str",false)
+a: (Int, String, Boolean) = (1,str,false)
+b: (Int, String, Boolean) = (1,str,false)
+c: (Int, String, Boolean) = (1,str,false)
+```
+
+可以用以下方式获取集合元素，注意类型需实现 unapply 方法：
+
+```scala
+val List(a,b,c) = List(1,2,3)
+```
+
+
 
 ### 多值返回
 
@@ -2660,9 +3105,9 @@ f: scala.collection.immutable.Set[Int] = Set(1)
 
 ##函数式编程
 
-### 副作用函数
+### 副作用
 
-副作用（side-effects ）的概念：一个带有副作用的函数不仅只是简单的返回一个值，还干了一些其他的事情（返回值是它的一个作用，而其他的作用就是副产品，所以称为副作用），比如: 
+副作用（side-effects ）的概念：一个带有副作用的函数不仅只是简单的返回一个值，还做了一些额外的事情（返回值是它的一个作用，而其他的作用就是副产品，所以称为副作用），比如: 
 
 - 修改了外部变量
 
@@ -2673,7 +3118,7 @@ f: scala.collection.immutable.Set[Int] = Set(1)
 - 读取或写入一个文件
 - 在屏幕上绘画
 
-当函数没有副作用，那么我们就说这个函数符合函数式编程（FP），也即是纯函数。 函数式编程强调没有"副作用"，意味着函数要保持独立，所有功能就是依据参数值返回一个新的值，没有其他行为，不会破坏程序运行环境，不会影响自身和其他函数的运行。
+当函数没有副作用，那么我们就说这个函数符合函数式编程（FP），也即是纯函数。 函数式编程强调没有"副作用"，意味着函数要保持独立，所有功能就是依据参数值返回一个新的值，没有其他行为，不会破坏程序运行环境，不会影响自身和其他函数的运行。纯函数是引用透明的，也即任何调用的函数的地址用函数的结果（返回值）替换均不会改变程序的行为。这被称为替代模式（substitution model）。
 
 以下函数是纯函数：
 
@@ -2697,6 +3142,22 @@ def addOne(i: Int) = {
 ```
 
 纯函数在给定的输入参数下，总是返回相同的结果，并且没有产生副作用的动作：例如对入参进行修改（修改外界的值），IO 操作等。
+
+```scala
+// 一个具有副作用的函数，打印提示
+scala> def addOne(i:Int):Int = {println("do AddOne"); i + 1}
+addOne: (i: Int)Int
+
+scala> addOne(1) + 1
+do AddOne
+res91: Int = 3
+
+// 显然不能使用替换模式，因为我们丢失了副作用：打印一行提示
+scala> (1 + 1) + 1
+res92: Int = 3
+```
+
+
 
 ###函数式
 
@@ -3102,7 +3563,7 @@ scala> p.name
 <console>:14: error: value name is not a member of Person
 ```
 
-与普通类不同，样例类默认类参数（主构造器参数）为 public val 类型，可以直接实例化，并直接访问成员变量：
+与普通类不同，样例类默认类参数（主构造器参数）为 public val 类型，可以直接实例化为公共成员（public field），可以从外部访问成员变量：
 
 ```scala
 // 使用 case 关键字定义样例类，类参数默认为 public val 类型
@@ -3404,8 +3865,6 @@ object learnScala {
 */
 ```
 
-
-
 ###孤立对象
 
 没有同名的伴生类的单例对象称为孤立对象（standalone object）。孤立对象用途很广，例如入口程序，将工具方法归集在一起。
@@ -3429,7 +3888,88 @@ import Predef._ // 默认导入预定义单例中的所有方法
   def println(x: Any) = Console.println(x)
 ```
 
+### 抽象类和特质
 
+**抽象类**（Abstract class）
+
+抽象类，定义了一些方法但没有实现它们。扩展抽象类的子类定义这些方法。不能创建抽象类的实例。**只能扩展一个抽象类**。
+
+**特质（Traits）**
+
+特质是一些字段和行为的集合，可以扩展或混入（mixin）到类中，通过with关键字，一个类**可以扩展多个特质**。
+
+这两种形式都可以让你定义一个类型的一些行为，并要求继承者定义一些其他行为。一些经验法则：
+
+
+1.优先使用特质。一个类扩展多个特质是很方便的，但却只能扩展一个抽象类。
+
+2.如果你需要构造函数参数，使用抽象类。因为抽象类可以定义带参数的构造函数，而特质不行。
+
+#### 抽象类
+
+```scala
+abstract class Element{
+	def contents:Array[String]
+}
+```
+
+abstract 修饰符表明 Element 类可以定义没有实现的抽象成员。不可实例化一个抽象类。
+
+另一种称呼：这里只进行了声明（declaration），具体（concrete）的方法定义（definition）在扩展它的子类中进行。
+
+
+
+
+
+## 附录
+
+### 打印编译结果
+
+```
+scalac -Xprint:parse Test.scala
+```
+
+通过产看中间编译结果，可以了解语句结构的本质。例如：
+
+```scala
+class Test {
+    val sum = for {
+        a <- makeInt("1")
+        b <- makeInt("2")
+        c <- makeInt("3")
+        d <- makeInt("4")
+    } yield a + b + c + d
+
+    def makeInt(s: String): Option[Int] = {
+        try {
+            Some(s.trim.toInt)
+        } catch {
+            case e: Exception => None
+        }
+    }
+}
+
+// scalac -Xprint:parse Test.scala
+val sum = makeInt("1").flatMap(
+  ((a) => makeInt("2").flatMap(
+    ((b) => makeInt("3").flatMap(
+      ((c) => makeInt("4").map(
+        ((d) => a.$plus(b).$plus(c).$plus(d)))))
+      )
+    )
+  )
+);
+```
+
+显然 for 在 Scala 中的角色不再局限于 for loop（循环）结构，而是有更大用途。
+
+### 参考
+
+Twitter Scala School 	http://twitter.github.com/scala_school/    
+
+Scala 最佳实践 https://github.com/alexandru/scala-best-practices
+
+Scala 99 道练习题 http://aperiodic.net/phil/scala/s-99/
 
 
 
