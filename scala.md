@@ -243,7 +243,7 @@ val x = FOO {(a:String)=>
 | :::     | list1 ::: list2                                              | 拼接列表对象                                                 |
 | _N      | tuple._1                                                     | 访问元组元素，N 从1开始， 元组中的元素类型可以不同 ，所以不能使用统一的 () 运算符（apply函数） |
 | :+和+:  | val ac = 1 +: 2.2 +: 'f +: Nil             val ca = Nil :+ "scala" :+ 2 :+ true | **:+ 和 +:**  其中  `:+` 方法用于在尾部追加元素， `+:` 方法用于在头部追加元素 ** |
-| ++      | "scala" ++ "java"                                            | 类似:::，++ 方法除了连接集合还可以连接字符串                 |
+| ++      | "scala" ++ "java"/ Array(1,2) ++ Array(3,4)                  | 类似:::，++ 方法除了连接集合还可以连接字符串/ 拼接数组       |
 | /: , :\ |                                                              | 分别对应 foldLeft 和 foldRight 函数                          |
 | ==      | a == true                                                    | 调用对象 equals 方法                                         |
 | _       | val add = (_:Int) + 1                                        | 匿名函数占位符                                               |
@@ -547,6 +547,16 @@ scala> b.toDouble
 res5: Double = 1.234567891E9
 ```
 
+### 定义值类
+
+所以值类均继承 AnyVal 父类，它只能有一个 val 的参数：
+
+```scala
+case class Dollars(val amount:Int) extends AnyVal{
+	override def toString() = "$" + amount
+}
+```
+
 
 
 ###字面量
@@ -768,6 +778,56 @@ res23: String = 1 string
 
 这在 Python 中是不被允许的，必须显式转换（Explicit Type Conversion），格式为 str(1) + " string"。
 
+### 值和引用比较
+
+进行值的比较使用 == 或者 !=，等价于调用对象的 equals 方法。如果左侧是引用类型的对象，例如 null 则调用引用比较。
+
+对于引用类型可以进行值比较，也可以进行引用比较，实用 eq 或者 ne 方法。
+
+```scala
+// 值类型(基础类型)比较，scala 中的值类型均是抽象类型和单例实现，不支持 new 操作符
+scala> val (a,b) = (1,1)
+a: Int = 1
+b: Int = 1
+
+scala> a == b
+res39: Boolean = true
+
+// 值类型不支持引用比较
+scala> a eq b
+<console>:14: error: the result type of an implicit conversion must be more specific than AnyRef
+       a eq b
+```
+
+引用类型既支持值比较，也支持引用比较：
+
+```scala
+// 使用 Java 的基本类型，支持 new 操作符
+scala> val a = new Integer(1)
+a: Integer = 1
+
+scala> val b = new Integer(1)
+b: Integer = 1
+
+// 比较
+scala> a == b
+res41: Boolean = true
+
+// 引用比较
+scala> a eq b
+res42: Boolean = false
+```
+
+查看 Scala 中 Int 值类型的定义：
+
+```scala
+// 抽象类，定义了 Int 值类型的各种方法，例如 +, toLong
+final abstract class Int private extends AnyVal
+
+// 定义静态函数，常量等，例如 MinValue，int2long
+object Int extends AnyValCompanion
+```
+
 ### 官网文档错误
 
 1. https://docs.scala-lang.org/zh-cn/tour/basics.html
@@ -789,6 +849,39 @@ res23: String = 1 string
 使用`private`访问修饰符可以在函数外部隐藏它们。 
 
 使用`private`访问修饰符可以在类外部隐藏它们。 
+
+### 类型系统
+
+scala 里的类型，除了在定义`class`，`trait`，`object`时会产生类型，还可以通过`type`关键字来声明类型。
+
+type 相当于声明一个类型别名：
+
+```scala
+scala> type S = String
+defined type alias S
+
+scala> val str:S = "hello"
+str: S = hello
+
+scala> val str1:String = "hello"
+str1: String = hello
+
+// 引用比较是一致的，所以 hashCode 是一样的
+scala> str eq str1
+res123: Boolean = true
+```
+
+type 可以定义一个复杂类型：
+
+```scala
+scala> type T = Serializable {
+ |          type X
+ |          def foo():Unit
+ |     }
+defined type alias T
+```
+
+
 
 ## 控制结构
 
@@ -2223,7 +2316,7 @@ scala> box("hello")
 
 在Scala中，被“{}”包含的一系列case语句可以被看成是一个函数字面量，它可以被用在任何普通的函数字面量适用的地方。  多个 case 语句可以组合成一个偏函数。
 
-偏函数(Partial Function)，是一个数学概念它不是"函数"的一种, 它跟函数是平行的概念。  Scala中的Partia Function是一个Trait，其的类型为PartialFunction[A,B]，其中接收一个类型为A的参数，返回一个类型为B的结果。 
+偏函数(Partial Function)，是一个数学概念它不是"函数"的一种, 它跟函数是平行的概念。  Scala中的Partial Function是一个Trait，其的类型为PartialFunction[A,B]，其中接收一个类型为A的参数，返回一个类型为B的结果。 
 
 Scala 中的偏函数不是函数，这与 Python 中的偏函数（等价于 Scala中的偏应用函数）不同。
 
@@ -3543,6 +3636,100 @@ object learnScala {
 
 **只有主构造器才能调用超类的方法**，辅助构造器必须首先调用主构造器或者其他构造器，这和 Java 不同。
 
+#### 隐藏主构造器
+
+如果想隐藏主构造器，而只对外暴露辅助构造器，可以通过私有化构造器来达到隐藏目的，此时只可以在辅助构造中间接使用它：
+
+```scala
+// 在函数名后添加 private，私有化主构造器达到隐藏主构造器的目的
+class Person private (var name:String, var age:Int) {
+    // 只需要指定名字
+	def this(name:String){
+		this(name, 20)
+	}
+	// 只需要指定年龄
+	def this(age:Int){
+		this("Jack", age)
+	}
+    
+    override def toString():String = {
+		"Person(" + name + "," + age + ")"
+	}
+}
+```
+
+尝试直接访问主构造器，将报错：
+
+```scala
+val p = new Person("Jack", 10)
+
+Error:(303, 11) overloaded method constructor Person4 with alternatives:
+  (age: Int)Person <and>
+  (name: String)Person
+ cannot be applied to (String, age: Int)
+		val p = new Person4("Jack", age=10)
+```
+
+错误信息给出了明确的提示，可以使用重载的两个方法，而不能使用  (String, age: Int)。这样调用辅助构造器就不会再报错：
+
+```scala
+val p = new Person4("Jack")
+println(p)
+
+Person(Jack,20)
+```
+
+另一种方式是通过伴生对象中定义工厂方法 apply 来实现，这样无需 new 关键字来构建对象：
+
+```scala
+object Person{
+  def apply(name:String, age:Int):Person={
+  	new Person(name, age) // 伴生对象中可以引用类中私有成员：主构造器
+  }
+}
+
+// 无需 new 关键字
+val Jack = Person("Jack", 20)
+println(Jack)
+Person(Jack,20)
+
+// 由于我们并没有删除辅助构造器，所以依然可以使用如下方法创建新对象
+val Jack = new Person("Jack")
+```
+
+#### 私有类
+
+通过私有构造方法和私有成员只是隐藏类的初始化和内部表现形式的一种方式，另一种更激进的方式是隐藏类本身，并且只暴露一个反应类的共有接口的特质。
+
+```scala
+trait Person{  // 定义特质对外暴露接口
+  def show
+}
+
+object Person{
+    // 定义私有的实现类，并扩展特质
+	private class PersonImp (var name:String, var age:Int) extends Person {
+		override def toString():String = {
+			"Person(" + name + "," + age + ")"
+		}
+		
+		def show(): Unit ={
+			println(name + ", " + age)
+		}
+	}
+	
+    // 定义工厂方法
+	def apply(name:String, age:Int):Person = {
+		new PersonImp(name, age)
+	}
+}
+
+val Jack = Person("Jack", 10)
+Jack.show
+```
+
+此种方法隐藏了整个实现类，而只对外暴露用户可用由特质定义的接口。
+
 #### 样例类
 
 样例类（Case Class）也被称为案例类，除了自动生成主构造器外，还会自动生成伴生对象，并在伴生对象中实现 apply 函数，所以无需使用 new 实例化，默认类参数为 var 类型，无需声明。
@@ -3619,6 +3806,16 @@ oldJack: Person = Person(Jack,50)
 ```
 
 可以说样例类是Scala 为模式匹配专门设计的类类型。也即当需要对某类实例进行模式匹配时，在类定义时添加 case 关键字。
+
+#### case关键字
+
+case 关键词只用来修饰  class 和object，也就是说只有case class 和case object的存在，而没有case trait 这一说。
+
+case object有toString,hashCode,copy,equals方法，而缺少了apply、unapply方法 。
+
+case class 经常可以用于解析和提取。
+
+有参用 case class，无参用 case object。
 
 ###模式匹配
 
@@ -3766,7 +3963,7 @@ res175: (Int, Int) => Int = $$Lambda$1947/845305433@6ec9aa1
 
 Scala 类中不允许静态（static）成员，所以无法直接使用类名调用类方法。与此对应，Scala 提供单例对象（singleton object），使用 object 关键字定义。
 
-单例对象在第一次被访问时才会被初始化，来自于scala自带的predef包。 单例对象不能接收参数，也不能用 new 实例化单例对象。
+单例对象在第一次被访问时才会被初始化，例如来自于scala自带的predef包。 单例对象不能接收参数，也不能用 new 实例化单例对象。
 
 ```scala
 object SingletonObject{
@@ -3886,6 +4083,16 @@ import Predef._ // 默认导入预定义单例中的所有方法
 
 // Predef.scala 中对 println 的定义：
   def println(x: Any) = Console.println(x)
+
+// 可以把一系列的公用方法定义在孤立对象中，这些方法在 import 后像使用普通函数一样，无需通过对象调用，哪些不需要绑定 this 的通用方法均可以这样实现，例如 scala.math 就是一个孤立对象
+package object A{
+    def add(a:Int, b:Int):Int={
+        a + b
+    }
+}
+
+import A
+println(add(1, 2))
 ```
 
 ### 抽象类和特质
@@ -3909,15 +4116,148 @@ import Predef._ // 默认导入预定义单例中的所有方法
 
 ```scala
 abstract class Element{
-	def contents:Array[String]
+	def contents:Array[String] // 使用数组表示一列数据    
 }
 ```
 
 abstract 修饰符表明 Element 类可以定义没有实现的抽象成员。不可实例化一个抽象类。
 
-另一种称呼：这里只进行了声明（declaration），具体（concrete）的方法定义（definition）在扩展它的子类中进行。
+另一种称呼：这里只进行了声明（declaration），具体（concrete）的方法定义（definition）在扩展它的子类中进行。当然抽象类中也可以定义方法：
 
+```scala
+abstract class Element{
+	def contents:Array[String]       
+	def height:Int = contents.length // 列高度
+	def width:Int = if(height == 0)0 else contents(0).length // 列宽度
+}
+```
 
+上面省略了无参数时的小括号，这种无参方法(parameterles method)在 Scala 中很常见，当然也可以改写成字段访问：
+
+```scala
+abstract class Element{
+	def contents:Array[String]       
+	val height:Int = contents.length // 列高度
+	val width:Int = if(height == 0)0 else contents(0).length // 列宽度
+}
+```
+
+省略小括号可以保持统一访问原则（uniform access principle）。也即调用无参方法和访问字段一样无需使用小括号，def 定义和 val 定义时等价的，只是一个是编译时计算，一个是运行时计算。
+
+如果方法具有副作用，那么就不要忽略小括号，以免误认为这是一个字段访问。
+
+#### 扩展抽象类
+
+```scala
+class ArrayElement(conts: Array[String]) extends Element {
+    override def contents: Array[String] = conts
+}
+```
+
+ArrayElement类扩展了抽象类Element，并实现了contents方法。如果抽象类中实现了某个方法，那么子类中再次实现它，就称为重写（overwrite）方法。
+
+Java 有四个命名空间：字段，方法，类型和包。
+
+Scala有两个命名空间：值（字段，方法，包和单例对象）和类型（类和特质名）
+
+#### 特质
+
+特质（trait）是Scala 代码复用的基础单元，它将方法和字段定义封装起来，然后被混入 （mixin）类的方法来实现复用。
+
+与类继承最大不同：只能继承一个类，但是可以混入任意数量的特质。两种最常见的适用场景：
+
+- 将“瘦”接口拓宽为“富”接口
+- 定义可叠加的修改
+
+定义特质与定义类很像，除了适用关键字 trait 代替 class:
+
+```scala
+trait Philosophical {
+    def philophize() = {
+        println("I consume memory, therefore I am!")
+    }
+}
+
+class Frog extends Philosophical{
+  override def toString(): String = "green"
+}
+```
+
+特质可以做任何在类定义中做的事，语法也完全相同，除了以下两种情况:
+
+- 特质不能有任何“类”参数，所以不支持有参数的主构造器
+- 类中的 super 调用时静态绑定的，而特质中是动态绑定的
+
+如果特质只有抽象方法，它会被直接翻译成 Java 的接口。
+
+### 泛型
+
+```scala
+val sl = List[Char]('a','b','c')
+val il = List[Int](1,2,3)
+```
+
+以上定义了 Char 和 Int 型的两个列表。显然 List 类型并没有为每种类型单独定义列表类型，当然这也是不现实的，用户自定义的类型是不可能事先预知的，这些类实例显然可以作为列表的元素。
+
+List[Char] 是一个类型：元素为Char的列表。List则被称为类型构造方法（type constructor），可以通过指定类型参数来构造一个类型（就像通过指定参数来构造对象实例的普通构造方法一样）。
+
+可以接收类型参数的类和特质是“泛型”（generic）的，但是它们的类型是“参数化”的，而不是泛型的。“泛型”的意思是用一个泛化的类或特质来定义许许多多具体的类型，例如 List[Char]，List[Int]。
+
+#### 协变和逆变
+
+考虑以下问题：如果 S 是类型 T 的子类型，那么 List[S] 是不是 List[T] 的子类型？比如 String 是 AnyRef 的子类型，那么 List[String] 是不是可以当做 List[AnyRef] 的子类型？如果是，那么就说List在类型参数 T 上是协变的（convariant），或者说“灵活的”。
+
+“应不应该“ 是如何定义的呢？实际上它是语言本身的特性，可以定义默认值，也可以让用户自定义。
+
+Scala 中，泛型类型默认的子类型规则是不变的（nonvariant），或者说“刻板的”。所以一个处理 List[AnyRef] 类型参数的函数并不接受 List[String] 参数。
+
+```scala
+val sl = List[String]("abc", "123")
+val il = List[AnyRef]("AnyRef0", "AnyRef1")
+		
+def handListAnyRef(l:List[AnyRef]): Unit ={
+	println(l.mkString(","))
+}
+
+// 理论上应该报错，实际上没有
+handListAnyRef(sl)
+```
+
+上例在理论上应该报错，然而却没有，为什么？这是因为内建的 List 类型自动被定义为协变的：
+
+```scala
+// scala.collection.immutable List.scala
+sealed abstract class List[+A] extends AbstractSeq[A]
+                                  with LinearSeq[A]
+                                  with Product
+                                  with GenericTraversableTemplate[A, List]
+                                  with LinearSeqOptimized[A, List[A]]
+                                  with scala.Serializable {
+```
+
+类型形参 A 前面的 + 表示子类型关系在这个参数上是协变的。同样 - 号作为前缀时，表示逆变（contravariance）的子类型关系。不添加任何符号，则表示是默认值，是不变的。
+
+`sealed abstract class List[-A]` 则表示 List[AnyRef] 将成为 List[String]的子类型，实现了类型逆转。类型参数是协变的，逆变的还是不变的，被称作类型参数的型变（variance）。而放在类型参数旁边的 + 和 - 被称作型变注解（variacne annotation）。
+
+在 Scala 中数组被定义为不变的，将上例中的 List 改为 Array 将报错：
+
+```scala
+val sa = Array[String]("abc", "123")
+val ia = Array[AnyRef]("AnyRef0", "AnyRef1")
+
+def handArrayAnyRef(l:Array[AnyRef]): Unit ={
+	println(l.mkString(","))
+}
+
+handArrayAnyRef(sa)
+
+Error:(349, 19) type mismatch;
+ found   : Array[String]
+ required: Array[AnyRef]
+Note: String <: AnyRef, but class Array is invariant in type T.
+You may wish to investigate a wildcard type such as `_ <: AnyRef`. (SLS 3.2.10)
+		handArrayAnyRef(sa)
+```
 
 
 
