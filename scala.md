@@ -4192,6 +4192,10 @@ class Frog extends Philosophical{
 
 ### 泛型
 
+**泛型类**：指定类可以接受任意类型参数。 
+
+**泛型方法**：指定方法可以接受任意类型参数。参数多态也称为泛型方法。
+
 ```scala
 val sl = List[Char]('a','b','c')
 val il = List[Int](1,2,3)
@@ -4259,7 +4263,204 @@ You may wish to investigate a wildcard type such as `_ <: AnyRef`. (SLS 3.2.10)
 		handArrayAnyRef(sa)
 ```
 
+#### 协变点和逆变点
 
+总结：在声明Scala的泛型类型时，“+”表示协变，而“-”表示逆变。
+
+> - C[+T]：如果A是B的子类，那么C[A]是C[B]的子类。
+> - C[-T]：如果A是B的子类，那么C[B]是C[A]的子类。
+> - C[T]：无论A和B是什么关系，C[A]和C[B]没有从属关系。
+
+在面向对象的语言程序设计中，有一些基本原则，其中的里氏替换原则（LiskovSubstitution Principle， LSP ）是继承和复用的基石：
+
+```scala
+通俗点讲， 只要父类能出现的地方子类就可以出现， 而且替换为子类也不会产生任何错误或异常， 使用者可能根本就不需要知道是父类还是子类。 但是，反过来就不行了， 有子类出现的地方， 父类未必就能适应。
+```
+
+Scala 编译器会自动检查编码是否违反里氏替换原则。例如：
+
+```scala
+class A[+T](t: T) {
+    def func(x: T) {}
+}
+
+// 编译器报错：协变的参数类型 T 出现在了逆变类型 x 的位置上
+Error:(352, 12) covariant type T occurs in contravariant position in type T of value x
+```
+
+如果以上可以编译，那么对于 A[AnyRef] 和 A[String] 这两个父子类型来说，func方法分别对应：
+
+- 父类型 A[AnyRef] 中的方法 func(x: AnyRef){}
+- 子类型 A[String] 中的方法 func(x: String){}
+
+根据里氏替换原则，所有使用父类型对象的地方都可以换成子类型对象。假设这样使用父类：
+
+```scala
+father.func(notString)
+```
+
+替换为子类：
+
+```scala
+child.func(notString)
+```
+
+但是子类中的 func 方法只能接收 String 类型的参数。之前父类型的 func 可以接收 `AnyRef`类型的参数，是一个更广的范围。而子类型的 func 却只能接收`String`这样更窄的范围。显然这不符合里氏替换原则，因为父类做的事情，子类不能完全胜任，只能部分满足，是无法代替父类型的。 
+
+所以要想符合里氏替换，子类型中的 func 函数参数类型必须是父类型中函数参数的超类（至少跟父类型中的参数类型一致），这样才能满足父类中 func 方法可以做的事情，子类中func 方法也都可以做。 
+
+**正是因为需要符合里氏替换原则**，方法中的参数类型声明时必须符合**逆变**（或**不变**），以让子类方法可以接收更大的范围的参数(处理能力增强)；而不能声明为**协变**，子类方法可接收的范围是父类中参数类型的子集(处理能力减弱)。 
+
+方法参数的位置称为做逆变点(contravariant position)。所以上面声明类型参数A是协变的，用在方法参数中时会编译报错，声明A是逆变(或不变)时则符合里氏替换原则不再报错。 
+
+```scala
+class A[-T](t: T) {
+    // 方法参数是逆变的
+    def func(x: T) {}
+}
+```
+
+现在看看什么是协变点(covariant position)，还用上面的例子，稍微修改一下： 
+
+```scala
+class A[-T] {       // 编译会报错     
+  def func(): T = { // 返回值类型是 T 
+    null.asInstanceOf[T] 
+  }
+}
+```
+
+使用LSP法则替换：
+
+- 父类型 In[AnyRef] 中的方法 func() 得到结果 AnyRef
+- 子类型 In[String] 中的方法 func() 得到结果 String
+
+这是很容易理解的，子类方法得到的结果比父类更“具象”一些，也就是说子类方法的处理能力更强一些。如果结果类型是逆变的，那子类方法的处理能力是减弱的，不符合里氏替换。
+
+方法返回值的位置称为协变点(covariant position)。同理，A类型声明协变(或不变)，编译时符合要求；声明逆变则报错。以上定义改为：
+
+```scala
+class A[+T] {
+  def func(): T = { // 返回值类型是 T 
+    null.asInstanceOf[T] 
+  }
+}
+```
+
+#### 泛型类中的方法
+
+由于泛型中协变和逆变的存在，对方法调用时，方法中的 T 就要基于调用它对象（this）的 T 来判断，例如：
+
+```scala
+class A[+T](t: T) {
+    def func(x: T) {}
+}
+
+// 编译器报错：协变的参数类型 T 出现在了逆变类型 x 的位置上
+Error:(352, 12) covariant type T occurs in contravariant position in type T of value x
+```
+
+要解释这个问题，需要理解协变点和逆变点的概念。我们可以考虑这样一种情况来解释程序为什么报错:
+
+- 既然`A`的类型参数T是协变的，那么`A[AnyRef]`是A`[String]`的父类，`A[AnyRef]`对应的`func`为`func(AnyRef)`，`A[String]`对应的`func`为`func(String)`.
+
+- 我们定义`father`是一个`A[AnyRef]`实例，`child`是`A[String]`实例。当我定义了另一个函数`g`，`g`的参数为`A[AnyRef]`，因此`g(father)`当然是没有问题的，又因为`child`是`father`的子类，因此按理来说`g(child)`也是没有问题的，但是`father`的`func`可以接受`AnyRef`类型的参数，而`child`的`func`只能接受`String`类型的参数。
+
+- 因此，如果编译器允许用`child`替换`father`，那么替换后`g`中的参数调用`func`就只能传入`String`类型的参数了，相当于`g`的处理范围缩小了。所以编译器不允许这种情况，因此会报错。反过来一想，如果传入的是`father`的父类，那么`g`的处理范围就变大了，所有适用于`father`的情况都适用于`father`的父类，因此，如果把A的类型参数`T`声明为逆变的，就不会有问题了。 
+
+  ```scala
+  class A[-T](t: T) {
+      def func(x: T) {}
+  }
+  ```
+
+  
+
+显然问题出在子类型或者父类型调用方法时，它可接受的参数类型范围和函数的声明类型协变后的范围不符合。
+
+总结：传入`A`的类型参数会作为`A`中方法的参数的类型(如果有参数的话)，我们知道一个方法中如果有类型为`X`的参数，那么这个方法可以接受类型为`X`的子类的参数。同理上面的情况，`func`原来可以接受类型为`AnyRef`及`AnyRef`的子类作为参数，但是如果一协变，那么`func`就只能接受类型为`String`及`String`的子类作为参数，作用范围减小了。 
+
+![](conv.png)
+
+因此方法的参数的位置被称为**逆变点**，`A`中的类型参数声明为协变，因此编译时出错，声明为协变则没有问题。 而方法返回值的位置被称为**协变点**，同样考虑上面的情况： 
+
+```scala
+class A[+T] {
+  def func(): T = {
+    null.asInstanceOf[T]
+  }
+}
+```
+
+也是考虑`father:A[AnyRef]`和`child:A[String]`，当用`child`替换`father`后，`child`的`func`方法会返回`String`类型的对象来替换`AnyRef`，因此是合理的。 
+
+#### 上界和下届
+
+在指定泛型类型时，有时需要界定泛型类型的范围，而不是接收任意类型。比如，要求某个泛型类型，必须是某个类的子类，这样在程序中就可以放心的调用父类的方法，程序才能正常的使用与运行。此时，就可以使用上下边界 Bounds 的特性； 
+
+Scala的上下边界特性允许泛型类型是某个类的子类，或者是某个类的父类；
+
+**(1) U >: T**
+
+这是类型下界的定义，也就是U必须是类型T的父类(或本身，自己也可以认为是自己的父类)。
+
+**(2) S <: T**
+
+这是类型上界的定义，也就是S必须是类型T的子类（或本身，自己也可以认为是自己的子类)。
+
+```scala
+class GranderFather
+class Father extends GranderFather
+class Son extends Father
+class Friend extends Son
+
+object Card{
+    // 下边界定义：可以向下处理到子类 Son
+	def getIDCard[T >: Son](person:T): Unit ={
+		println("OK, Here you are")
+	}
+	
+	def main(args: Array[String]): Unit = {
+		getIDCard[GranderFather](new GranderFather)
+		getIDCard[GranderFather](new Father)
+		getIDCard[GranderFather](new Son)
+        
+        // 错误，只能向下处理
+        //getIDCard[Father](new GranderFather)
+        // 正确
+        getIDCard[Father](new Son)
+	}
+}
+```
+
+定义上边界，也即定义父类的处理范围：
+
+```scala
+object Card{
+	def getIDCard[T <: Son](person:T): Unit ={
+		println("OK, Here you are")
+	}
+	
+	def main(args: Array[String]): Unit = {
+		// 报错，上届是 Son 类型
+         // getIDCard[Son](new Father)
+         getIDCard[Son](new Son)
+		getIDCard[Son](new Friend)
+	}
+}
+```
+
+当定义上下界后，方法参数范围受到两种约束：继承约束和边界越苏。
+
+使用上下界同样可以解决方法中的逆变和协变问题，例如：
+
+```scala
+class Consumer[+T, U](t: T) {
+    def use[T <: U](x: T) {}
+}
+```
+
+明确上届类型为 U，编译不再报错。
 
 ## 附录
 
